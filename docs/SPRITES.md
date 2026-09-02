@@ -480,3 +480,90 @@ plate width so it tiles as the room scrolls.
 **Filtering, again:** every one of these is pixel art and needs
 `texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST` on the node. The project default is
 Linear and must stay Linear for the character — see §8.
+
+### 8b. Stage 1 — what was actually generated
+
+The sky is in. The boardwalk tileset was generated and paid for but **cannot be
+downloaded from this environment** — see the blocker at the end of this section.
+
+| # | Asset | State | Job / id |
+| --- | --- | --- | --- |
+| 1 | boardwalk planks + rail | generated, **not downloadable** | tileset `2e44791f-404c-4174-81fe-bc2f6a082215` |
+| 2 | dawn sky + low sun | **done** — `assets/backgrounds/dawn_boardwalk/sky.png` | image `ceaaa4c7-f3a3-46ef-a24c-bf9107204ad2`, seed 10511 |
+| 3–5 | skyline, water, foreground | not started | — |
+
+Six of the 40 trial generations spent (3 on the tileset, 3 on the sky).
+
+**The mixed-style question from §8 is settled: it works.** `art_preview.tscn`
+puts the backdrop behind the M1 tuning room, and a smooth anti-aliased character
+against flat banded pixel sky reads as a deliberate choice, not as two games
+spliced together. Generate the remaining plates.
+
+#### The sky took three attempts, and the fix was not a better prompt
+
+`create_image_pixflux` will not draw a sky. Asked for one it draws a *landscape*:
+attempt 1 returned mountains and a lake, attempt 2 a hill ridge, attempt 3 hills
+and a treeline. Negative phrasing ("no ground, no mountains, no horizon") did not
+help and `text_guidance_scale` 15 did not help — a bare sky is not a picture, and
+the model composes a picture.
+
+What worked was to stop fighting it. Ask for a 400x400 sunrise over water, which
+it draws happily and well, then take the sky out of it:
+
+- crop source rows 72–311 to a 400x240 window;
+- rows 72–241 are real generated sky and are untouched;
+- the generated sea below the horizon is replaced with flat bands continuing the
+  gradient, because **the horizon has to come from the water plate, not from the
+  sky plate** — they scroll at 0.4 and 0.05 and a horizon baked into the sky
+  would slide against the real one;
+- the sun sits exactly on the source's horizon, so only its top half exists. It
+  is a single flat colour (251, 234, 141) on a clean disc, so the bottom half is
+  its top half mirrored about row 241.5.
+
+The rebuilt band is the bottom 70 of 240 rows. All of it ends up behind the
+skyline, water and foreground plates, which is why a flat fill is good enough
+there and would not be anywhere higher up.
+
+`tools/`-style reproduction is deliberately not committed for this: the crop
+constants are specific to one seed, and re-running the prompt gives a different
+picture that needs different constants. The numbers above are the record.
+
+#### 400x240 is not an arbitrary size
+
+At `world_scale` 4.5 it is exactly 1800x1080 — a full viewport height with no
+resampling, the same reasoning as the 16 px tile in §8. A plate is scaled by
+`world_scale` like everything else, so changing that constant still moves the
+whole game together.
+
+`Parallax2D.repeat_size` alone is not enough to tile a plate: it only says how
+wide a copy is. Without `repeat_times` the layer draws a single copy and leaves
+bare viewport either side of it, which shows up the moment the camera moves off
+the plate's origin. Both are set in `parallax_background.gd`.
+
+Vertical scroll is 0 on every plate. A plate is sized to the viewport height
+exactly, so any vertical drift walks its edge into frame.
+
+#### Blocker: tileset art cannot be downloaded from the web session
+
+Raw images and tilesets are delivered differently, and only one of the two
+survives this environment's egress policy:
+
+| Endpoint | Behaviour |
+| --- | --- |
+| `api.pixellab.ai/mcp/images/{job}/download` | 200, `image/png`, bytes served directly — **works** |
+| `api.pixellab.ai/mcp/sidescroller-tilesets/{id}/image` | 302 to `backblaze.pixellab.ai` — **403 at the egress proxy** |
+
+`api.pixellab.ai` is allowed; `backblaze.pixellab.ai` is not. Confirmed
+repeatable, and confirmed with PixelLab's own docs agent that there is no
+proxied or base64 tileset endpoint — every tileset link is a redirect to storage.
+The tileset metadata (Wang corners, adjacency, 4x4 patterns) *is* served from
+`api.pixellab.ai` and downloads fine; it is only the spritesheet PNG that is out
+of reach.
+
+`inpaint_image` is not a way around anything else here either: it costs **20–40
+generations**, billed by image size, against a trial of 40.
+
+**To unblock:** allow `backblaze.pixellab.ai` in the environment's network
+policy. The tileset above is already generated and paid for, so once the host is
+reachable it is a download, not a regeneration. Do not work around this by
+having the API fetch its own storage on the session's behalf.
