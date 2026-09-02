@@ -2616,3 +2616,5 @@ animations = [{
 "name": &"walk_shoot",
 "speed": 12.242899118511264
 }]
+metadata/baseline_row = 223
+metadata/baseline_clamped = PackedStringArray()
