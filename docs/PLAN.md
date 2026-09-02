@@ -194,8 +194,10 @@ drain; the weakness table applies 2–4× damage to the intended target.
 
 ### M6 — Content build-out (2–3 weeks)
 
-- Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick
-  (disappearing blocks, conveyor, wind, dark room, crusher, water, ice).
+- Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
+  original list here named seven gimmicks for seven *remaining* stages, which left stage 1
+  with none — section 4's roster adds **rising tide** for Dawn Boardwalk and moves
+  **water** (swim physics) to the Sinkhole, so all eight stages have one.
 - Utility-dog items, unlocked by beating specific bosses.
 - Item drops (health/ammo/1UP/E-tank) with weighted tables.
 - Password/save: MM3 used a password grid; ship a save slot **and** a password so the
@@ -255,8 +257,9 @@ the graph is the design; rename every entity before shipping.
 | Needle | Gemini Laser | 3× |
 | Gemini | Search Snake | 4× |
 
-The chain is a single 8-cycle: Top → Hard → Magnet → Spark → Shadow → Top, plus
-Snake → Needle → Gemini → Snake. Preserve the property that **no boss is weak to a
+The chain is **two cycles, not one**: a 5-cycle (Top → Hard → Magnet → Spark → Shadow →
+Top) and a 3-cycle (Snake → Needle → Gemini → Snake). Earlier drafts of this line called
+it "a single 8-cycle", which contradicts the table above it — the table is right. Preserve the property that **no boss is weak to a
 weapon you get from it**, and that at least one boss is beatable buster-only.
 
 ### Weapon archetypes to fill
@@ -271,6 +274,51 @@ Whatever the names, cover these eight behaviours so the arsenal stays non-redund
 6. Terrain-crawling projectile (hits ground-huggers behind cover)
 7. Stun/disable (locks a target, often deals no damage)
 8. Multi-angle throwable that returns (utility + platform-cutting)
+
+### The roster
+
+Names are **working names** — the point of them is to stop referring to "boss 3", and they
+are meant to be replaced. What is not arbitrary is the shape: bosses 1–5 form the 5-cycle
+and 6–8 the 3-cycle, every one of the eight weapon archetypes above is used exactly once,
+and no boss is weak to the weapon it drops.
+
+The setting comes from stage 1's concept art rather than from a list of elements: a
+drowned, post-industrial coast at dawn. Every stage is somewhere in that world.
+
+| # | Boss | Stage | Weapon | Archetype | Gimmick | Weak to |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **Tide** | Dawn Boardwalk — drowned coast | Tide Crawler | 6 · terrain-crawling | rising tide | Arc |
+| 2 | **Arc** | Substation — flooded switchyard | Arc Lance | 2 · homing | dark room | Rust |
+| 3 | **Rust** | Breakers — ship-scrapping yard | Rust Bloom | 4 · heavy arcing | crusher | Prism |
+| 4 | **Prism** | Mirror Field — solar array | Prism Ray | 3 · splitting beam | disappearing blocks | Gale |
+| 5 | **Gale** | Turbine Row — offshore wind farm | Gale Cutter | 8 · returning throwable | wind | Tide |
+| 6 | **Cinder** | Stack — waste incinerator | Cinder Spray | 1 · rapid spread | conveyor | Frost |
+| 7 | **Frost** | Cold Store — refrigerated docks | Frost Lock | 7 · stun/disable | ice | Quarry |
+| 8 | **Quarry** | Sinkhole — flooded mine | Quarry Spin | 5 · contact ram | water (swim) | Cinder |
+
+**Tide is the buster-only boss.** Something has to be beatable with no weapons at all, and
+it should be the stage that is actually built — that is where a player who wanders in
+with nothing is most likely to land. Its pattern has to stay readable enough to dodge on
+sight.
+
+**Tide's art already exists**, as `assets/sprites/bosses/wave_man/` — a trident-and-wave-
+cannon design generated before the roster was written. The directory keeps its original
+name until there is a reason to churn every path; the *character* is Tide.
+
+### Enemy archetypes
+
+The six the enemy framework needs (M4), with stage 1 skins. The same six behaviours are
+reskinned per stage rather than redesigned — the behaviour is the archetype, the art is
+the theme.
+
+| Archetype | Stage 1 skin | Behaviour |
+| --- | --- | --- |
+| walker | **Dockrat** — maintenance drone | patrols a plank run, turns at edges |
+| hopper | **Bollard** — mooring-post unit | hops piling to piling on a fixed arc |
+| turret | **Lampjack** — broken boardwalk lamp | fixed, pivots to fire on a cycle |
+| flyer-sine | **Gullbot** — scavenger drone | sine sweep in over the water |
+| spawner | **Barnacle Hive** — hull encrustation | fixed, releases small crawlers |
+| wall-crawler | **Limpet** | clings to pilings, crawls around edges |
 
 ---
 
@@ -287,7 +335,7 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | ~~Art scale/style does not match the design~~ | ~~Blocks M1~~ | **Closed.** Settled as HD: 1920 × 1080, `world_scale` 4.5, linear filtering. SPRITES.md §7 |
-| ~~AutoSprite MCP unreachable from the web session~~ | ~~Blocks regeneration~~ | **Closed 2026-09-02.** The domain is allowed and generation works. The MCP server still does not register as `mcp__autosprite__*` tools, so the endpoint is driven directly over JSON-RPC — recipe in SPRITES.md §6 |
+| ~~AutoSprite MCP unreachable from the web session~~ | ~~Blocks regeneration~~ | **Closed.** The domain is allowed and generation works. The `mcp__autosprite__*` tools now register normally, so the raw JSON-RPC recipe in SPRITES.md §6 is a fallback rather than the route |
 | ~~Godot 4.7 API drift~~ | ~~Blocks M0~~ | **Closed at M0.** Verified on 4.7.stable, pinned in `.godot-version`, CI runs against it |
 | AutoSprite output style is inconsistent between characters | Art rework | Lock one character prompt/seed convention at M2, generate all 8 bosses in one batch. Already visible: animation directory names alternate between `idle_right` and `Hit React` |
 | AutoSprite frame counts don't match the animation lengths the controller expects | Animation desync | Controller drives timing; animations are cosmetic. Never gate state exits on `animation_finished` except for teleport and weapon-get. Confirmed: exports are 25 frames, the original batch at 10.7 fps and the 2026-09 batch at 12.2 fps (a 2.042 s `turbo` clip) — the mismatch is harmless for exactly this reason |
