@@ -20,6 +20,15 @@ extends Node2D
 const BACKGROUND := preload("res://scenes/stages/dawn_boardwalk/parallax_background.gd")
 const PLAYER_SCENE := preload("res://scenes/actors/player/player.tscn")
 const TILESET := preload("res://resources/tilesets/dawn_boardwalk.tres")
+const HUD_SCRIPT := preload("res://scenes/ui/hud.gd")
+
+## A gap in the deck, [from, to) in cells. Falling through it is the M3
+## acceptance case: the pit sensor below kills, and a knockback you cannot steer
+## out of is what puts you in it.
+const GAP := [18, 22]
+
+## Cells below the deck where the bottomless-pit sensor sits.
+const PIT_ROW := DECK_ROW + 12
 
 ## Row of the deck's top cell. Corner terrain puts the walking surface half a
 ## tile below that, through the middle of the row -- see the importer header.
@@ -59,6 +68,8 @@ func _ready() -> void:
 	_add_deck(tuning.world_scale)
 
 	_add_end_stops(tuning.tile_size())
+	_add_pit_sensor(tuning.tile_size())
+	_add_checkpoints(tuning.tile_size())
 
 	_player = PLAYER_SCENE.instantiate()
 	# Half a tile up, because the walking surface runs through the middle of the
@@ -67,6 +78,37 @@ func _ready() -> void:
 	add_child(_player)
 
 	_add_camera()
+	_add_hud()
+
+
+## Below the gap, and below the ends of the deck: anything that leaves the
+## boardwalk has left the stage. One wide sensor rather than one per hole means
+## a new gap in the deck needs no matching edit here.
+func _add_pit_sensor(tile: float) -> void:
+	var pit := Hazard.new()
+	pit.name = "Pit"
+	pit.size_tiles = Vector2(float(DECK_TO - DECK_FROM + 4), 2.0)
+	pit.position = Vector2(float(DECK_FROM - 2) + pit.size_tiles.x * 0.5,
+		float(PIT_ROW)) * tile
+	add_child(pit)
+
+
+## Cells 8 and 28 are plain deck. A checkpoint over the GAP would respawn the
+## player straight back into the pit, which is an infinite death loop rather
+## than a difficulty spike -- the first draft of this had one at cell 20 and it
+## cost every life in the counter.
+func _add_checkpoints(tile: float) -> void:
+	for cell_x in [SPAWN_CELL.x, 8.0, 28.0]:
+		var checkpoint := Checkpoint.new()
+		checkpoint.position = Vector2(float(cell_x), float(DECK_ROW)) * tile
+		add_child(checkpoint)
+
+
+func _add_hud() -> void:
+	var hud := HUD_SCRIPT.new()
+	hud.name = "Hud"
+	add_child(hud)
+	hud.track(_player)
 
 
 ## The deck has ends, and this is the scene the game boots into, so walking off
@@ -102,6 +144,8 @@ func _add_deck(world_scale: float) -> void:
 
 	var cells: Array[Vector2i] = []
 	for x in range(DECK_FROM, DECK_TO):
+		if x >= int(GAP[0]) and x < int(GAP[1]):
+			continue
 		for y in range(DECK_ROW, DECK_ROW + DECK_DEPTH):
 			cells.append(Vector2i(x, y))
 	for entry in RAISED:

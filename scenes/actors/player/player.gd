@@ -13,6 +13,9 @@ signal state_changed(from: StringName, to: StringName)
 ## the stage and anything else that wants to know.
 signal died()
 signal respawned()
+## Death sequence finished and the last life is gone. The stage decides what a
+## game over means; the player only reports it.
+signal game_over()
 signal shot_fired(shot: BusterShot)
 
 const FLOOR_NORMAL := Vector2.UP
@@ -55,6 +58,9 @@ const DEFAULT_MUZZLE := Vector2(13.0, -16.0)
 var facing: int = 1
 ## Ladders currently overlapping. Climb needs to know one is there.
 var ladders: Array[Area2D] = []
+## Where this player entered the stage. Used when no checkpoint has been reached
+## yet, so a stage that never places one still respawns somewhere sensible.
+var entry_position := Vector2.ZERO
 
 var _shoot_frames_left := 0
 var _jump_buffer_left := 0
@@ -78,6 +84,7 @@ func _ready() -> void:
 	state_machine.state_changed.connect(
 		func(from: StringName, to: StringName) -> void: state_changed.emit(from, to))
 	floor_snap_length = tuning.px(2.0)
+	entry_position = global_position
 	_setup_damage()
 
 
@@ -172,7 +179,13 @@ func note_shot_fired() -> void:
 
 ## Live pellets on screen, after dropping any freed since last frame.
 func live_shots() -> int:
-	_shots = _shots.filter(func(shot: BusterShot) -> bool: return is_instance_valid(shot))
+	# Rebuilt by hand rather than with Array.filter(): filter() returns an
+	# untyped Array, which will not assign back into an Array[BusterShot].
+	var alive: Array[BusterShot] = []
+	for shot in _shots:
+		if is_instance_valid(shot):
+			alive.append(shot)
+	_shots = alive
 	return _shots.size()
 
 
@@ -195,8 +208,13 @@ func muzzle_position() -> Vector2:
 func fire() -> BusterShot:
 	if not can_shoot():
 		return null
-	var weapon: StringName = WeaponManager.current
-	if not WeaponManager.consume(weapon):
+	# Autoloads are reached by path, not by identifier, for the same reason
+	# Tuning is above: an autoload name only resolves once the project's
+	# autoloads are registered, which is not true for a script run as a
+	# `--script` entry point, and not true under a bare test tree either.
+	var weapons := get_node_or_null(^"/root/WeaponManager")
+	var weapon: StringName = weapons.current if weapons != null else &"buster"
+	if weapons != null and not weapons.consume(weapon):
 		return null
 
 	var shot := BUSTER_SHOT.new() as BusterShot
@@ -227,6 +245,19 @@ func on_damaged(info: DamageInfo, taken: int) -> void:
 	if info.has_flag(DamageInfo.NO_KNOCKBACK):
 		return
 	state_machine.transition_to(&"Hurt", {"source_position": info.source_position})
+
+
+## Called by the Dead state once the burst has played out. Spends a life and
+## either returns the player to the checkpoint or reports a game over.
+func finish_death() -> void:
+	var state := get_node_or_null(^"/root/GameState")
+	if state == null:
+		respawn_at(entry_position)
+		return
+	if state.consume_life():
+		respawn_at(state.respawn_position(entry_position))
+	else:
+		game_over.emit()
 
 
 ## Full health, back at the checkpoint, with a moment of grace so the thing that

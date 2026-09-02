@@ -262,6 +262,28 @@ Weakness multipliers live in `resources/damage_tables/*.tres` as explicit *absol
 values, not multipliers — NES games used flat damage tables, and flat values are easier
 to balance and to read in a diff.
 
+**Built at M3.** `scripts/core/` holds `damage_info.gd`, `damage_table.gd`, `health.gd`,
+`hitbox.gd` and `hurtbox.gd`; layer bits are named in `collision_layers.gd` rather than
+written as literal shifts at each use site (the table is 1-based, the shift is 0-based,
+and that off-by-one has cost a bug already).
+
+The attacker does the looking: a `Hurtbox` monitors nothing and is only ever called by a
+`Hitbox` that found it, so a resting enemy costs no overlap checks.
+
+Two Godot behaviours worth knowing before writing another Area2D:
+
+- **`Area2D.monitorable = false` also disables that area's body detection** on 4.7. The
+  name reads as "can other areas see this one", so switching it off looks like the right
+  way to keep a hitbox from being detected — and it silently makes buster pellets fly
+  through walls. Verified by toggling it on a live area: `get_overlapping_bodies()` goes
+  1 → 0 → 1 in step with the flag. Leave it alone and let the masks isolate, which is
+  what the layer conventions above already do.
+- **Autoload identifiers do not resolve in a `--script` entry point**, which is compiled
+  before the project's autoloads are registered. Reach them by path —
+  `get_node_or_null(^"/root/GameState")` — as the codebase already does for `Tuning`.
+  Scripts loaded later at runtime are fine either way, so this only bites tools and
+  probes, and it bites them at parse time with a confusing "identifier not found".
+
 ### 5.3 Health scale
 
 Player and every boss have **28 HP**, matching the original's 28-tick energy bar, so one

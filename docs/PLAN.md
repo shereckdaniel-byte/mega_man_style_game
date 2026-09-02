@@ -147,16 +147,26 @@ place with no scene edits and no lost frame ordering; the sprites were checked i
 at the chosen scale via `tools/screenshot.gd`, which now drives the player into each state
 and prints the state and animation it actually captured. **63 tests / 1688 assertions.**
 
-### M3 — Combat core (2–3 days)
+### M3 — Combat core ✅ done
 
-- Buster: 3-shot cap, muzzle offset per state, shoot-animation hold of 16 frames.
-- `Hurtbox`/`Hitbox` `Area2D` pair, damage values, 90-frame i-frames with 2-frame
-  flicker, knockback lock.
-- Health system + HUD energy bar (segmented, fills one tick at a time with SFX).
-- Death: freeze, explosion ring of 8 particles, respawn at last checkpoint.
+- ✅ Buster: 3-shot cap, muzzle offset per state, shoot-animation hold of 16 frames.
+- ✅ `Hurtbox`/`Hitbox` `Area2D` pair, damage values, 90-frame i-frames with 2-frame
+  flicker, knockback lock. Damage tables hold absolute values, not multipliers.
+- ✅ Health system + HUD energy bar, segmented, one tick at a time. **No SFX yet** —
+  AudioManager stays a stub until there are sound assets.
+- ✅ Death: freeze, explosion ring of 8 bolts, respawn at last checkpoint, a life spent,
+  and a game over reported rather than a silent respawn on the last one.
+- ✅ `Hazard` — spikes, crushers, pit sensors — as instant death through the same Health
+  path, so the respawn grace period covers it too.
 
-**Accept:** taking damage in mid-air over a pit kills you the way it does in the original;
-i-frame flicker is visible; the HUD bar drains and refills tick-by-tick.
+**Accepted:** a knockback you cannot steer out of drops the player into the boardwalk's
+gap and the pit sensor kills; the flicker is visible (sampled at 6 of 12 frames); the bar
+drains and refills tick-by-tick, and drains faster than it fills so a full drain finishes
+inside the 72-frame death sequence. **110 tests / 1887 assertions.**
+
+Two traps found while building it, both worth knowing before M4:
+`Area2D.monitorable = false` also switches off that area's *body* detection on Godot 4.7,
+and autoload identifiers do not resolve in a `--script` entry point — reach them by path.
 
 ### M4 — Enemy framework + Stage 1 (3–4 days)
 
@@ -285,8 +295,8 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 | Generated clips open with a wind-up the player never sees | Move looks wrong | The controller owns timing, so a 26-frame slide shows ~5 animation frames. `AutoSpriteImporter.TRIM` selects the frames the move lives in; check a contact sheet before judging any new animation — SPRITES.md §4a |
 | Art style drifts between separately generated animations | Inconsistent character | Generate a character's animations in one batch. Regenerating a single animation from the same base image held style fine; a fresh batch weeks later is the untested case |
 | Hand-authoring 8 stages is the schedule | Slips M6 | Build stage 1 fully, then extract a gimmick-block library before stages 2–8 |
-| Tileset art style clashes with the HD character | Looks like two games | PixelLab (SPRITES.md §8) emits pixel-art tiles; the character is smooth HD. 16 px tiles fit the 72 px grid exactly at 4.5×, and a per-node `TEXTURE_FILTER_NEAREST` keeps them crisp without touching the project default — but the mixed look is unsettled. Generate one stage and judge it against the player before committing the trial |
-| PixelLab trial is 40 generations | Stops stage art mid-way | A sidescroller tileset costs 2–3, so ~13–20 tilesets. Budget before M4 |
+| ~~Tileset art style clashes with the HD character~~ | ~~Looks like two games~~ | **Closed 2026-09-02.** Stage 1 was generated and judged against the player in `art_preview.tscn`: flat banded pixel terrain behind a smooth anti-aliased character reads as deliberate. 16 px tiles fit the 72 px grid exactly at 4.5×, and a per-node `TEXTURE_FILTER_NEAREST` keeps them crisp without touching the project default — SPRITES.md §8b |
+| PixelLab trial is 40 generations | Stops stage art mid-way | **Tighter than it looked.** Stage 1's backdrop and tileset cost 12 of 40 — 2 of those thrown away, and the sky took 4 attempts. 28 left for 7 Robot Master stages plus the fortress, so stage 2 onward has to reuse the technique rather than re-derive it (SPRITES.md §8b–8c), and fortress stages should share a tileset |
 | Pixel-perfect + camera smoothing fight each other | Jitter | Camera snapping off, no position smoothing, integer stretch — settled in ARCHITECTURE §2 and asserted in `tests/test_project_settings.gd` |
 | Continuous-vs-discrete physics maths in level design | Unclearable ledges | **Hit once already at M0.** `jump_apex_px()` integrates for real; a test locks the number |
 | Web export audio latency | Feel | Test the web build from M3, not M8 |
