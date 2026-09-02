@@ -491,9 +491,12 @@ generating stage 2.
 | --- | --- | --- | --- |
 | 1 | boardwalk planks + rail | **done** — `assets/tilesets/dawn_boardwalk/` | tileset `2e44791f-404c-4174-81fe-bc2f6a082215` |
 | 2 | dawn sky + low sun | **done** — `assets/backgrounds/dawn_boardwalk/sky.png` | image `ceaaa4c7-f3a3-46ef-a24c-bf9107204ad2`, seed 10511 |
-| 3–5 | skyline, water, foreground | not started | — |
+| 3 | ruined city skyline | **done** — `skyline.png` | image `356af9de-b93a-4f26-9d78-60ebd284be0e`, seed 10521 |
+| 4 | floodwater | **done** — `water.png` | derived from the sky, no generation |
+| 5 | foreground pilings | **done** — `pilings.png` | image `6702e1f9-b5f9-4f6a-8364-10b9a3ed3b97`, seed 10541 |
 
-Six of the 40 trial generations spent (3 on the tileset, 3 on the sky).
+Twelve of the 40 trial generations spent: 3 on the tileset, 4 on the sky, and 5
+across the other plates — of which two were thrown away, below.
 
 **The mixed-style question from §8 is settled: it works.** `art_preview.tscn`
 lays a boardwalk from the tileset, puts the backdrop behind it and stands the
@@ -634,3 +637,84 @@ the sky's own palette and the deck reads correctly at 4.5x. Worth knowing that
 `lower_description` steers material far less than it steers colour — if stage 2
 needs a specific material, expect to iterate, and remember a tileset is 2–3
 generations a try.
+
+### 8c. The rest of the backdrop, and where the plates go
+
+All five plates are in and `art_preview.tscn` shows them stacked. The parallax
+factors are §8a's; what §8a did not record, and what actually matters when
+assembling them, is **where each plate sits vertically**.
+
+`parallax_background.gd` hangs the whole backdrop off one constant, `HORIZON`,
+in plate pixels from the top of the viewport. The skyline stands on it, the
+water starts at it, the sun clears it. Change that number and the backdrop stays
+coherent; place the plates independently and it will not.
+
+| Plate | Size | Scroll | Top |
+| --- | --- | --- | --- |
+| sky | 400x240 | 0.05 | 0 |
+| skyline | 220x40 | 0.2 | `HORIZON` − 40 |
+| water | 400x120 | 0.4 | `HORIZON` |
+| pilings | 400x84 | 1.2 | 156, i.e. flush with the bottom |
+
+Vertical scroll is 0 on every plate: the backdrop is placed against the
+viewport, not the world, so it must not drift when the camera rises or the
+horizon walks off the top of the screen. The pilings are the only plate with a
+positive `z_index` — everything else is behind the player, they are in front.
+
+#### The sun had to move, and moving it cost the sky its band spacing
+
+§8b put the sun at plate row 169. That is 70% of the way down the viewport, and
+it left no room: the horizon has to sit below the sun, the water below that, and
+the deck below that, all inside the remaining 30%. The sun is 234 screen pixels
+across, which is simply large relative to the scene.
+
+It now sits at row 100. Getting it there could not be done by re-cropping,
+because the source has only 242 rows of sky *above* the sun and none below.
+Instead the banded sky above the disc is squashed 215 rows into 74 with NEAREST
+— flat bands stay flat under nearest-neighbour, they just get thinner — while
+the sun's own 27-row band is kept at native scale so the disc keeps its shape.
+The banding is tighter than the source's as a result. It reads as haze.
+
+**The sun cannot clear the city.** With the disc 26 plate px in radius and the
+horizon 30 px below its centre, a skyline that fits under it would be about
+three pixels tall. The draft prompt's "low sun just clear of it" is not
+achievable at this sun size, so the city crosses the disc instead — which is the
+more familiar image anyway, and looks deliberate.
+
+#### Two plates that had to be made rather than generated
+
+**Water.** Generated twice and discarded twice. Asked for a water surface,
+pixflux drew a lake — sky, hills, a far shore and a boat — in a pale blue
+nothing like the dawn palette. Forcing the sky's own palette with
+`color_image_url` (which does work: point it at any completed job's no-auth
+download URL) fixed the colour and left the composition: still a lake, now a
+warm one, with most of the frame collapsed onto the sun's yellow.
+
+The plate that shipped is derived instead: **still water is the sky mirrored
+about the waterline**, so it is exactly that, darkened and cooled with depth,
+with the mirrored sun broken into a glitter path and some debris added. It costs
+no generations and it cannot drift out of palette with the sky, because it *is*
+the sky. A separately generated plate can and did.
+
+**Pilings.** Asked for railing posts with gaps between them, pixflux returned a
+picket fence at 100% alpha coverage — no transparency anywhere, which as a
+foreground plate would have walled the player off completely. `no_background`
+does not create gaps in a subject that fills its frame. What shipped is a single
+generated piling composited into a plate at chosen positions, which is also the
+only way to control the spacing. It is darkened to 45% and pulled toward the
+water's blue: a foreground element that competes with the player for attention
+is worse than no foreground element.
+
+#### Making distance read
+
+Two adjustments did more for depth than any prompt:
+
+- **Scale both axes.** The skyline was generated 400x100 and is used at 220x40.
+  Squashing only the height would have given stubby towers at the same apparent
+  distance; scaling both makes them far away.
+- **Haze by brightness.** Every skyline pixel is blended toward the sky colour
+  behind it, by an amount that rises with its own luminance. The pale back rank
+  the generator drew recedes into the sky, the dark front rank stays solid, and
+  the speckled window detail stops reading as noise.
+
+Neither is a PixelLab feature. Both are a few lines over the returned PNG.

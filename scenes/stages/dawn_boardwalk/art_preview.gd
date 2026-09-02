@@ -20,7 +20,7 @@ const TILESET := preload("res://resources/tilesets/dawn_boardwalk.tres")
 ## Row of the deck's top cell. Corner terrain puts the walking surface half a
 ## tile below that, through the middle of the row -- see the importer header.
 const DECK_ROW := 11
-const DECK_DEPTH := 4
+const DECK_DEPTH := 2
 const DECK_FROM := -4
 const DECK_TO := 34
 
@@ -33,10 +33,12 @@ const RAISED := [
 
 const SPAWN_CELL := Vector2(2, DECK_ROW)
 
-## Screen pixels of sky kept above the player. The sky plate is locked
-## vertically, so the sun sits at a fixed height on screen and the deck has to
-## be framed below it or it is simply hidden behind the boardwalk.
-const HORIZON_HEADROOM := 300.0
+## Screen pixels of sky kept above the player. The backdrop is placed against
+## the viewport, not the world, so the horizon sits at a fixed height on screen
+## and the deck has to be framed below it. 280 puts the deck's surface a little
+## under the waterline, which is what a boardwalk standing in floodwater looks
+## like. M4 does this with camera limits; until then this stands in for them.
+const HORIZON_HEADROOM := 280.0
 
 var _player: Player
 

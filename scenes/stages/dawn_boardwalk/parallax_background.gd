@@ -1,33 +1,44 @@
 ## Parallax backdrop for stage 1, "Dawn Boardwalk".
 ##
 ## Built in code from a plate table rather than authored as a .tscn, for the
-## same reason as test_room.gd: every entry here exists to hold one number --
-## its scroll factor -- and the table says which. SPRITES.md section 8a is the
-## source of those factors.
-##
-## Only the plates that exist are listed. Skyline, water and foreground are
-## still to be generated; adding one is a row in PLATES, not new code.
+## same reason as test_room.gd: every entry here exists to hold two numbers --
+## its scroll factor and where it sits against the horizon -- and the table says
+## which. SPRITES.md section 8a is the source of the scroll factors.
 ##
 ## The boardwalk itself is deliberately absent: it is the surface the player
 ## stands on, so it is a TileMapLayer with collision, not a plate here.
 extends Node2D
 
 ## Source art is pixel art authored at 1 art px == 1 NES px, so a plate is
-## scaled by the same world_scale as everything else. The sky is 400x240, which
-## at 4.5 is exactly 1800x1080 -- a full viewport height with no resampling.
+## scaled by the same world_scale as everything else. Plate coordinates below
+## are therefore in art pixels, and 240 of them is one viewport height.
 const PLATE_DIR := "res://assets/backgrounds/dawn_boardwalk/"
 
 ## Copies drawn either side of the origin copy. A plate is a full viewport wide,
 ## so one either side is already more than a camera can outrun in a frame.
 const REPEAT_TIMES := 3
 
-## `scroll` is Parallax2D.scroll_scale.x. Vertical scroll is 0 on every plate:
-## a plate is sized to the viewport height exactly, so any vertical drift would
-## walk its edge into frame. Skies are conventionally locked vertically anyway.
+## Where the waterline sits, in plate pixels from the top of the viewport.
 ##
-## `z` orders the plates against the player, who is at the default z of 0.
+## Everything in the backdrop is hung off this one number: the skyline stands on
+## it, the water starts at it, and the sun clears it. It is set just below the
+## sun's disc -- the sun is centred on plate row 100 with a radius of about 26,
+## so 130 leaves it fully clear of the water, which is the "low sun just above
+## the horizon" the art direction asks for.
+const HORIZON := 130.0
+
+## `scroll` is Parallax2D.scroll_scale.x. `top` is the plate's top edge in plate
+## pixels from the top of the viewport. `z` orders against the player, who sits
+## at the default z of 0 -- so the pilings, alone, are drawn in front of them.
+##
+## Vertical scroll is 0 on every plate. A plate is placed against the viewport
+## rather than the world, so it must not drift when the camera rises or the
+## horizon would walk off the top of the screen.
 const PLATES := [
-	{"name": "Sky", "file": "sky.png", "scroll": 0.05, "z": -100},
+	{"name": "Sky", "file": "sky.png", "scroll": 0.05, "top": 0.0, "z": -100},
+	{"name": "Skyline", "file": "skyline.png", "scroll": 0.2, "top": HORIZON - 40.0, "z": -90},
+	{"name": "Water", "file": "water.png", "scroll": 0.4, "top": HORIZON, "z": -80},
+	{"name": "Pilings", "file": "pilings.png", "scroll": 1.2, "top": 156.0, "z": 100},
 ]
 
 
@@ -63,10 +74,11 @@ func _add_plate(plate: Dictionary, scale_factor: float) -> void:
 	var sprite := Sprite2D.new()
 	sprite.texture = texture
 	sprite.centered = false
+	sprite.position = Vector2(0.0, float(plate["top"]) * scale_factor)
 	sprite.scale = Vector2(scale_factor, scale_factor)
 	# The project default is Linear and must stay Linear for the character, which
 	# is smooth HD art minified to 0.61x. These plates are the opposite case:
-	# 16-px-grid pixel art magnified 4.5x, which Linear would blur into mush.
+	# pixel art magnified 4.5x, which Linear would blur into mush.
 	# CanvasItem.texture_filter is the per-node override that lets both be right
 	# in the same frame. See SPRITES.md section 8.
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
