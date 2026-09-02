@@ -343,3 +343,68 @@ change worth making deliberately rather than as a side effect. Left open.
 When the bosses are generated, budget for the wind-up problem up front: generate, look at
 a 25-frame contact sheet per animation, and set `TRIM` before judging the art. Several
 animations that look wrong in-engine are correct clips shown at the wrong frame.
+
+---
+
+## 8. PixelLab — tilesets and background art
+
+A second art service, added 2026-09-02 for **backgrounds and tilesets**, where AutoSprite
+only does characters. Declared in `.mcp.json` beside AutoSprite, key from the environment:
+
+```json
+{ "mcpServers": { "pixellab": {
+    "type": "http",
+    "url": "https://api.pixellab.ai/mcp",
+    "headers": { "Authorization": "Bearer ${PIXELLAB_API_KEY}" } } } }
+```
+
+`api.pixellab.ai` is reachable from the web session — no network-policy change needed.
+Copy `.env.example` to `.env` and fill both keys in; `.env` is gitignored, `.env.example`
+is deliberately un-ignored and carries names with no values.
+
+If the server does not register as `mcp__pixellab__*` tools after a session restart, drive
+it directly the same way as AutoSprite (§6) — it is streamable-HTTP JSON-RPC answering in
+SSE frames, and `tools/list` returns the authoritative schemas.
+
+### The tools that matter here
+
+| Tool | For |
+| --- | --- |
+| `create_sidescroller_tileset` | platform/ground tiles, side-view, transparent background |
+| `create_tiles_pro`, `create_building_kit` | richer tile sets, walls/floors/stairs |
+| `create_image_pixflux` / `_pixen` / `_pro` | freeform background plates, parallax layers |
+| `create_map_object`, `create_1_direction_object` | props and set dressing |
+| `create_ui_asset`, `create_font` | HUD panels and the stage-select font |
+
+Generation is async everywhere: `create_*` returns an id, `get_*` polls it.
+
+**Billing is in "generations", not credits.** The account is on a *trial* with **40
+generations** and $0.00 credit fallback. `create_sidescroller_tileset` costs **2–3
+generations, never 1** — so the trial is roughly 13–20 tilesets. Failed jobs are not
+charged. Check with `get_balance`.
+
+### Two things to settle before generating a stage
+
+**1. Tile size lines up exactly, which is the good news.** PixelLab emits 16 px or 32 px
+tiles. The project's tile is 72 px at `world_scale` 4.5, and **16 × 4.5 = 72 exactly**, so
+a 16 px tileset lands on the tile grid at a clean integer 4.5× with no resampling error.
+Use 16, not 32 — 32 would need 2.25× and would land off-grid.
+
+**2. Filtering conflicts with the settled art direction, and needs a per-node override.**
+§7 settled the game as smooth HD: linear filtering, snapping off, because the character is
+177 px of anti-aliased art minified to 0.61×. **Linear filtering is wrong for a 16 px tile
+blown up 4.5× — it will blur it into mush.** Do not change the project default; that
+default is correct for the character and is asserted by `tests/test_project_settings.gd`.
+Instead override per node on the tile layer, which is a `CanvasItem` property:
+
+```gdscript
+tilemap.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+```
+
+That gives crisp pixel tiles behind a smooth HD character in the same frame.
+
+**The remaining question is aesthetic, not technical, and is not settled:** pixel-art
+terrain behind a smooth anti-aliased character is a deliberate mixed style. It can look
+intentional, and it can look like two games spliced together. Generate one stage's worth,
+look at it next to the player in the test room, and decide before spending the trial on
+eight stages.

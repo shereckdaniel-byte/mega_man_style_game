@@ -280,6 +280,8 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 | Generated clips open with a wind-up the player never sees | Move looks wrong | The controller owns timing, so a 26-frame slide shows ~5 animation frames. `AutoSpriteImporter.TRIM` selects the frames the move lives in; check a contact sheet before judging any new animation — SPRITES.md §4a |
 | Art style drifts between separately generated animations | Inconsistent character | Generate a character's animations in one batch. Regenerating a single animation from the same base image held style fine; a fresh batch weeks later is the untested case |
 | Hand-authoring 8 stages is the schedule | Slips M6 | Build stage 1 fully, then extract a gimmick-block library before stages 2–8 |
+| Tileset art style clashes with the HD character | Looks like two games | PixelLab (SPRITES.md §8) emits pixel-art tiles; the character is smooth HD. 16 px tiles fit the 72 px grid exactly at 4.5×, and a per-node `TEXTURE_FILTER_NEAREST` keeps them crisp without touching the project default — but the mixed look is unsettled. Generate one stage and judge it against the player before committing the trial |
+| PixelLab trial is 40 generations | Stops stage art mid-way | A sidescroller tileset costs 2–3, so ~13–20 tilesets. Budget before M4 |
 | Pixel-perfect + camera smoothing fight each other | Jitter | Camera snapping off, no position smoothing, integer stretch — settled in ARCHITECTURE §2 and asserted in `tests/test_project_settings.gd` |
 | Continuous-vs-discrete physics maths in level design | Unclearable ledges | **Hit once already at M0.** `jump_apex_px()` integrates for real; a test locks the number |
 | Web export audio latency | Feel | Test the web build from M3, not M8 |

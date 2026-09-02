@@ -6,6 +6,13 @@
       "headers": {
         "Authorization": "Bearer ${AUTOSPRITE_API_KEY}"
       }
+    },
+    "pixellab": {
+      "type": "http",
+      "url": "https://api.pixellab.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer ${PIXELLAB_API_KEY}"
+      }
     }
   }
 }
