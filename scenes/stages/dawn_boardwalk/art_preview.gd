@@ -10,7 +10,11 @@
 ## tiles, so it is also the check on the importer: if the Wang corner data were
 ## wrong, the autotiler would pick the wrong edges and it would show here.
 ##
-## Development scene: nothing in the game routes here. Real stages come in M4.
+## This is where boot.gd lands a windowed run, so it is what the game looks like
+## today. It is still scaffolding, not a level: the deck is built in _ready()
+## from the table below rather than authored, there is nothing to do on it, and
+## the camera fakes its framing with an offset. Real stages come in M4 and this
+## goes back to being a preview.
 extends Node2D
 
 const BACKGROUND := preload("res://scenes/stages/dawn_boardwalk/parallax_background.gd")
@@ -21,7 +25,7 @@ const TILESET := preload("res://resources/tilesets/dawn_boardwalk.tres")
 ## tile below that, through the middle of the row -- see the importer header.
 const DECK_ROW := 11
 const DECK_DEPTH := 2
-const DECK_FROM := -4
+const DECK_FROM := -14
 const DECK_TO := 34
 
 ## [x, y, w, h] in cells: a raised section and a stub, so the autotiler has to
@@ -54,6 +58,8 @@ func _ready() -> void:
 
 	_add_deck(tuning.world_scale)
 
+	_add_end_stops(tuning.tile_size())
+
 	_player = PLAYER_SCENE.instantiate()
 	# Half a tile up, because the walking surface runs through the middle of the
 	# top row; a couple of tiles higher again so the drop proves the collision.
@@ -61,6 +67,25 @@ func _ready() -> void:
 	add_child(_player)
 
 	_add_camera()
+
+
+## The deck has ends, and this is the scene the game boots into, so walking off
+## one would drop the player into an endless fall with nothing to respawn them.
+## Invisible stops at both ends, the same trick the tuning room uses for its
+## room edges, keep a look around from turning into a stuck game.
+func _add_end_stops(tile: float) -> void:
+	for cell_x in [DECK_FROM - 1, DECK_TO]:
+		var body := StaticBody2D.new()
+		body.collision_layer = 1 << 0
+		body.collision_mask = 0
+		var shape := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		rect.size = Vector2(tile, tile * (DECK_DEPTH + 8))
+		shape.shape = rect
+		body.add_child(shape)
+		body.position = Vector2(float(cell_x) * tile, float(DECK_ROW - 8) * tile) \
+			+ rect.size * 0.5
+		add_child(body)
 
 
 func _add_deck(world_scale: float) -> void:

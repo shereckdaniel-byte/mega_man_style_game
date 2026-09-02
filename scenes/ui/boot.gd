@@ -8,7 +8,11 @@ extends Node2D
 @onready var _label: Label = $CanvasLayer/Label
 
 
-const TEST_ROOM := "res://scenes/stages/test_room/test_room.tscn"
+## Where a windowed run lands. The M1 tuning room is still the place to read
+## movement numbers off the debug overlay -- open
+## res://scenes/stages/test_room/test_room.tscn directly for that, which is also
+## what tools/screenshot.gd drives.
+const FIRST_SCENE := "res://scenes/stages/dawn_boardwalk/art_preview.tscn"
 
 
 func _ready() -> void:
@@ -18,9 +22,9 @@ func _ready() -> void:
 	if _label != null:
 		_label.text = "\n".join(report)
 	# Headless runs stay here so `--headless --quit` keeps reporting the
-	# self-check; a real run drops straight into the M1 tuning room.
+	# self-check; a real run drops straight into the stage 1 art preview.
 	if DisplayServer.get_name() != "headless":
-		get_tree().call_deferred("change_scene_to_file", TEST_ROOM)
+		get_tree().call_deferred("change_scene_to_file", FIRST_SCENE)
 
 
 ## Reads back the settings that are easy to break and hard to notice.
