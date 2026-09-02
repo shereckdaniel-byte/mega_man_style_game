@@ -313,6 +313,29 @@ Reproduce the original rule exactly, because level design depends on it:
   the intended behaviour, and it is what makes farming health drops possible.
 - Bosses, mini-bosses, and gimmick platforms opt out via `persistent = true`.
 
+**Built at M4.** `Room` owns the bounds, `StageCamera` applies them as limits,
+`SpawnMarker` owns the spawn/despawn decision, and `Stage` ticks every marker
+against one view rectangle per frame — markers must not each poll the camera,
+or two on the same boundary can read it at different points in the frame and
+one of a pair flickers.
+
+Three things that are easy to get wrong here, all of which still *look* like a
+working game:
+
+- **The two margins must differ.** Spawning at 16 px beyond the view and
+  despawning at 32 px is hysteresis: with one margin, an enemy sitting on the
+  boundary spawns and despawns every frame as the camera moves by a pixel.
+- **A killed enemy must not re-arm its marker.** If it does, the player can farm
+  one enemy by standing still. Only leaving the despawn range re-arms it, which
+  is exactly the "scroll it off screen and back" the rule is about.
+- **A marker cannot detect a kill by looking at its reference.** The obvious
+  version — "non-null but `is_instance_valid()` false means a corpse" — cannot
+  work: **on Godot 4.7 a freed object reference compares EQUAL to null**, so a
+  corpse and a cleared slot are indistinguishable from outside. Verified
+  directly: after `queue_free()` and two frames, both `n != null` and
+  `is_instance_valid(n)` are false. The enemy therefore *tells* the marker
+  (`mark_spent()`) on death, and despawning clears the slot itself.
+
 ### 5.6 Weapons
 
 ```gdscript
