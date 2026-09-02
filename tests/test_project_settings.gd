@@ -10,27 +10,43 @@ const EXPECTED_LAYERS := [
 ]
 
 
-func test_viewport_is_nes_sized() -> void:
-	assert_eq(int(ProjectSettings.get_setting("display/window/size/viewport_width")), 256)
-	assert_eq(int(ProjectSettings.get_setting("display/window/size/viewport_height")), 224)
+## 1920x1080 at 72 px tiles is 26.7 x 15 tiles. The original was 16 x 14, so the
+## vertical view matches closely and the horizontal view is wider -- the cost of
+## 16:9, and something level design has to account for.
+##
+## The tile count is what matters, not the pixel count: viewport and world_scale
+## cancel, so this assertion is what stops someone changing one without the other
+## and silently altering how much level the player can see.
+func test_viewport_frames_the_intended_number_of_tiles() -> void:
+	var w := int(ProjectSettings.get_setting("display/window/size/viewport_width"))
+	var h := int(ProjectSettings.get_setting("display/window/size/viewport_height"))
+	assert_eq(w, 1920)
+	assert_eq(h, 1080)
+	var tile := PlayerTuning.new().tile_size()
+	assert_almost_eq(float(h) / tile, 15.0, 0.001, "viewport is exactly 15 tiles tall")
+	assert_between(float(w) / tile, 26.0, 27.0, "and about 27 tiles wide")
 
 
-func test_stretch_is_integer_scaled() -> void:
+func test_stretch_scales_the_canvas() -> void:
 	assert_eq(ProjectSettings.get_setting("display/window/stretch/mode"), "canvas_items")
-	assert_eq(ProjectSettings.get_setting("display/window/stretch/aspect"), "keep")
-	assert_eq(ProjectSettings.get_setting("display/window/stretch/scale_mode"), "integer",
-		"non-integer scaling shimmers on horizontal scroll")
 
 
-func test_texture_filtering_is_nearest() -> void:
+## The art is smooth HD, not pixel art: there is no pixel grid to preserve, so
+## integer scaling would only add black borders, and nearest filtering would
+## alias the minified sprites. Both were correct before the art arrived and are
+## wrong now -- see SPRITES.md section 1.
+func test_texture_filtering_is_linear() -> void:
 	assert_eq(int(ProjectSettings.get_setting(
-		"rendering/textures/canvas_textures/default_texture_filter")), 0,
-		"0 == Nearest; anything else blurs every sprite in the game")
+		"rendering/textures/canvas_textures/default_texture_filter")), 1,
+		"1 == Linear; nearest aliases art that is minified to 0.41x")
 
 
-func test_pixel_snapping_is_on() -> void:
-	assert_true(bool(ProjectSettings.get_setting("rendering/2d/snap/snap_2d_transforms_to_pixel")))
-	assert_true(bool(ProjectSettings.get_setting("rendering/2d/snap/snap_2d_vertices_to_pixel")))
+func test_pixel_snapping_is_off() -> void:
+	assert_false(bool(ProjectSettings.get_setting(
+		"rendering/2d/snap/snap_2d_transforms_to_pixel")),
+		"snapping is a pixel-art tool; on smooth art it only adds stutter")
+	assert_false(bool(ProjectSettings.get_setting(
+		"rendering/2d/snap/snap_2d_vertices_to_pixel")))
 
 
 func test_physics_runs_at_60hz() -> void:

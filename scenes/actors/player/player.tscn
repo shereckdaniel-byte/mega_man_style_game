@@ -1,0 +1,68 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scenes/actors/player/player.gd" id="1_player"]
+[ext_resource type="SpriteFrames" path="res://resources/sprite_frames/player.tres" id="2_frames"]
+[ext_resource type="Script" path="res://scripts/core/state_machine.gd" id="3_machine"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/idle.gd" id="4_idle"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/walk.gd" id="5_walk"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/jump.gd" id="6_jump"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/fall.gd" id="7_fall"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/slide.gd" id="8_slide"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/climb.gd" id="9_climb"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/hurt.gd" id="10_hurt"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/dead.gd" id="11_dead"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/teleport.gd" id="12_tele"]
+
+[node name="Player" type="CharacterBody2D"]
+collision_layer = 8
+collision_mask = 4099
+script = ExtResource("1_player")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = ExtResource("2_frames")
+animation = &"idle"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[node name="HeadroomCast" type="RayCast2D" parent="."]
+collision_mask = 1
+
+[node name="StateMachine" type="Node" parent="."]
+script = ExtResource("3_machine")
+initial_state = &"Idle"
+
+[node name="Idle" type="Node" parent="StateMachine"]
+script = ExtResource("4_idle")
+anim_name = &"idle"
+
+[node name="Walk" type="Node" parent="StateMachine"]
+script = ExtResource("5_walk")
+anim_name = &"walk"
+
+[node name="Jump" type="Node" parent="StateMachine"]
+script = ExtResource("6_jump")
+anim_name = &"jump"
+
+[node name="Fall" type="Node" parent="StateMachine"]
+script = ExtResource("7_fall")
+anim_name = &"jump"
+
+[node name="Slide" type="Node" parent="StateMachine"]
+script = ExtResource("8_slide")
+anim_name = &"slide"
+
+[node name="Climb" type="Node" parent="StateMachine"]
+script = ExtResource("9_climb")
+anim_name = &"climb"
+
+[node name="Hurt" type="Node" parent="StateMachine"]
+script = ExtResource("10_hurt")
+anim_name = &"hurt"
+
+[node name="Dead" type="Node" parent="StateMachine"]
+script = ExtResource("11_dead")
+anim_name = &"death"
+
+[node name="Teleport" type="Node" parent="StateMachine"]
+script = ExtResource("12_tele")
+anim_name = &"teleport_in"

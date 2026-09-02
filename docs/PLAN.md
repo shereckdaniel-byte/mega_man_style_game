@@ -72,23 +72,41 @@ Deviations from the pre-M0 draft, both deliberate:
 2. **Jump apex is 46.3 px, not 48.8 px.** Writing the test exposed the error — see below
    and ARCHITECTURE §3.
 
-### M1 — Player controller, grey boxes (2–3 days)
+### M1 — Player controller ✅ done
 
-- `Player` as `CharacterBody2D` with a hand-rolled state machine
-  (`Idle/Walk/Jump/Fall/Slide/Climb/Hurt/Dead/Teleport`).
-- Tuned constants from ARCHITECTURE §3, `ColorRect` placeholder art.
-- One test room: flat ground, ladders, one-way platforms, spikes, a pit.
-- Debug overlay: state name, velocity, on-floor flag, physics frame counter.
+Built at the HD scale against the real sprites rather than grey boxes, since the art
+arrived early and the scale was settled first.
 
-**Accept:** jump apex is **46–47 px** from a standing start (the discrete figure — see
-ARCHITECTURE §3, *not* the 48.8 px the textbook formula gives); a full slide covers 65 px;
-ladder mount/dismount at top and bottom both work; releasing jump at frame 4 produces a
-noticeably shorter hop. `tests/test_tuning.gd` already asserts the apex and slide distance
-against the tuning resource; extend it to drive the real `CharacterBody2D`.
+- ✅ `Player` as `CharacterBody2D` with a node-based state machine —
+  `Idle/Walk/Jump/Fall/Slide/Climb/Hurt/Dead/Teleport`.
+- ✅ Every constant read from `PlayerTuning`; nothing hard-codes a speed.
+- ✅ Test room with ground, a pit, 1/2/3-tile steps straddling the jump apex, a
+  slide-only tunnel, a ladder and a one-way platform. Built from a tile-coordinate
+  table in code, because each block exists to test one number.
+- ✅ Debug overlay (F3): state, frame counter, velocity in **both** px/s and px/frame
+  NES, floor/ladder/shooting flags, and measured-vs-expected jump apex.
+- ✅ 16 integration tests driving the real node through `move_and_slide()`.
 
-Also at M1: **calibrate the absolute values against reference footage.** The constants are
-internally consistent and tested, but whether 4.9375 px/frame is the true NES jump
-velocity is unverified — measure a known ledge height in a reference video and adjust.
+**Accepted:** measured jump apex is 2.89 tiles — clears a 2-tile ledge, fails a 3-tile
+one; a full slide is exactly 26 frames and 4.06 tiles; releasing jump early produces a
+hop under 70% of full height; there is no coyote time and no double jump; knockback
+cannot be steered out of. All asserted in `tests/test_player_movement.gd` against the
+real `CharacterBody2D`, not against a re-implementation of the integration.
+
+Two bugs the integration tests caught that the arithmetic tests could not:
+
+1. **Jump overshot the apex by a third of a tile.** A transition took effect the frame
+   *after* it was decided, so the launch frame moved at full velocity with no gravity —
+   one integration step out of phase. Fixed in `StateMachine.physics_update`.
+2. **The sprite sank into the floor.** The art does not fill its 256 px cell; its feet
+   are on row 223. Aligning to the cell instead of the art buries the character.
+
+Still open from M1: **calibrate the absolute values against reference footage.** The
+constants are internally consistent and tested, but whether 4.9375 px/frame is the true
+NES jump velocity is unverified. `world_scale` makes this a one-line change if it moves.
+
+Also deferred to M4: ladder *behaviour* is implemented and the test room has one, but
+spikes and mount/dismount polish land with the real level tooling.
 
 ### M2 — Sprite pipeline (partly done, brought forward)
 
@@ -238,7 +256,7 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| **Art scale/style does not match the design** | **Blocks M1** | **Live.** The delivered sprites are 177 px smooth HD art; the design assumes a 24 px pixel-art character in a 256 × 224 viewport. Decision needed — SPRITES.md §7 |
+| ~~Art scale/style does not match the design~~ | ~~Blocks M1~~ | **Closed.** Settled as HD: 1920 × 1080, `world_scale` 4.5, linear filtering. SPRITES.md §7 |
 | AutoSprite MCP unreachable from the web session | Blocks regeneration | `www.autosprite.io` is denied by the environment network policy; allow the domain and restart the session |
 | ~~Godot 4.7 API drift~~ | ~~Blocks M0~~ | **Closed at M0.** Verified on 4.7.stable, pinned in `.godot-version`, CI runs against it |
 | AutoSprite output style is inconsistent between characters | Art rework | Lock one character prompt/seed convention at M2, generate all 8 bosses in one batch. Already visible: animation directory names alternate between `idle_right` and `Hit React` |

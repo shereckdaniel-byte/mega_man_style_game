@@ -3,8 +3,8 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M0 complete** — the project boots, the pixel-perfect settings are verified on
-Godot 4.7.stable, and 31 tests pass headless in CI. Next up is M1, the player controller.
+**Status: M1 complete** — the player controller is playable, verified on Godot 4.7.stable,
+with 59 tests (1411 assertions) passing headless in CI. Next up is M3, combat.
 
 ```sh
 GODOT=/path/to/godot ./tools/check.sh     # import + boot check + tests, same as CI
@@ -23,16 +23,27 @@ GODOT=/path/to/godot ./tools/check.sh     # import + boot check + tests, same as
 | `scripts/core/player_tuning.gd` | Every movement constant, in px/frame. The feel of the game lives here. |
 | `scripts/autoload/` | `GameState`, `WeaponManager`, `Tuning`, `AudioManager`, `SceneRouter` |
 | `tools/` | `bootstrap_input_map.gd` (regenerates the input map), `check.sh` |
-| `tests/` | Headless suite: tuning simulations, project settings, input map, progression |
+| `scenes/actors/player/` | `Player` plus one script per state under `states/` |
+| `scenes/stages/test_room/` | M1 tuning room — run the game and it drops you here |
+| `tests/` | Headless suite, including integration tests driving the real `CharacterBody2D` |
+
+## Controls
+
+Arrows/WASD move, **Z or Space** jump, **X** shoot, **Q/E** cycle weapons, **F3** debug
+overlay. **Slide is down + jump**, as in Mega Man 3 — not its own binding.
 
 ## Ground rules
 
 - **Engine:** Godot 4.7.x, GDScript, Compatibility renderer.
-- **Internal resolution:** 256×224, integer-scaled, nearest-neighbour filtering.
+- **Resolution:** 1920×1080, `world_scale` 4.5 — 72 px tiles, a 108 px character, and a
+  frame holding 26.7 × 15 tiles against the original's 16 × 14. Linear filtering: the art
+  is smooth HD, not pixel art.
 - **Fixed 60 Hz physics tick.** All movement constants are authored in NES units
   (pixels *per frame*) and converted once, so the feel matches the reference hardware.
-- **Design against the discrete jump apex of 46.3 px**, not the 48.8 px that v²/2g gives.
-  The engine integrates frame by frame and loses ~v/2. See ARCHITECTURE §3.
+- **Reason in tiles, not pixels.** A jump clears 2.89 tiles and a slide covers 4.06 at any
+  scale; the pixel figures change when `world_scale` does. And design against the
+  *discrete* apex — the engine integrates frame by frame and loses ~v/2 against v²/2g,
+  which is a quarter-tile and decides whether a ledge is clearable. ARCHITECTURE §3.
 - **Original IP.** Mechanics and feel are modelled on Mega Man 3; character names, art,
   music, and level layouts are original work. Canonical MM3 tables appear in these docs
   only as design references to be renamed before shipping.

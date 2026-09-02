@@ -26,6 +26,22 @@ func after_each() -> void:
 	pass
 
 
+## Override to true in a case whose tests await physics frames. The runner then
+## awaits every test method and the async setup/teardown hooks below, instead of
+## calling them synchronously.
+func is_async() -> bool:
+	return false
+
+
+## Async counterparts, used only when is_async() is true.
+func before_each_async() -> void:
+	pass
+
+
+func after_each_async() -> void:
+	pass
+
+
 func failures() -> PackedStringArray:
 	return _failures
 

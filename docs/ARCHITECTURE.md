@@ -59,30 +59,45 @@ produces "Could not find type X in the current scope" errors that look like code
 
 | Setting | Value | Why |
 | --- | --- | --- |
-| `display/window/size/viewport_width` | `256` | NES framebuffer width |
-| `display/window/size/viewport_height` | `224` | NES visible height (240 minus overscan) |
-| `display/window/size/window_width_override` | `1024` | 4× default window |
-| `display/window/size/window_height_override` | `896` | |
+| `display/window/size/viewport_width` | `1920` | 26.7 tiles wide |
+| `display/window/size/viewport_height` | `1080` | exactly 15 tiles tall, against the original's 14 |
 | `display/window/stretch/mode` | `canvas_items` | scales UI and world together |
-| `display/window/stretch/aspect` | `keep` | pillarbox rather than distort |
-| `display/window/stretch/scale_mode` | `integer` | no shimmer on scroll |
-| `rendering/textures/canvas_textures/default_texture_filter` | `0` (Nearest) | crisp pixels project-wide |
-| `rendering/2d/snap/snap_2d_transforms_to_pixel` | `true` | no sub-pixel sprite wobble |
-| `rendering/2d/snap/snap_2d_vertices_to_pixel` | `true` | |
+| `display/window/stretch/aspect` | `expand` | 16:9; see the note on aspect below |
+| `rendering/textures/canvas_textures/default_texture_filter` | `1` (Linear) | the art is smooth HD, minified to 0.61x — nearest would alias it |
+| `rendering/2d/snap/*` | unset (off) | pixel snapping is a pixel-art tool; on smooth art it only adds stutter |
 | `rendering/renderer/rendering_method` | `gl_compatibility` | best web/low-end support; nothing here needs Forward+ |
 | `physics/common/physics_ticks_per_second` | `60` | movement constants are per-frame |
 | `physics/common/max_physics_steps_per_frame` | `4` | bounded catch-up after a hitch |
 | `physics/2d/default_gravity` | `0` | gravity is applied per-actor, not globally |
 
-Setting the default texture filter project-wide is belt-and-braces; the per-file import
-preset in §7 is the authoritative fix.
+> **Viewport and `world_scale` must move together.** They cancel out in tile
+> counts: 1920 × 1080 at 4.5 and 1280 × 720 at 3.0 frame exactly the same amount of
+> level. What changes is how much of the 177 px source art survives — 0.61× versus
+> 0.41×. Raising the scale alone just zooms in and shows less level.
+> `tests/test_project_settings.gd` asserts the *tile* count for this reason.
+
+> **Aspect.** 16:9 shows about 27 tiles horizontally where the original showed 16.
+> Vertical view is nearly unchanged, so vertical platforming transfers directly;
+> horizontal rooms need to be wider and enemies become visible earlier than they
+> would have on NES. Level design has to account for it.
+
+Nearest filtering and integer scaling were correct while the plan assumed pixel art, and
+are wrong now that the art is smooth HD — see SPRITES.md §1. Both were reversed when the
+art direction was settled, and the settings tests were rewritten to assert the new values
+rather than deleted.
 
 ---
 
 ## 3. Movement constants
 
 Authored in **pixels per frame** at 60 Hz — the units the original hardware used — and
-converted once at load.
+multiplied by `world_scale` on the way out. Authoring this way keeps the numbers
+comparable to the reference hardware and preserves the tile-relative geometry exactly: a
+jump clears 2.9 tiles at any scale. `tests/test_tuning.gd` asserts that invariance across
+four different scales, which is what made retargeting from 256 × 224 to 1920 × 1080 a
+one-line change.
+
+**Never hand-write a px/s value.** Change `world_scale` and everything follows.
 
 **The source of truth is [`scripts/core/player_tuning.gd`](../scripts/core/player_tuning.gd)**,
 not this table; the values are repeated here for reading, and
@@ -102,11 +117,15 @@ not this table; the values are repeated here for reading, and
 
 ### Derived values — use the discrete numbers
 
-| Value | Figure |
-| --- | --- |
-| **Jump apex** | **46.3 px** (2.9 tiles) |
-| Slide distance | 65.0 px (4.1 tiles) |
-| Frames to terminal velocity | 28 |
+| Value | NES px | World px (4.5×) | Tiles |
+| --- | --- | --- | --- |
+| **Jump apex** | **46.3** | **208.4** | **2.89** |
+| Slide distance | 65.0 | 292.5 | 4.06 |
+| Tile | 16 | 72 | 1 |
+| Character height | 24 | 108 | 1.5 |
+| Frames to terminal velocity | 28 | 28 | — |
+
+Reason in **tiles**. That column is the one that does not change when the scale does.
 
 > **The apex is 46.3 px, not the 48.8 px that v²/2g gives.** The engine integrates
 > one frame at a time (`v += g·dt` then `y += v·dt`), and semi-implicit Euler loses
@@ -204,6 +223,18 @@ func handle_input(_e: InputEvent) -> void: pass
 
 `StateMachine.transition_to(name, msg)` calls `exit()`, swaps, calls `enter(msg)`, and
 emits `state_changed`. The debug overlay and tests listen to that signal.
+
+**A transition takes effect on the frame it is decided, not the frame after.**
+`physics_update` keeps running whichever state it is handed off to, up to a bounded chain
+of 4. This is not a micro-optimisation: without it the frame a jump starts moves at the
+full launch velocity with no gravity applied, which puts the whole jump one integration
+step out of phase and overshoots the tuned apex by `v/60` — about a third of a tile.
+`tests/test_player_movement.gd` catches exactly that.
+
+The one consequence to remember: a state's first `physics_update` runs with
+`frames_in_state == 0` on the same frame as its `enter()`. `Jump` relies on this to refuse
+to cut the jump on the launch frame, so that a quick tap still produces a hop instead of
+zeroing the velocity before the player has moved.
 
 **Shooting is not a state.** It is a `shoot_timer` on the player plus an animation-suffix
 lookup: `_anim_name() -> "%s%s" % [state_anim, "_shoot" if shoot_timer > 0 else ""]`.

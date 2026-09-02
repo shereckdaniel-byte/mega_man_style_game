@@ -213,19 +213,32 @@ Two things must be true before it can be used from a Claude Code web session:
 
 ---
 
-## 7. Open decisions
+## 7. Art direction — settled
 
-Blocking, and bigger than the sprite pipeline: **the art's scale and style do not match the
-game the plan describes.** See PLAN.md §6.
+**Decision: keep the art, go HD.** The game is not pixel art.
 
-| | Art scale | Consequence |
-| --- | --- | --- |
-| **Regenerate as pixel art** | ~24 px character | Plan survives intact: 256 × 224, nearest filtering, palette swap, the whole tuning table. Costs a full regeneration of both characters. |
-| **Keep the art, go HD** | 177 px character | Viewport becomes ~1280 × 720, tiles ~48 px, and **every constant in `PlayerTuning` rescales by ~3×**. Nearest filtering becomes wrong (the art is not pixel art — use linear). Palette swap becomes a hue rotation. |
-| **Downscale on import** | 24–64 px | Cheapest, worst-looking: 177 → 24 destroys anti-aliased detail into mush. Viable at 64 px (2.8× reduction) with a mid-resolution viewport. |
+| | |
+| --- | --- |
+| Viewport | 1920 × 1080 |
+| `world_scale` | 4.5 |
+| Tile | 72 px |
+| Character | 108 px (1.5 tiles, as in the original) |
+| Sprite draw scale | 0.61× from the 177 px source |
+| Filtering | **Linear**, snapping off, no integer scaling |
 
-Nothing downstream of this should be built until it is settled — level tile size, camera
-room dimensions, and the entire movement tuning table all hang off it.
+The frame holds 26.7 × 15 tiles against the original's 16 × 14: vertical view is nearly
+identical so vertical platforming transfers directly, horizontal view is wider.
+
+Two knock-on effects, both already applied:
+
+- Nearest filtering, pixel snapping and integer scaling were all correct for the pixel-art
+  plan and are wrong here. Reversed, with the settings tests rewritten to match.
+- The two-tone palette swap (§3) is not viable. Hue rotation is the fallback; decide at M5
+  when weapons land.
+
+Still open: the five missing player animations in §4 block nothing structurally — the
+controller falls back to a base animation and `tests/test_player_movement.gd` covers the
+behaviour — but `slide` and `climb` look wrong until they exist.
 
 ### Checklist before generating the other seven bosses
 
