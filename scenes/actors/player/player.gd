@@ -71,6 +71,9 @@ var _slide_shape: RectangleShape2D
 ## rather than tracked with signals -- queue_free is deferred, so a shot that
 ## died this frame is still a valid reference until the frame ends.
 var _shots: Array[BusterShot] = []
+## Frozen during a door transition and the teleport-in: physics still runs so
+## the player keeps standing on the floor, but input and state changes do not.
+var _frozen := false
 
 
 func _ready() -> void:
@@ -89,6 +92,14 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _frozen:
+		# Gravity still applies, so a player frozen in mid-air lands rather than
+		# hanging there, but nothing else about them moves.
+		velocity.x = 0.0
+		apply_gravity(delta)
+		move_and_slide()
+		_update_sprite()
+		return
 	_tick_timers()
 	health.tick()
 	state_machine.physics_update(delta)
@@ -171,6 +182,18 @@ func use_slide_hitbox(sliding: bool) -> void:
 	collision.position.y = -shape.size.y * 0.5
 
 
+## Freezes input and state. Used by door transitions, which move the player
+## themselves for 24 px and must not fight the controller while doing it.
+func set_frozen(value: bool) -> void:
+	_frozen = value
+	if value:
+		velocity = Vector2.ZERO
+
+
+func is_frozen() -> bool:
+	return _frozen
+
+
 func note_shot_fired() -> void:
 	_shoot_frames_left = tuning.shoot_pose_frames
 
@@ -234,13 +257,20 @@ func fire() -> BusterShot:
 
 # --- Damage -------------------------------------------------------------------
 
+## Health reached zero, however it got there. The Dead state owns the sequence.
+func _on_health_died(_info: DamageInfo) -> void:
+	died.emit()
+	if state_machine.current_name() != &"Dead":
+		state_machine.transition_to(&"Dead")
+
+
 ## Applied by the Hurtbox when a hit lands. Knockback is a state, because being
 ## unable to steer out of it is the whole point -- see states/hurt.gd.
+##
+## Death is deliberately not handled here: _on_health_died does it, so a kill
+## that never went through a hurtbox still stops the player.
 func on_damaged(info: DamageInfo, taken: int) -> void:
-	if taken <= 0:
-		return
-	if health.is_dead():
-		state_machine.transition_to(&"Dead")
+	if taken <= 0 or health.is_dead():
 		return
 	if info.has_flag(DamageInfo.NO_KNOCKBACK):
 		return
@@ -320,7 +350,11 @@ func _setup_damage() -> void:
 	hurtbox.add_child(box)
 
 	hurtbox.took_damage.connect(on_damaged)
-	health.died.connect(func(_info: DamageInfo) -> void: died.emit())
+	# Death is driven by Health, not by the hurtbox. A kill can arrive without
+	# any hit at all -- a KillPlane calls Health.kill() directly, bypassing
+	# i-frames on purpose -- and routing death through the hurtbox meant those
+	# kills set the bar to zero and left the player walking around on it.
+	health.died.connect(_on_health_died)
 
 
 func _try_shoot() -> void:

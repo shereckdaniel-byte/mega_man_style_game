@@ -24,6 +24,8 @@ extends Camera2D
 var target: Node2D
 var room: Room
 
+var _sliding := false
+
 
 func _ready() -> void:
 	position_smoothing_enabled = false
@@ -54,7 +56,49 @@ func _apply_limits() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if _sliding:
+		return  # the transition drives the camera directly
 	_snap()
+
+
+## Widens the limits to cover both rooms for the duration of a slide.
+##
+## Without this the slide cannot happen at all: Camera2D clamps to its limits
+## every frame, so a camera still limited to the outgoing room simply refuses to
+## move into the next one and the transition looks frozen.
+func begin_slide(next: Room) -> void:
+	_sliding = true
+	var union := room.world_bounds().merge(next.world_bounds()) if room != null \
+		else next.world_bounds()
+	limit_left = int(union.position.x)
+	limit_top = int(union.position.y)
+	limit_right = int(union.end.x)
+	limit_bottom = int(union.end.y)
+
+
+## Where the camera should end up once `next` is the active room, with the
+## player wherever they will be standing.
+func slide_target(next: Room, player_position: Vector2) -> Vector2:
+	var viewport := get_viewport_rect().size
+	var above_centre := (vertical_anchor - 0.5) * viewport.y
+	var wanted := Vector2(player_position.x, player_position.y - above_centre)
+	var bounds := next.world_bounds()
+	# Clamped the same way Camera2D would clamp it, so the slide ends exactly
+	# where the camera settles rather than a few pixels off it.
+	return Vector2(
+		clampf(wanted.x, bounds.position.x + viewport.x * 0.5,
+			maxf(bounds.position.x + viewport.x * 0.5, bounds.end.x - viewport.x * 0.5)),
+		clampf(wanted.y, bounds.position.y + viewport.y * 0.5,
+			maxf(bounds.position.y + viewport.y * 0.5, bounds.end.y - viewport.y * 0.5)))
+
+
+func end_slide(next: Room) -> void:
+	_sliding = false
+	enter_room(next)
+
+
+func is_sliding() -> bool:
+	return _sliding
 
 
 ## The camera's own position, before Godot clamps it to the limits.

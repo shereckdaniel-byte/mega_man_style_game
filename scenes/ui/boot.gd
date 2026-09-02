@@ -8,11 +8,14 @@ extends Node2D
 @onready var _label: Label = $CanvasLayer/Label
 
 
-## Where a windowed run lands. The M1 tuning room is still the place to read
-## movement numbers off the debug overlay -- open
-## res://scenes/stages/test_room/test_room.tscn directly for that, which is also
-## what tools/screenshot.gd drives.
-const FIRST_SCENE := "res://scenes/stages/dawn_boardwalk/art_preview.tscn"
+## Where a windowed run lands: stage 1 proper.
+##
+## Two other scenes are worth opening directly rather than routing to. The M1
+## tuning room (res://scenes/stages/test_room/test_room.tscn) is where movement
+## numbers are read off the debug overlay, and is what tools/screenshot.gd
+## drives. art_preview.tscn is the bare art harness -- one room, every enemy
+## archetype in view at once, no encounter design.
+const FIRST_SCENE := "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn"
 
 
 func _ready() -> void:
@@ -22,7 +25,7 @@ func _ready() -> void:
 	if _label != null:
 		_label.text = "\n".join(report)
 	# Headless runs stay here so `--headless --quit` keeps reporting the
-	# self-check; a real run drops straight into the stage 1 art preview.
+	# self-check; a real run drops straight into stage 1.
 	if DisplayServer.get_name() != "headless":
 		get_tree().call_deferred("change_scene_to_file", FIRST_SCENE)
 
