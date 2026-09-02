@@ -284,6 +284,41 @@ func _add_enemy_hitbox(amount: int, at: Vector2) -> Hitbox:
 	return hitbox
 
 
+# --- Weapon colour --------------------------------------------------------------
+
+## The hue-rotation shader from SPRITES.md section 3. Its job is to make the
+## equipped weapon visible on the character; its risk is dragging the outline
+## and highlights with it, which is why the shader weights by saturation.
+func test_the_player_wears_the_weapon_palette_shader() -> void:
+	var material := player.sprite.material as ShaderMaterial
+	assert_not_null(material, "the sprite has no shader material")
+	assert_eq(material.shader, Player.WEAPON_PALETTE)
+
+
+## The buster must be a no-op. The art was drawn in the buster's colours, so any
+## shift at all means the default sprite is not the sprite the artist made.
+func test_the_buster_does_not_recolour_the_player() -> void:
+	assert_almost_eq(player.weapon_hue_shift(&"buster"), 0.0, 0.0001)
+
+
+func test_an_unknown_weapon_leaves_the_colour_alone() -> void:
+	assert_almost_eq(player.weapon_hue_shift(&"not_a_weapon"), 0.0, 0.0001)
+
+
+## A weapon nobody can see they have equipped is a weapon they will forget they
+## have. Both shipped weapons have to move the sprite somewhere visible.
+func test_each_weapon_shifts_the_hue_somewhere_visible() -> void:
+	var weapons := tree.root.get_node_or_null(^"WeaponManager")
+	if weapons == null:
+		return
+	for id in [&"tide_crawler", &"arc_lance"]:
+		if weapons.data_for(id) == null:
+			continue
+		var shift: float = absf(player.weapon_hue_shift(id))
+		assert_true(shift > 0.05,
+			"%s shifts the hue by only %.3f turns" % [id, shift])
+
+
 func _first_shot() -> BusterShot:
 	for child in root.get_children():
 		if child is BusterShot:

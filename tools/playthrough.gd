@@ -1,4 +1,5 @@
-## Drives stage 1 from spawn to the boss door and reports whether it got there.
+## Drives stage 1 from spawn to the boss door, then fights Tide, and reports how
+## far it got.
 ##
 ##   xvfb-run -a godot --script res://tools/playthrough.gd -- <out_dir>
 ##
@@ -12,6 +13,12 @@
 ## than hopping on a fixed cadence. That matters: a fixed cadence walks into
 ## gaps a player would clear, so it reports failures the stage does not have. A
 ## bot that jumps when there is something to jump means a failure is the stage's.
+##
+## The fight half is a *survivability* check, not a skill one. It shoots on a
+## fixed cadence and jumps at anything coming at it low, which is roughly what a
+## competent player does and nowhere near what a good one does. If this bot can
+## win, the fight is winnable buster-only; if it loses, look at the fight rather
+## than concluding anything.
 ##
 ## Development tool: not referenced by the game or by CI.
 extends SceneTree
@@ -33,11 +40,27 @@ const JUMP_HOLD := 16
 ## Frames without horizontal progress before we call it stuck.
 const STUCK_FRAMES := 900
 
+## Frames to give the boss fight before calling it a loss.
+const FIGHT_FRAMES := 5400
+## Frames between trigger pulls. The buster caps at 3 live pellets anyway; this
+## keeps the bot from spamming just_pressed every frame.
+const SHOOT_PERIOD := 8
+## How close, in tiles, the bot tries to stay to the boss. Close enough to hit,
+## far enough to read a wave coming.
+const FIGHT_RANGE_TILES := 5.0
+## Closer than this and the bot backs off.
+const RETREAT_RANGE_TILES := 3.0
+## An incoming shot nearer than this, in tiles, is worth dodging.
+const DODGE_RANGE_TILES := 2.6
+## Frames to hold the slide input.
+const SLIDE_HOLD := 6
+
 var _stage: Node
 var _player: Player
 var _deck: TileMapLayer
 var _tile := 72.0
 var _jump_left := 0
+var _slide_left := 0
 
 
 func _initialize() -> void:
@@ -100,10 +123,155 @@ func _run() -> void:
 		% [reached, _player.global_position.x, goal, _stage.room.name,
 			deaths[0], _player.health.current])
 
+	var won := false
+	if reached:
+		won = await _fight()
+
+	_release()
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		root.get_texture().get_image().save_png("%s/playthrough.png" % args[0])
-	quit(0 if reached else 1)
+	quit(0 if reached and won else 1)
+
+
+## Walks into the arena and fights Tide with the buster alone.
+func _fight() -> bool:
+	var arena: BossArena = _stage.arena()
+	if arena == null:
+		print("no arena on this stage")
+		return false
+
+	var weapons := root.get_node_or_null(^"/root/WeaponManager")
+	var awarded: Array[StringName] = []
+	arena.cleared.connect(func(_i: int, w: StringName) -> void: awarded.append(w))
+
+	var last_phase := -1
+	for frame in FIGHT_FRAMES:
+		await process_frame
+		if arena.phase != last_phase:
+			last_phase = arena.phase
+			print("  arena phase -> %s at fight frame %d" % [_phase_name(last_phase), frame])
+		if arena.is_cleared():
+			print("TIDE DOWN at fight frame %d, player hp=%d" % [frame, _player.health.current])
+			# Let the weapon-get screen come and go.
+			for i in 360:
+				await process_frame
+				if weapons != null and weapons.is_unlocked(&"tide_crawler"):
+					break
+			var got: bool = weapons != null and weapons.is_unlocked(&"tide_crawler")
+			print("awarded=%s  unlocked=%s  ammo=%d"
+				% [str(awarded), got,
+					weapons.get_ammo(&"tide_crawler") if weapons != null else -1])
+			return got
+		if _player.health.is_dead():
+			print("player died during the fight at frame %d" % frame)
+			return false
+		_drive_fight(arena, frame)
+		if frame % 120 == 0:
+			var hp := arena.boss.health.current if arena.boss != null else -1
+			var pattern := "-"
+			if arena.boss != null and arena.boss.current_pattern() != null:
+				pattern = String(arena.boss.current_pattern().id)
+			print("  f%-5d boss=%-3d player=%-3d pattern=%-7s step=%d  px=%.0f bx=%.0f gap=%.1ft shots=%d eshots=%d frozen=%s"
+				% [frame, hp, _player.health.current, pattern,
+					arena.boss.pattern_step() if arena.boss != null else -1,
+					_player.global_position.x,
+					arena.boss.global_position.x if arena.boss != null else -1.0,
+					absf(arena.boss.global_position.x - _player.global_position.x) / _tile if arena.boss != null else -1.0,
+					_player.live_shots(), _count_enemy_shots(), _player.is_frozen()])
+	print("fight timed out")
+	return false
+
+
+## One frame of fighting: close to range, shoot on a cadence, jump anything low
+## and incoming.
+func _drive_fight(arena: BossArena, frame: int) -> void:
+	_release_move()
+
+	if arena.boss == null or not is_instance_valid(arena.boss):
+		# Still walking in, or the boss is exploding. Head for the arena.
+		Input.action_press(&"move_right")
+		return
+
+	var to_boss: float = arena.boss.global_position.x - _player.global_position.x
+	var gap := absf(to_boss) / _tile
+	# Hold the trigger toward the boss whenever it is not too close.
+	#
+	# Not "stand still at the ideal range": the player fires the way they face,
+	# and facing follows the movement input, so a bot that stopped moving kept
+	# whichever way it happened to be pointing -- usually away, after backing
+	# off -- and emptied its whole magazine into the far wall for 90 seconds
+	# while the boss sat untouched. Standing still is not a neutral choice here.
+	if gap < RETREAT_RANGE_TILES:
+		Input.action_press(&"move_left" if to_boss > 0.0 else &"move_right")
+	else:
+		Input.action_press(&"move_right" if to_boss > 0.0 else &"move_left")
+
+	if frame % SHOOT_PERIOD == 0:
+		Input.action_press(&"shoot")
+	elif frame % SHOOT_PERIOD == 1:
+		Input.action_release(&"shoot")
+
+	if _slide_left > 0:
+		_slide_left -= 1
+		if _slide_left == 0:
+			Input.action_release(&"jump")
+			Input.action_release(&"move_down")
+		return
+	if _jump_left > 0:
+		_jump_left -= 1
+		if _jump_left == 0:
+			Input.action_release(&"jump")
+		return
+	if not _player.is_on_floor():
+		return
+	# Two shot heights, two answers -- which is the whole point of having both
+	# patterns. Jumping a chest-height shot walks into it.
+	if _incoming_shot(-0.2, 1.6):
+		Input.action_press(&"move_down")
+		Input.action_press(&"jump")
+		_slide_left = SLIDE_HOLD
+	elif _incoming_shot(-1.6, 0.4):
+		Input.action_press(&"jump")
+		_jump_left = JUMP_HOLD
+
+
+## Is there an enemy shot close, in the given band above the player's feet?
+##
+## `low` and `high` are in tiles above the feet, and y grows downward, so the
+## band is expressed as offsets: (-1.6, 0.4) is knee-to-head, (-0.2, 1.6) is
+## chest-and-up.
+func _incoming_shot(low: float, high: float) -> bool:
+	var reach := DODGE_RANGE_TILES * _tile
+	for child in _stage.get_children():
+		if not (child is EnemyShot):
+			continue
+		var shot := child as EnemyShot
+		var delta := shot.global_position - _player.global_position
+		if absf(delta.x) > reach:
+			continue
+		if delta.y >= low * _tile and delta.y <= high * _tile:
+			return true
+	return false
+
+
+func _count_enemy_shots() -> int:
+	var n := 0
+	for child in _stage.get_children():
+		if child is EnemyShot:
+			n += 1
+	return n
+
+
+func _release_move() -> void:
+	for action in [&"move_right", &"move_left"]:
+		if Input.is_action_pressed(action):
+			Input.action_release(action)
+
+
+func _phase_name(phase: int) -> String:
+	var names := ["WAITING", "SEALING", "ENTERING", "FILLING", "FIGHTING", "CLEARED"]
+	return names[phase] if phase >= 0 and phase < names.size() else "?"
 
 
 ## One frame of input: always walk right, jump when the deck ahead demands it.
@@ -151,6 +319,6 @@ func _step_ahead() -> bool:
 
 
 func _release() -> void:
-	for action in [&"move_right", &"jump", &"shoot"]:
+	for action in [&"move_right", &"move_left", &"move_down", &"jump", &"shoot"]:
 		if Input.is_action_pressed(action):
 			Input.action_release(action)

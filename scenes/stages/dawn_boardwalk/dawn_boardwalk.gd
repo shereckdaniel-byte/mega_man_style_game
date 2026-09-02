@@ -1,7 +1,7 @@
 ## Stage 1, "Dawn Boardwalk", authored end to end.
 ##
-## Four rooms of boardwalk over floodwater, left to right, ending at a boss
-## door. This is the stage the game boots into; `art_preview.tscn` stays as the
+## Five rooms of boardwalk over floodwater, left to right: four of stage, then
+## the arena where Tide is fought. This is the stage the game boots into; `art_preview.tscn` stays as the
 ## bare art harness.
 ##
 ## Authored as a table rather than as a .tscn for the same reason the tuning
@@ -19,6 +19,8 @@ const BACKGROUND := preload("res://scenes/stages/dawn_boardwalk/parallax_backgro
 const PLAYER_SCENE := preload("res://scenes/actors/player/player.tscn")
 const TILESET := preload("res://resources/tilesets/dawn_boardwalk.tres")
 const HUD_SCRIPT := preload("res://scenes/ui/hud.gd")
+const PAUSE_MENU := preload("res://scenes/ui/pause_menu.gd")
+const TIDE := preload("res://scenes/actors/bosses/tide.gd")
 
 const WALKER := preload("res://scenes/actors/enemies/walker.gd")
 const HOPPER := preload("res://scenes/actors/enemies/hopper.gd")
@@ -45,6 +47,10 @@ const ROOM_WIDTH := 28
 ## does not ask for frame-perfect.
 const MAX_STEP_TILES := 2
 const MAX_GAP_TILES := 2
+
+## A room with no checkpoint. Not -1 by accident: a checkpoint at cell -1 would
+## be placed silently outside the room, and the pit would eat the player.
+const NO_CHECKPOINT := -1.0
 
 ## The bottomless-pit plane: where it starts, and how deep it goes.
 const PIT_ROW := DECK_ROW + 10
@@ -112,7 +118,22 @@ const ROOMS := [
 		"enemies": [],
 		"checkpoint": 2.0,
 	},
+	{
+		"name": "Arena",
+		# Flat, empty, and no checkpoint. The arena is the fight and nothing
+		# else: a gap here would decide the fight instead of the boss, and a
+		# checkpoint inside it would let a player who died mid-fight respawn
+		# past the seal with the boss already gone.
+		"gaps": [],
+		"blocks": [],
+		"enemies": [],
+		"checkpoint": NO_CHECKPOINT,
+	},
 ]
+
+## Index of the arena in ROOMS, and of the last room the player walks through.
+const ARENA_ROOM := 4
+const BOSS_DOOR_ROOM := 3
 
 var _player: Player
 var _deck: TileMapLayer
@@ -137,7 +158,9 @@ func _ready() -> void:
 	_player.position = Vector2(2.0, float(DECK_ROW) - 2.0) * tile
 	add_child(_player)
 
+	_add_arena(tile)
 	_add_hud()
+	_add_pause_menu()
 	begin(_player, _rooms[0])
 
 
@@ -150,11 +173,19 @@ func rooms() -> Array[Room]:
 	return _rooms
 
 
+## Where the run through the stage ends: the far side of the last walking room,
+## which is the doorway into the arena. Not the arena itself -- reaching this
+## point is what "got to the boss" means, and the fight is what comes after.
 func boss_door_position() -> Vector2:
 	var autoload := get_node_or_null(^"/root/Tuning")
 	var tile: float = autoload.player.tile_size() if autoload != null else 72.0
-	return Vector2(float(room_origin(ROOMS.size() - 1) + ROOM_WIDTH - 3),
+	return Vector2(float(room_origin(BOSS_DOOR_ROOM) + ROOM_WIDTH - 3),
 		float(DECK_ROW)) * tile
+
+
+## The arena node, for the tests and for the playthrough tool.
+func arena() -> BossArena:
+	return get_node_or_null(^"BossArena") as BossArena
 
 
 # --- Building -----------------------------------------------------------------
@@ -208,11 +239,13 @@ func _build_rooms(tile: float) -> void:
 		add_child(room)
 		_rooms.append(room)
 
-		var checkpoint := Checkpoint.new()
-		checkpoint.name = "%s_Checkpoint" % room.name
-		checkpoint.position = Vector2(float(origin) + float(spec["checkpoint"]),
-			float(DECK_ROW)) * tile
-		add_child(checkpoint)
+		var checkpoint_cell := float(spec["checkpoint"])
+		if not is_equal_approx(checkpoint_cell, NO_CHECKPOINT):
+			var checkpoint := Checkpoint.new()
+			checkpoint.name = "%s_Checkpoint" % room.name
+			checkpoint.position = Vector2(float(origin) + checkpoint_cell,
+				float(DECK_ROW)) * tile
+			add_child(checkpoint)
 
 		for entry in spec["enemies"]:
 			_add_marker(entry, origin, tile)
@@ -271,8 +304,47 @@ func _add_pit_sensor(tile: float) -> void:
 	add_child(pit)
 
 
+## The boss room. The trigger sits a few cells inside the arena so the player is
+## fully through the doorway before the room seals -- sealing on the threshold
+## would trap them half in the door frame.
+func _add_arena(tile: float) -> void:
+	var origin := room_origin(ARENA_ROOM)
+	var arena_node := BossArena.new()
+	arena_node.name = "BossArena"
+	arena_node.boss_script = TIDE
+	arena_node.arena_room = _rooms[ARENA_ROOM].get_path()
+	arena_node.position = Vector2(float(origin) + 4.0, float(DECK_ROW)) * tile
+	# Tide lands well clear of the doorway, at the far end of the arena.
+	arena_node.boss_offset_tiles = Vector2(16.0, 0.0)
+	add_child(arena_node)
+	arena_node.cleared.connect(_on_boss_cleared)
+
+
 func _add_hud() -> void:
 	var hud := HUD_SCRIPT.new()
 	hud.name = "Hud"
 	add_child(hud)
 	hud.track(_player)
+	var arena_node := arena()
+	if arena_node != null:
+		arena_node.use_hud(hud)
+
+
+func _add_pause_menu() -> void:
+	var menu := PAUSE_MENU.new()
+	menu.name = "PauseMenu"
+	add_child(menu)
+	menu.bind(_player)
+
+
+## Tide is down. Show what the player got, and only then give control back.
+func _on_boss_cleared(_index: int, weapon_id: StringName) -> void:
+	var weapons := get_node_or_null(^"/root/WeaponManager")
+	var data: WeaponData = weapons.data_for(weapon_id) if weapons != null else null
+	var weapon_name := data.display_name if data != null else String(weapon_id).capitalize()
+	if _player != null:
+		_player.set_frozen(true)
+	var screen := WeaponGet.show_for(self, weapon_name, "Tide")
+	screen.finished.connect(func() -> void:
+		if _player != null and is_instance_valid(_player):
+			_player.set_frozen(false))

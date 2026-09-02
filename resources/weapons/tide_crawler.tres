@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/weapon_data.gd" id="1_data"]
+[ext_resource type="Script" path="res://scenes/actors/projectiles/crawler_shot.gd" id="2_shot"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"tide_crawler"
+display_name = "Tide Crawler"
+projectile_script = ExtResource("2_shot")
+ammo_max = 28
+ammo_cost = 1
+max_on_screen = 2
+fire_cooldown_frames = 14
+damage = 2
+flags = 0
+palette = Array[Color]([Color(0.2, 0.8, 0.56, 1), Color(0.74, 1, 0.9, 1)])
+tuning = {
+"speed_pf": 2.6
+}

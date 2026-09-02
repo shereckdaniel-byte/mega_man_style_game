@@ -103,14 +103,13 @@ rest, so a newly generated animation shows up under a usable name instead of bei
 
 ---
 
-## 3. Palette swap — blocked
+## 3. Palette swap — resolved at M5: hue rotation
 
 The plan was a `ShaderMaterial` remapping two authored body tones to the equipped weapon's
 colours, the way the NES palette swap worked.
 
-**This does not work on the current art.** An exact-match shader needs flat tones; one
-frame has ~230 colours with anti-aliased edges and gradients. Options, in order of
-preference:
+**That does not work on this art.** An exact-match shader needs flat tones; one frame has
+~230 colours with anti-aliased edges and gradients. The options were:
 
 1. **Regenerate as flat-shaded pixel art** — restores the original plan intact.
 2. **Hue-rotate in the shader** instead of remapping exact colours. Works on any art, but
@@ -119,7 +118,27 @@ preference:
 3. **Generate a colour variant per weapon in AutoSprite.** Highest fidelity, but it is
    8 × the art for one character and every regeneration multiplies.
 
-Resolve alongside the art-direction decision in §7.
+**Option 2 shipped** (`scenes/actors/player/weapon_palette.gdshader`). Option 1 was
+rejected with the art direction in §7 — the smooth HD character is the decision, and
+regenerating it flat to enable a shader would be the tail wagging the dog. Option 3 is
+eight regenerations of a fourteen-animation character to change one colour.
+
+The outline problem named above is handled rather than lived with: **the shift is weighted
+by saturation, and luminance is untouched.** Near-grey pixels — the outline, the white
+highlights — barely move, so the character stays the same character between weapons while
+the coloured body tones carry the weapon. `grey_floor` is the dial: 0 freezes greys
+completely, and the player uses 0.12 so the outline warms very slightly rather than
+looking pasted on.
+
+The shift itself is measured from the buster's own palette to the equipped weapon's, both
+read from the `.tres` — so a weapon resource says what colour the weapon *is*, and nothing
+has to separately state what colour it is relative to. The buster is therefore exactly
+0, and the default sprite is the sprite the art was made as.
+
+**What was given up:** this is a tint, not the original's crisp two-colour swap, and two
+weapons authored close together on the colour wheel will look alike. `tests/test_combat.gd`
+asserts every weapon moves the hue by more than 0.05 turns, which catches that at the
+point a new weapon is added rather than in a screenshot later.
 
 ---
 
@@ -344,8 +363,8 @@ Two knock-on effects, both already applied:
 
 - Nearest filtering, pixel snapping and integer scaling were all correct for the pixel-art
   plan and are wrong here. Reversed, with the settings tests rewritten to match.
-- The two-tone palette swap (§3) is not viable. Hue rotation is the fallback; decide at M5
-  when weapons land.
+- The two-tone palette swap (§3) is not viable. Hue rotation was the fallback and is what
+  shipped at M5 — see §3, which now records the decision and what it cost.
 
 **Closed 2026-09-02:** the six missing player animations now exist (§4) and were verified
 in-engine, not just in the atlas — `tools/screenshot.gd` drives the player into each state

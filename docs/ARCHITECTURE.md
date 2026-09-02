@@ -343,18 +343,36 @@ working game:
 class_name WeaponData extends Resource
 @export var id: StringName
 @export var display_name: String
-@export var projectile_scene: PackedScene
+@export var projectile_script: Script   # a WeaponShot subclass, instantiated with .new()
 @export var ammo_max: int = 28
 @export var ammo_cost: int = 1
 @export var max_on_screen: int = 3
 @export var fire_cooldown_frames: int = 0
-@export var palette: Array[Color]     # 2-colour swap for the player sprite
+@export var damage: int = 1
+@export var flags: int = DamageInfo.NONE
+@export var palette: Array[Color]       # 2-colour swap for the player sprite
 @export var icon: Texture2D
+@export var tuning: Dictionary          # per-weapon numbers, read by its projectile
 ```
 
-`WeaponManager` (autoload) holds the unlocked set, current selection, and ammo. Palette
-swap is a `ShaderMaterial` on the player's `AnimatedSprite2D` that remaps two index
-colours — generate the sprite in a fixed 2-tone scheme so this works (SPRITES §3).
+**A `Script`, not the `PackedScene` this section first specified.** Every projectile
+here is a bare script built with `.new()` — a pellet is one Area2D with a rectangle,
+and building that in code is shorter than a scene file. A `PackedScene` field would
+mean authoring eight scenes whose only content is a node the script creates anyway.
+
+`WeaponManager` (autoload) holds the unlocked set, current selection, and ammo, and
+loads the catalogue by scanning `res://resources/weapons/`. Adding a weapon is a
+`.tres` plus a projectile script; no existing file changes. Palette swap is a
+`ShaderMaterial` on the player's `AnimatedSprite2D` that remaps two index colours —
+generate the sprite in a fixed 2-tone scheme so this works (SPRITES §3).
+
+Projectiles share `WeaponShot`, which settles damage, the weapon id, the collision
+layers and the off-screen cleanup. A subclass overrides three things: `shot_size()`,
+`_configure()`, and `_advance(delta)`. Getting the layers right is not left to each
+weapon, because a weapon that masks nothing simply does no damage and never errors.
+
+The buster costs 0 and is never removed. It is the floor the player cannot fall
+through: run every weapon dry and there is still an attack.
 
 ### 5.7 Autoloads
 

@@ -49,13 +49,27 @@ func _ready() -> void:
 
 
 ## Hooks the bar to a Health and seeds it with the current value.
-func track(health: Health) -> void:
+##
+## `start_empty` seeds it at zero instead and lets it fill to the current value
+## one tick at a time. That is the boss intro: the bar filling is the beat the
+## player waits through, and seeding it full would leave nothing to watch.
+func track(health: Health, start_empty: bool = false) -> void:
 	ticks = health.max_hp
 	_target = health.current
-	_shown = health.current
-	health.changed.connect(_on_health_changed)
+	_shown = 0 if start_empty else health.current
+	_frames = 0
+	if not health.changed.is_connected(_on_health_changed):
+		health.changed.connect(_on_health_changed)
 	custom_minimum_size = _bar_size()
 	queue_redraw()
+
+
+## Unhooks from a Health, for a bar that outlives what it was showing -- the
+## boss bar is reused by the next boss, and a stale connection to a freed
+## Health would fire into a bar that has moved on.
+func untrack(health: Health) -> void:
+	if health != null and health.changed.is_connected(_on_health_changed):
+		health.changed.disconnect(_on_health_changed)
 
 
 func set_value(value: int) -> void:

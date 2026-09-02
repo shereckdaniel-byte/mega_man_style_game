@@ -204,16 +204,56 @@ ahead rather than one, it launched a cell early, landed *in* the gap, and made a
 perfectly finishable stage look impossible. Read a failure as "look at this", not as
 "the stage is broken".
 
-### M5 — Boss framework + weapon get (2–3 days)
+### M5 — Boss framework + weapon get ✅ done
 
-- Boss arena: door seal, boss teleport-in, health bar fill (one tick per 4 frames,
+- ✅ Boss arena: door seal, boss teleport-in, health bar fill (one tick per 4 frames,
   player locked until full), fight, defeat explosion, weapon-get screen.
-- First Robot Master with a 3-pattern state machine and telegraphed tells.
-- Weapon system: ammo meters, weapon switch, projectile behaviours, weakness table.
-- Pause/weapon menu with the sub-screen layout, ammo bars, and E-tank use.
+- ✅ **Tide**, the first Robot Master, with three telegraphed patterns.
+- ✅ Weapon system: WeaponData resources, a scanned catalogue, ammo meters, per-weapon
+  on-screen caps and cooldowns, three projectile behaviours, weakness table.
+- ✅ Pause/weapon menu with the sub-screen layout, ammo bars, and E-tank use.
 
-**Accept:** beating the boss awards a weapon that is usable in stage 1 with correct ammo
-drain; the weakness table applies 2–4× damage to the intended target.
+**Accepted:** `tools/playthrough.gd` now runs the stage *and* the fight. It reaches the
+boss door, walks into the arena, and beats Tide **with the buster alone**, after which
+Tide Crawler is unlocked with a full 28-tick bar. The weakness table gives the Arc Lance
+4 damage where the buster does 1, inside the roster's 2–4× rule, and Tide is not weak to
+its own weapon.
+
+**Measured over six runs: five wins, one loss** (that one with Tide on 5 HP). The bot
+arrives at the arena on 14 of 28 HP, having taken the stage's hits on the way, and
+finishes on 4–12. That is roughly where a first boss should sit — winnable with no
+weapons, and not free — but read it for what it is: this bot shoots on a fixed cadence
+and knows two dodges. A person is much better than it, so **5-in-6 for the bot is not
+5-in-6 for a player**, and the fight has not been played by a human yet.
+
+**Telegraphs are structural, not a convention.** `BossPattern` is tell → act → recover
+as three frame counts, and `Boss` runs them in that order, so there is nowhere to put an
+attack that skips its windup. A design rule stated in a doc is a rule that gets forgotten
+on boss six.
+
+**Three bugs worth remembering:**
+
+- **`Enemy` leaves the body collider to its subclasses**, and `Boss` did not build one.
+  A CharacterBody2D with no shape does not land on the floor, it passes through it — the
+  boss kept running patterns the whole way down, the fight looked live, and the only
+  visible symptom was projectiles appearing thousands of pixels below the room. Now built
+  in `Boss.setup()` with a test that stands a boss on a floor and checks it is still there.
+- **Volley's stated answer did not work.** The pattern was documented as "slide under it"
+  and fired at 15 NES px, whose lower edge sits *below* the 14 px slide box. Nothing but
+  the arithmetic would have said so. It fires at 18.5 now, which clears a slide by 1.5 px
+  and still catches anyone standing.
+- **The playthrough bot emptied its magazine into a wall.** Firing follows facing, facing
+  follows movement input, so a bot that stopped moving at its ideal range kept pointing
+  wherever it last walked — usually away. Ninety seconds of a fight where neither side
+  could hit the other. The bot holds a direction now; standing still is not neutral.
+
+**The palette swap is resolved**, closing the question SPRITES.md §3 parked for M5: hue
+rotation weighted by saturation, so the outline and highlights stay put and only the body
+tones carry the weapon's colour. It is a tint rather than the original's crisp two-colour
+swap — the trade is written up in §3.
+
+**Still open:** a weapon-get screen that shows the boss art rather than its name in text,
+and the boss's own hurt/flash feedback, which currently relies on the energy bar alone.
 
 ### M6 — Content build-out (2–3 weeks)
 

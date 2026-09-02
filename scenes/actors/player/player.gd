@@ -16,7 +16,7 @@ signal respawned()
 ## Death sequence finished and the last life is gone. The stage decides what a
 ## game over means; the player only reports it.
 signal game_over()
-signal shot_fired(shot: BusterShot)
+signal shot_fired(shot: WeaponShot)
 
 const FLOOR_NORMAL := Vector2.UP
 ## Measured from the AutoSprite export's opaque bounding box. The character does
@@ -28,6 +28,15 @@ const SOURCE_ART_HEIGHT := 177.0
 const SOURCE_ART_BASELINE := 223.0
 
 const BUSTER_SHOT := preload("res://scenes/actors/projectiles/buster_shot.gd")
+const WEAPON_PALETTE := preload("res://scenes/actors/player/weapon_palette.gdshader")
+
+## How far the equipped weapon's hue is allowed to drag the sprite, and how much
+## of that the near-grey pixels take. The outline and the highlights are what
+## keep the character recognisable between weapons, so they take almost none of
+## it -- see SPRITES.md section 3, which chose hue rotation over an exact-match
+## palette swap because this art has ~230 colours per frame and nothing to match.
+const PALETTE_GREY_FLOOR := 0.12
+const PALETTE_SATURATION := 1.08
 
 ## Where the arm cannon is, per state, in NES pixels from the actor's origin --
 ## which is at its feet, so y is negative. x is forward, and gets mirrored by
@@ -70,7 +79,10 @@ var _slide_shape: RectangleShape2D
 ## Live pellets, for the 3-on-screen cap. Freed shots are filtered out on read
 ## rather than tracked with signals -- queue_free is deferred, so a shot that
 ## died this frame is still a valid reference until the frame ends.
-var _shots: Array[BusterShot] = []
+var _shots: Array[WeaponShot] = []
+## Frames left before the selected weapon may fire again. The buster's cooldown
+## is 0, so for the buster the on-screen cap is still the only limiter.
+var _fire_cooldown := 0
 ## Frozen during a door transition and the teleport-in: physics still runs so
 ## the player keeps standing on the floor, but input and state changes do not.
 var _frozen := false
@@ -89,6 +101,7 @@ func _ready() -> void:
 	floor_snap_length = tuning.px(2.0)
 	entry_position = global_position
 	_setup_damage()
+	_setup_palette()
 
 
 func _physics_process(delta: float) -> void:
@@ -104,6 +117,7 @@ func _physics_process(delta: float) -> void:
 	health.tick()
 	state_machine.physics_update(delta)
 	move_and_slide()
+	_try_switch_weapon()
 	_try_shoot()
 	_update_sprite()
 
@@ -198,18 +212,43 @@ func note_shot_fired() -> void:
 	_shoot_frames_left = tuning.shoot_pose_frames
 
 
-# --- Buster -------------------------------------------------------------------
+# --- Weapons ------------------------------------------------------------------
 
-## Live pellets on screen, after dropping any freed since last frame.
+## Live shots on screen, after dropping any freed since last frame.
 func live_shots() -> int:
 	# Rebuilt by hand rather than with Array.filter(): filter() returns an
-	# untyped Array, which will not assign back into an Array[BusterShot].
-	var alive: Array[BusterShot] = []
+	# untyped Array, which will not assign back into an Array[WeaponShot].
+	var alive: Array[WeaponShot] = []
 	for shot in _shots:
 		if is_instance_valid(shot):
 			alive.append(shot)
 	_shots = alive
 	return _shots.size()
+
+
+## The WeaponManager, or null when there is not one -- a bare test tree, or a
+## `--script` entry point where autoload identifiers do not resolve.
+func weapons_autoload() -> Node:
+	return get_node_or_null(^"/root/WeaponManager")
+
+
+## The weapon currently selected, defaulting to the buster.
+func current_weapon() -> StringName:
+	var weapons := weapons_autoload()
+	return weapons.current if weapons != null else &"buster"
+
+
+func current_weapon_data() -> WeaponData:
+	var weapons := weapons_autoload()
+	return weapons.data_for(current_weapon()) if weapons != null else null
+
+
+## Live shots allowed at once for the selected weapon. The buster's comes from
+## PlayerTuning, because it is a movement-feel number tuned with the rest of
+## them; every other weapon carries its own.
+func shot_cap() -> int:
+	var data := current_weapon_data()
+	return data.max_on_screen if data != null else tuning.max_buster_shots
 
 
 func can_shoot() -> bool:
@@ -218,7 +257,12 @@ func can_shoot() -> bool:
 		return false
 	if health.is_dead():
 		return false
-	return live_shots() < tuning.max_buster_shots
+	if _fire_cooldown > 0:
+		return false
+	var weapons := weapons_autoload()
+	if weapons != null and not weapons.can_fire(current_weapon()):
+		return false
+	return live_shots() < shot_cap()
 
 
 ## Arm-cannon position for the current state, in world coordinates.
@@ -227,21 +271,32 @@ func muzzle_position() -> Vector2:
 	return global_position + Vector2(offset.x * float(facing), offset.y) * tuning.world_scale
 
 
-## Fires one pellet. Returns it, or null when the shot was refused.
-func fire() -> BusterShot:
+## Fires one shot of the selected weapon. Returns it, or null when the shot was
+## refused -- by the state, by the on-screen cap, by the cooldown, or by ammo.
+##
+## The projectile comes from the weapon's resource, so this function has no
+## branch per weapon and adding one does not touch the player at all.
+func fire() -> WeaponShot:
 	if not can_shoot():
 		return null
 	# Autoloads are reached by path, not by identifier, for the same reason
 	# Tuning is above: an autoload name only resolves once the project's
 	# autoloads are registered, which is not true for a script run as a
 	# `--script` entry point, and not true under a bare test tree either.
-	var weapons := get_node_or_null(^"/root/WeaponManager")
+	var weapons := weapons_autoload()
 	var weapon: StringName = weapons.current if weapons != null else &"buster"
+	var data: WeaponData = weapons.data_for(weapon) if weapons != null else null
 	if weapons != null and not weapons.consume(weapon):
 		return null
 
-	var shot := BUSTER_SHOT.new() as BusterShot
-	shot.launch(muzzle_position(), facing, tuning, weapon)
+	var script: Script = data.projectile_script if data != null else BUSTER_SHOT
+	if script == null:
+		script = BUSTER_SHOT
+	var shot := script.new() as WeaponShot
+	if shot == null:
+		return null
+	shot.launch(muzzle_position(), facing, tuning, data)
+	_fire_cooldown = data.fire_cooldown_frames if data != null else 0
 	# Parented to the level, not to the player: a pellet does not travel with
 	# the shooter, and a shot fired on the frame the player dies must outlive it.
 	var level := get_parent()
@@ -253,6 +308,55 @@ func fire() -> BusterShot:
 	note_shot_fired()
 	shot_fired.emit(shot)
 	return shot
+
+
+# --- Weapon colour --------------------------------------------------------------
+
+## Puts the hue-rotation shader on the sprite and follows the weapon selection.
+##
+## The buster is hue shift 0, so the sprite the art was drawn as is the sprite
+## the player sees by default and the shader is a no-op on the common path.
+func _setup_palette() -> void:
+	var material := ShaderMaterial.new()
+	material.shader = WEAPON_PALETTE
+	material.set_shader_parameter(&"hue_shift", 0.0)
+	material.set_shader_parameter(&"grey_floor", PALETTE_GREY_FLOOR)
+	material.set_shader_parameter(&"saturation", PALETTE_SATURATION)
+	sprite.material = material
+
+	var weapons := weapons_autoload()
+	if weapons == null:
+		return
+	weapons.weapon_changed.connect(apply_weapon_palette)
+	apply_weapon_palette(weapons.current)
+
+
+## Recolours the sprite for a weapon.
+##
+## The shift is measured from the buster's own palette rather than authored per
+## weapon, so the `.tres` files say what colour the weapon *is* and nothing has
+## to also say what colour it is relative to. A weapon with no palette entry
+## leaves the sprite alone, which is a better failure than a random tint.
+func apply_weapon_palette(weapon_id: StringName) -> void:
+	var material := sprite.material as ShaderMaterial
+	if material == null:
+		return
+	material.set_shader_parameter(&"hue_shift", weapon_hue_shift(weapon_id))
+
+
+## Hue distance from the buster to this weapon, in turns, wrapped to [-0.5, 0.5]
+## so the rotation always takes the short way round the colour wheel.
+func weapon_hue_shift(weapon_id: StringName) -> float:
+	var weapons := weapons_autoload()
+	if weapons == null:
+		return 0.0
+	var base: WeaponData = weapons.data_for(weapons.BUSTER)
+	var data: WeaponData = weapons.data_for(weapon_id)
+	if base == null or data == null:
+		return 0.0
+	if base.palette.is_empty() or data.palette.is_empty():
+		return 0.0
+	return wrapf(data.palette[0].h - base.palette[0].h, -0.5, 0.5)
 
 
 # --- Damage -------------------------------------------------------------------
@@ -321,6 +425,8 @@ func register_ladder(area: Area2D, entered: bool) -> void:
 func _tick_timers() -> void:
 	if _shoot_frames_left > 0:
 		_shoot_frames_left -= 1
+	if _fire_cooldown > 0:
+		_fire_cooldown -= 1
 	if Input.is_action_just_pressed(&"jump"):
 		_jump_buffer_left = tuning.jump_buffer_frames
 	elif _jump_buffer_left > 0:
@@ -360,6 +466,27 @@ func _setup_damage() -> void:
 func _try_shoot() -> void:
 	if Input.is_action_just_pressed(&"shoot"):
 		fire()
+
+
+## Cycles weapons without opening the menu.
+##
+## The pause sub-screen is the original's way and it is still the main one, but
+## the input map has carried `weapon_next` and `weapon_prev` since M1 and
+## nothing read them -- two actions that a player could rebind and then find did
+## nothing. Shoulder-button cycling is also simply better with a gamepad.
+##
+## Polled here rather than handled in `_unhandled_input` so it obeys the same
+## rules as every other input the player takes: nothing happens while frozen,
+## and nothing happens while the tree is paused, which is what stops the menu
+## and this fighting over the same button.
+func _try_switch_weapon() -> void:
+	var weapons := weapons_autoload()
+	if weapons == null:
+		return
+	if Input.is_action_just_pressed(&"weapon_next"):
+		weapons.cycle(1)
+	elif Input.is_action_just_pressed(&"weapon_prev"):
+		weapons.cycle(-1)
 
 
 func _build_shapes() -> void:

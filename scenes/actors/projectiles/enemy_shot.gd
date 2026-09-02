@@ -19,6 +19,10 @@ const EDGE_COLOUR := Color(1.0, 0.62, 0.30)
 
 ## Set true for a shot that should be blocked by terrain.
 @export var stops_at_walls := false
+## Hitbox size in NES px. Overridable because not every enemy projectile is a
+## pellet -- a boss's low wave has to be wide enough to read as something you
+## jump and short enough that jumping clears it.
+@export var size_nes := SIZE_NES
 
 var _velocity := Vector2.ZERO
 var _tuning: PlayerTuning
@@ -57,7 +61,7 @@ func _ready() -> void:
 
 	var shape := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
-	rect.size = SIZE_NES * _tuning.world_scale
+	rect.size = size_nes * _tuning.world_scale
 	shape.shape = rect
 	add_child(shape)
 
@@ -72,9 +76,16 @@ func _physics_process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var radius := SIZE_NES.x * _tuning.world_scale * 0.5
-	draw_circle(Vector2.ZERO, radius, EDGE_COLOUR)
-	draw_circle(Vector2.ZERO, radius * 0.5, CORE_COLOUR)
+	# Round when it is a pellet, a rounded bar when it has been widened -- a
+	# circle stretched to a wave's proportions reads as a mistake.
+	if is_equal_approx(size_nes.x, size_nes.y):
+		var radius := size_nes.x * _tuning.world_scale * 0.5
+		draw_circle(Vector2.ZERO, radius, EDGE_COLOUR)
+		draw_circle(Vector2.ZERO, radius * 0.5, CORE_COLOUR)
+		return
+	var half := size_nes * _tuning.world_scale * 0.5
+	draw_rect(Rect2(-half, half * 2.0), EDGE_COLOUR)
+	draw_rect(Rect2(-half * 0.7, half * 1.4), CORE_COLOUR)
 
 
 func _off_screen() -> bool:
