@@ -429,3 +429,54 @@ terrain behind a smooth anti-aliased character is a deliberate mixed style. It c
 intentional, and it can look like two games spliced together. Generate one stage's worth,
 look at it next to the player in the test room, and decide before spending the trial on
 eight stages.
+
+### 8a. Stage 1 — "Dawn Boardwalk", ready to generate
+
+Art direction agreed from a concept sketch: a post-apocalyptic dawn, the player walking a
+weathered boardwalk over still floodwater, the ruins of a drowned city on the horizon and
+a low sun just clear of it. Warm orange and pink sky grading to deep blue overhead, muted
+desaturated palette, strong horizontal bands.
+
+**The boardwalk is a tileset, not a background.** It is the surface the player stands on,
+so it needs collision and must come from `create_sidescroller_tileset` at 16 px. Sky,
+skyline, water and ruins are non-colliding parallax plates from `create_image_pixflux`.
+Confusing the two is the easy mistake here — a painted boardwalk you cannot stand on.
+
+| # | Asset | Tool | Cost | Parallax |
+| --- | --- | --- | --- | --- |
+| 1 | boardwalk planks + rail | `create_sidescroller_tileset`, 16 px | 2–3 | 1.0 (the TileMapLayer) |
+| 2 | dawn sky + low sun | `create_image_pixflux` | 1 | ~0.05 |
+| 3 | ruined city skyline, silhouette | `create_image_pixflux` | 1 | ~0.2 |
+| 4 | floodwater + collapsed pier | `create_image_pixflux` | 1 | ~0.4 |
+| 5 | foreground pilings / rail posts | `create_image_pixflux` | 1 | ~1.2, drawn in front |
+
+**About 7 of the 40 trial generations.** Generate 1 and 2 first and look at them behind
+the player before spending the rest — that is the cheapest point to settle the mixed-style
+question, and it is still open.
+
+Draft prompts, to refine rather than to trust:
+
+1. *tileset* — `lower_description`: "weathered grey driftwood planks, rusted bolts, salt
+   stained, gaps between boards"; `transition_description`: "pale sun-bleached plank
+   surface with peeling paint"; `transition_size` 0.25; `outline` "selective outline";
+   `shading` "basic shading".
+2. *sky* — "Dawn sky over a drowned coast, low sun just above the horizon, warm orange and
+   pink grading up into deep blue, thin banded cloud, drifting haze. Flat muted pixel art,
+   no ground, no structures, seamless horizontally."
+3. *skyline* — "Silhouette of a ruined city skyline on the horizon, collapsed towers and
+   twisted girders, flat dark violet-grey shapes with no interior detail, transparent
+   above the roofline. Muted pixel art, seamless horizontally."
+4. *water* — "Still flooded water with soft horizontal reflection bands, a half-sunk
+   collapsed pier and floating debris. Muted dawn palette, flat pixel art, seamless
+   horizontally."
+5. *foreground* — "Rusted boardwalk railing posts and barnacled pilings, close foreground,
+   dark and low-contrast, transparent background. Muted pixel art."
+
+**Layering in Godot 4.7.** Use `Parallax2D` (confirmed present in 4.7 — it supersedes
+`ParallaxBackground`/`ParallaxLayer`, which are still there for older projects). Each plate
+is one `Parallax2D` with `scroll_scale` from the table and `repeat_size.x` set to the
+plate width so it tiles as the room scrolls.
+
+**Filtering, again:** every one of these is pixel art and needs
+`texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST` on the node. The project default is
+Linear and must stay Linear for the character — see §8.
