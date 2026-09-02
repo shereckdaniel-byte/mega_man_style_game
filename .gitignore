@@ -1,4 +1,6 @@
-# Godot 4
+# Godot 4 editor state: per-machine, not per-project.
+# Note: this holds the class_name cache, which is why CI must run
+# `godot --headless --import` before anything else.
 .godot/
 /android/
 export_presets.cfg
