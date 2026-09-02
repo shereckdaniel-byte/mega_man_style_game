@@ -211,3 +211,6 @@ animations = [{
 }]
 metadata/baseline_row = 205
 metadata/baseline_clamped = PackedStringArray()
+metadata/body_heights = {
+"fly": 145
+}

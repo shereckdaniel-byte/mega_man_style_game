@@ -404,6 +404,66 @@ the current 22 animations.
 
 Result: every animation on both characters lands within 1 px of the ground line.
 
+### Per-animation *size* drift — corrected in the scene
+
+The baseline fix above answers "do the feet line up". It does not answer "is the character
+the same size", which is a separate consequence of the same cause and was noticed by eye
+long before it was measured: **the character visibly grows when it starts walking.**
+
+**The problem.** Because each clip is framed independently, the character is *drawn* at a
+different scale in each one. Measured head-to-feet on the player:
+
+| | `idle_shoot` | `walk_shoot` | `climb` | `idle` | `hurt` | `walk` |
+| --- | --- | --- | --- | --- | --- | --- |
+| Source px | 149 | 164 | 152 | **172** | 187 | **197** |
+| vs. idle | −13% | −5% | −12% | — | +9% | **+15%** |
+
+One scale factor applied to all of them reproduces that spread exactly: the character
+grows 15% on the walk and shrinks 13% when it stands still and fires — the two most common
+transitions in the game.
+
+**Why the bounding box is the wrong ruler.** The obvious fix — scale each clip by its own
+bounding-box height — inverts the bug. A pose with a raised arm or a lifted weapon has a
+taller box and the *same* character, so scaling by the box shrinks the character for
+raising its arm. `teleport_out` measures 208 px by bounding box and 161 head-to-feet; the
+47 px difference is a raised arm.
+
+**The measurement.** `AutoSpriteImporter._body_height` finds the head instead: the topmost
+row carrying at least 15% of the frame's width in opaque pixels. A thin raised sword or
+fist does not reach that threshold; a head does. It is sampled (five frames per clip,
+scanning stops at the head) because scanning every row of every frame is millions of
+`get_pixel` calls per character. The median lands in `metadata/body_heights`.
+
+**The correction is in the scene, not the art.** `Player.UPRIGHT_ANIMS` lists the poses
+where the character stands at full height, and each of those is scaled to render at
+exactly `character_height()`. Everything else uses `idle`'s factor, so a tuck or a crouch
+stays shorter by however much the artist drew it shorter.
+
+That list is a judgement, and it is deliberately written down rather than derived.
+`jump` is shorter because it is tucked, `slide` because it is prone, `death` because it is
+collapsing — and **no measurement can tell "drawn smaller" from "crouching"**. Normalising
+those would be this same bug pointed the other way: the character would stand up mid-slide.
+
+**What this does not fix.** Head-to-feet normalisation equalises height, not bulk. A pose
+that leans slightly into its stance gets scaled up as though it were drawn smaller, so it
+reads a little heavier than `idle`. Visible on `idle_shoot` if you look for it; much
+smaller than the 13% it replaced.
+
+**Only the player is corrected, and that is a measurement, not laziness.** Tide's upright
+clips span 150–159 px — under 6%, which does not read. The player's 15% does.
+`tests/test_sprite_frames.gd` asserts idle-vs-walk within 8% for every *uncorrected*
+character, so a future boss that comes back badly framed fails CI; the honest answers then
+are to regenerate its art or extend this scaling to `Enemy`, not to raise the bound.
+
+### A note on the unused clips
+
+`attack` is a **two-handed sword pose**, on a character whose whole design is an arm
+cannon. `victory` and `teleport_out` are also never played — the player's states only ask
+for `idle`, `walk`, `jump`, `slide`, `climb`, `hurt`, `death`, `teleport_in` and the
+`_shoot` variants. The sword clip is dead weight that will mislead whoever reads the
+animation list next; it should be dropped or regenerated as a melee-free pose if a
+close-quarters attack is ever wanted.
+
 **Why no existing test caught it.** `Player.sprite_feet_offset()` derives its answer from
 `SOURCE_ART_BASELINE` and from the `sprite.offset` that was *set* from
 `SOURCE_ART_BASELINE`. The terms cancel algebraically and it returns 0 for any art at all,

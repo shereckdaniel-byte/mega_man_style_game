@@ -27,6 +27,29 @@ const FLOOR_NORMAL := Vector2.UP
 const SOURCE_ART_HEIGHT := 177.0
 const SOURCE_ART_BASELINE := 223.0
 
+## Animations where the character is standing at full height, so all of them
+## must be drawn at the same size on screen.
+##
+## AutoSprite frames every clip independently, so the same character comes back
+## drawn at a different scale in each one -- measured head-to-feet, this
+## character's upright poses ranged from 149 px (`idle_shoot`) to 197 (`walk`).
+## With one scale factor for all of them, that is exactly what you see: the
+## character grows 14% when it starts walking and shrinks 13% when it stands
+## still and fires. It was noticed by eye before it was measured.
+##
+## The rest of the clips are left alone deliberately, because they are shorter
+## for a *reason* -- `jump` is tucked, `slide` is prone, `death` is collapsing --
+## and normalising them to standing height would be the same bug pointed the
+## other way. There is no way to tell those two cases apart by measurement, so
+## this list is the place the judgement gets written down.
+const UPRIGHT_ANIMS: Array[StringName] = [
+	&"idle", &"walk", &"idle_shoot", &"walk_shoot", &"hurt", &"climb",
+]
+
+## Rendered height an upright pose must hold to, as a fraction of `idle`'s.
+## Asserted by tests/test_sprite_frames.gd.
+const UPRIGHT_TOLERANCE := 0.03
+
 const BUSTER_SHOT := preload("res://scenes/actors/projectiles/buster_shot.gd")
 const WEAPON_PALETTE := preload("res://scenes/actors/player/weapon_palette.gdshader")
 
@@ -501,16 +524,55 @@ func _build_shapes() -> void:
 		0.0, -(tuning.hitbox_size().y - tuning.slide_hitbox_size().y))
 
 
-## The art is ~177 px tall and the character is 72 px in world units, so the
+## The art is ~177 px tall and the character is 108 px in world units, so the
 ## sprite is minified. That is why the project filters linearly.
+##
+## `offset` is deliberately not touched when the scale changes. It is in texture
+## pixels, inside the space the scale multiplies, so the baseline it points at
+## moves with the art and the feet stay on the origin at any factor. Correcting
+## it alongside the scale would double the compensation and lift the character
+## off the floor.
 func _scale_sprite() -> void:
-	var factor := tuning.sprite_scale(SOURCE_ART_HEIGHT)
-	sprite.scale = Vector2(factor, factor)
+	_apply_art_scale(sprite.animation)
 	sprite.centered = true
 	# Put the art's baseline -- not the cell's bottom -- on the node origin,
 	# which is where the collision box's feet are. Getting this from the cell
 	# instead sinks the character into the floor by the cell's bottom padding.
 	sprite.offset = Vector2(0.0, -(SOURCE_ART_BASELINE - _cell_size().y * 0.5))
+
+
+## Scales one animation so an upright pose is always the character's height.
+func _apply_art_scale(anim: StringName) -> void:
+	var factor := art_scale_for(anim)
+	sprite.scale = Vector2(factor, factor)
+
+
+## The scale factor for an animation.
+##
+## Upright poses are measured individually and each drawn at exactly the
+## character's height. Everything else uses `idle`'s factor -- the same scale a
+## standing character is drawn at -- so a tuck or a crouch stays shorter than
+## standing by however much the artist drew it shorter.
+func art_scale_for(anim: StringName) -> float:
+	var reference := _measured_height(&"idle")
+	if UPRIGHT_ANIMS.has(anim):
+		var own := _measured_height(anim)
+		if own > 0.0:
+			return tuning.sprite_scale(own)
+	if reference > 0.0:
+		return tuning.sprite_scale(reference)
+	return tuning.sprite_scale(SOURCE_ART_HEIGHT)
+
+
+## Head-to-feet height of an animation in source pixels, as recorded by the
+## importer. 0 when the art predates the measurement or the clip is missing,
+## which is what makes SOURCE_ART_HEIGHT still a working fallback.
+func _measured_height(anim: StringName) -> float:
+	var frames := sprite.sprite_frames
+	if frames == null or not frames.has_meta(&"body_heights"):
+		return 0.0
+	var heights: Dictionary = frames.get_meta(&"body_heights")
+	return float(heights.get(String(anim), 0))
 
 
 ## Frame size of the current animation, read from the atlas region.
@@ -540,7 +602,7 @@ func _cell_size() -> Vector2:
 func sprite_feet_offset() -> float:
 	var half_cell := _cell_size().y * 0.5
 	var baseline_from_centre := SOURCE_ART_BASELINE - half_cell
-	return (sprite.offset.y + baseline_from_centre) * tuning.sprite_scale(SOURCE_ART_HEIGHT)
+	return (sprite.offset.y + baseline_from_centre) * sprite.scale.y
 
 
 func _update_sprite() -> void:
@@ -550,9 +612,12 @@ func _update_sprite() -> void:
 	if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(wanted):
 		if sprite.animation != wanted:
 			sprite.play(wanted)
+			# The scale belongs to the clip, so it changes with the clip.
+			_apply_art_scale(wanted)
 	elif sprite.animation != &"idle" and sprite.sprite_frames != null \
 			and sprite.sprite_frames.has_animation(&"idle"):
 		sprite.play(&"idle")
+		_apply_art_scale(&"idle")
 
 
 ## Blinks the sprite while invulnerable, two frames on and two frames off. The

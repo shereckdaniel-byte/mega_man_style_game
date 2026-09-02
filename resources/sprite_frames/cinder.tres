@@ -1341,3 +1341,11 @@ animations = [{
 }]
 metadata/baseline_row = 244
 metadata/baseline_clamped = PackedStringArray("death", "idle", "walk")
+metadata/body_heights = {
+"attack": 232,
+"death": 179,
+"hurt": 232,
+"idle": 243,
+"jump": 223,
+"walk": 238
+}

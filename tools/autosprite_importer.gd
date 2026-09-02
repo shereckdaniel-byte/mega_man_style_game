@@ -164,6 +164,9 @@ func _import_character(char_dir: String) -> bool:
 	# on how this character's art happens to sit in its cell.
 	var target := _character_baseline(char_dir, character)
 	frames.set_meta(&"baseline_row", target)
+	# animation name -> head-to-feet height in source px, so a scene can draw
+	# every clip of a character at the same world size. See _body_height.
+	var body_heights: Dictionary = {}
 	# Animations the art physically could not be shifted onto that row, recorded
 	# rather than merely warned about: a warning scrolls past, and the tests need
 	# to tell "this one had no padding left" from "this one silently drifted".
@@ -186,6 +189,9 @@ func _import_character(char_dir: String) -> bool:
 		var anim_name := _animation_name(anim_dir)
 		if _add_animation(frames, anim_name, sheet, parsed as Dictionary, target):
 			imported += 1
+			var height := _body_height(sheet, _atlas_regions(parsed as Dictionary))
+			if height > 0:
+				body_heights[anim_name] = height
 
 	if imported == 0:
 		push_warning("%s: nothing imported" % character)
@@ -197,6 +203,7 @@ func _import_character(char_dir: String) -> bool:
 		push_error("%s: save failed (%d)" % [out_path, err])
 		return false
 	frames.set_meta(&"baseline_clamped", PackedStringArray(_clamped))
+	frames.set_meta(&"body_heights", body_heights)
 	ResourceSaver.save(frames, out_path)
 	print("%s -> %s (%d animations%s)" % [character, out_path, imported,
 		"" if _clamped.is_empty() else ", %d clamped" % _clamped.size()])
@@ -352,6 +359,65 @@ func _animation_baseline(image: Image, regions: Array[Rect2]) -> int:
 		return -1
 	bottoms.sort()
 	return bottoms[bottoms.size() / 2]
+
+
+## Head-to-feet height of the character in an animation, in source pixels.
+##
+## **Not the bounding box.** AutoSprite frames every clip independently, so the
+## same character is drawn at different sizes from clip to clip -- measured on
+## the player, the upright poses alone ranged from 152 to 208 px, so the
+## character grew 13% when it started walking and shrank 14% when it stood still
+## and fired. A scene that applies one scale factor to all of them reproduces
+## that spread exactly.
+##
+## The bounding box is the wrong ruler for fixing it, because a pose with a
+## raised arm or a lifted weapon has a taller box and the same character: scaling
+## by the box would *shrink* the character for raising its arm. So the head is
+## found instead, as the topmost row carrying at least HEAD_WIDTH_FRACTION of
+## the frame's width in opaque pixels -- a thin raised sword or fist does not
+## reach that, a head does.
+##
+## Sampled rather than exhaustive: scanning every row of every frame is millions
+## of get_pixel calls per character. Rows are scanned from the top and stop at
+## the head, and only SAMPLE_FRAMES frames spread across the clip are measured,
+## which is plenty for a median.
+const HEAD_WIDTH_FRACTION := 0.15
+const SAMPLE_FRAMES := 5
+
+func _body_height(sheet: Texture2D, regions: Array[Rect2]) -> int:
+	var image := _sheet_image(sheet)
+	if image == null or regions.is_empty():
+		return 0
+
+	var heights: Array[int] = []
+	var step: int = maxi(1, regions.size() / SAMPLE_FRAMES)
+	var index := 0
+	while index < regions.size():
+		var frame := image.get_region(Rect2i(regions[index]))
+		index += step
+		var used := frame.get_used_rect()
+		if used.size.y <= 0 or used.size.x <= 0:
+			continue
+		var needed: int = maxi(1, int(ceil(float(used.size.x) * HEAD_WIDTH_FRACTION)))
+		var head := -1
+		for y in range(used.position.y, used.position.y + used.size.y):
+			var run := 0
+			for x in range(used.position.x, used.position.x + used.size.x):
+				if frame.get_pixel(x, y).a > 0.5:
+					run += 1
+					if run >= needed:
+						break
+			if run >= needed:
+				head = y
+				break
+		if head < 0:
+			continue
+		heights.append(used.position.y + used.size.y - head)
+
+	if heights.is_empty():
+		return 0
+	heights.sort()
+	return heights[heights.size() / 2]
 
 
 ## A sheet's pixels, decompressed if the import settings compressed them.

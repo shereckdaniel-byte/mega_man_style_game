@@ -211,3 +211,6 @@ animations = [{
 }]
 metadata/baseline_row = 210
 metadata/baseline_clamped = PackedStringArray()
+metadata/body_heights = {
+"walk": 129
+}

@@ -273,10 +273,23 @@ func test_sprite_feet_sit_on_the_origin() -> void:
 		"drawn feet vs the base of the collision box")
 
 
+## The character is drawn at its tuned height whichever pose it is in.
+##
+## This used to multiply the constant 177 by the scale, which was right while
+## every animation shared one factor and became wrong the moment the scale
+## started coming from each clip's own measured height. The art it should be
+## measuring is the art currently on screen, not a number in a header -- so it
+## reads the clip's recorded height and asserts the product.
 func test_sprite_is_drawn_at_the_character_height() -> void:
-	var drawn := Player.SOURCE_ART_HEIGHT * player.sprite.scale.y
+	var frames := player.sprite.sprite_frames
+	var anim: StringName = player.sprite.animation
+	var source := Player.SOURCE_ART_HEIGHT
+	if frames != null and frames.has_meta(&"body_heights"):
+		var heights: Dictionary = frames.get_meta(&"body_heights")
+		source = float(heights.get(String(anim), source))
+	var drawn := source * player.sprite.scale.y
 	assert_almost_eq(drawn, t.character_height(), 0.5,
-		"177 px of art drawn at %.0f px" % t.character_height())
+		"%s: %.0f px of art drawn at %.0f px" % [anim, source, drawn])
 	assert_almost_eq(player.sprite.scale.x, player.sprite.scale.y, 0.0001,
 		"uniform scale; a non-uniform one would stretch the art")
 

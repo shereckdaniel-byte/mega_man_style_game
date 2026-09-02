@@ -417,3 +417,7 @@ animations = [{
 }]
 metadata/baseline_row = 233
 metadata/baseline_clamped = PackedStringArray()
+metadata/body_heights = {
+"idle": 215,
+"spawn": 215
+}
