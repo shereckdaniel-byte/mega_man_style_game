@@ -483,21 +483,30 @@ Linear and must stay Linear for the character — see §8.
 
 ### 8b. Stage 1 — what was actually generated
 
-The sky is in. The boardwalk tileset was generated and paid for but **cannot be
-downloaded from this environment** — see the blocker at the end of this section.
+Both are in. The boardwalk tileset needed a network-policy change first — see
+"Tileset art comes from a different host" below, which is worth reading before
+generating stage 2.
 
 | # | Asset | State | Job / id |
 | --- | --- | --- | --- |
-| 1 | boardwalk planks + rail | generated, **not downloadable** | tileset `2e44791f-404c-4174-81fe-bc2f6a082215` |
+| 1 | boardwalk planks + rail | **done** — `assets/tilesets/dawn_boardwalk/` | tileset `2e44791f-404c-4174-81fe-bc2f6a082215` |
 | 2 | dawn sky + low sun | **done** — `assets/backgrounds/dawn_boardwalk/sky.png` | image `ceaaa4c7-f3a3-46ef-a24c-bf9107204ad2`, seed 10511 |
 | 3–5 | skyline, water, foreground | not started | — |
 
 Six of the 40 trial generations spent (3 on the tileset, 3 on the sky).
 
 **The mixed-style question from §8 is settled: it works.** `art_preview.tscn`
-puts the backdrop behind the M1 tuning room, and a smooth anti-aliased character
-against flat banded pixel sky reads as a deliberate choice, not as two games
-spliced together. Generate the remaining plates.
+lays a boardwalk from the tileset, puts the backdrop behind it and stands the
+player on it. A smooth anti-aliased character against flat banded pixel terrain
+reads as a deliberate choice, not as two games spliced together. Generate the
+remaining plates.
+
+The one thing to know about that preview: it offsets the camera to frame the
+deck low. The tuning room centres the camera on the player, which puts the
+walking surface across the middle of the screen — and because the sky plate is
+locked vertically, that buries the sun behind the boardwalk. The backdrop is
+composed for a stage camera that keeps the ground in the lower third, which is
+what M4's camera limits will do.
 
 #### The sky took three attempts, and the fix was not a better prompt
 
@@ -543,27 +552,85 @@ the plate's origin. Both are set in `parallax_background.gd`.
 Vertical scroll is 0 on every plate. A plate is sized to the viewport height
 exactly, so any vertical drift walks its edge into frame.
 
-#### Blocker: tileset art cannot be downloaded from the web session
+#### Tileset art comes from a different host, and it has to be allowed
 
 Raw images and tilesets are delivered differently, and only one of the two
-survives this environment's egress policy:
+survives a default web session's egress policy:
 
 | Endpoint | Behaviour |
 | --- | --- |
-| `api.pixellab.ai/mcp/images/{job}/download` | 200, `image/png`, bytes served directly — **works** |
-| `api.pixellab.ai/mcp/sidescroller-tilesets/{id}/image` | 302 to `backblaze.pixellab.ai` — **403 at the egress proxy** |
+| `api.pixellab.ai/mcp/images/{job}/download` | 200, `image/png`, bytes served directly |
+| `api.pixellab.ai/mcp/sidescroller-tilesets/{id}/image` | 302 to `backblaze.pixellab.ai` |
 
-`api.pixellab.ai` is allowed; `backblaze.pixellab.ai` is not. Confirmed
-repeatable, and confirmed with PixelLab's own docs agent that there is no
-proxied or base64 tileset endpoint — every tileset link is a redirect to storage.
-The tileset metadata (Wang corners, adjacency, 4x4 patterns) *is* served from
-`api.pixellab.ai` and downloads fine; it is only the spritesheet PNG that is out
-of reach.
+`api.pixellab.ai` is allowed by default; `backblaze.pixellab.ai` is not, and the
+egress proxy answers 403 to the CONNECT. So `create_image_pixflux` output comes
+back fine and tileset output does not, which is exactly the wrong way round for
+a stage whose terrain is the part that needs collision.
 
-`inpaint_image` is not a way around anything else here either: it costs **20–40
-generations**, billed by image size, against a trial of 40.
+There is no proxied or base64 tileset endpoint — confirmed against PixelLab's
+own docs agent, and by probing `/v1/tilesets/{id}`, `?format=base64`,
+`/download` and `/spritesheet`, all of which 404 or redirect. The *metadata* is
+served from the allowed host and downloads fine; it is only the spritesheet PNG
+that moves.
 
-**To unblock:** allow `backblaze.pixellab.ai` in the environment's network
-policy. The tileset above is already generated and paid for, so once the host is
-reachable it is a download, not a regeneration. Do not work around this by
-having the API fetch its own storage on the session's behalf.
+**Add `backblaze.pixellab.ai` to the environment's allowed domains before
+generating a tileset.** A tileset already generated stays on the server, so
+opening the host later costs nothing to recover it — this one was downloaded
+after the fact, not regenerated.
+
+Do not work around it by handing the storage URL back to the API as an
+`init_image_url` so the service fetches its own file. That routes around the
+policy rather than asking for it to be changed, costs a generation, and puts the
+sheet through a diffusion pass that can smear the very tile seams the Wang set
+depends on.
+
+`inpaint_image` is worth knowing about for a different reason: it costs **20–40
+generations**, billed by image size, against a trial of 40. It is not a cheap
+repair tool here.
+
+#### The tileset importer
+
+`tools/pixellab_tileset_import.gd` builds a `TileSet` with collision from an
+export, the same shape as the AutoSprite importer and for the same reason: the
+logic is a plain `RefCounted` because `EditorScript` cannot run headless.
+
+    assets/tilesets/<stage>/tileset.png    4x4 grid of 16 px tiles
+    assets/tilesets/<stage>/tileset.json   the /metadata response, verbatim
+      -> resources/tilesets/<stage>.tres
+
+The layout is `tileset15_4x4`, a Wang **corner** set. Each tile is named
+`wang_N`, and N's bits say which corners are *background*:
+
+    1 = SE   2 = SW   4 = NE   8 = NW      bit set == background
+
+`wang_0` is fully solid interior and `wang_15` is fully empty — which is why the
+layout is tileset15 and not tileset16. Fifteen tiles carry terrain; the
+sixteenth is the "no tile" case and is deliberately never created.
+
+**Corner terrain offsets the terrain grid half a tile from the visual grid.**
+`wang_12` (both north corners background) is a top-surface tile whose solid half
+is its *bottom* half, with the plank surface drawn across the middle. Collision
+therefore follows the art, not the tile bounds, and a deck painted from row R
+has its walking surface at R + 0.5. Get this backwards and the player stands
+half a tile above the planks.
+
+Before trusting any of that for collision, the corner metadata was checked
+against the art's own alpha channel across all sixteen tiles. It agreed exactly,
+which is what makes the mapping safe to rely on rather than merely plausible.
+`tests/test_tilesets.gd` keeps it honest: it re-derives every shipped tile's
+mask from its name, and asserts the generated collision polygons cover exactly
+the quadrants the metadata calls solid.
+
+Stages paint with `set_cells_terrain_connect` rather than naming tiles, which is
+also the check on the importer — wrong corner data shows up immediately as wrong
+edges.
+
+#### What the tileset actually looks like
+
+Prompted for "weathered grey driftwood planks", it returned mauve-purple
+blockwork with pale sun-bleached tops: closer to weathered concrete than to
+driftwood, and not grey. It is kept anyway, because the mauve happens to sit in
+the sky's own palette and the deck reads correctly at 4.5x. Worth knowing that
+`lower_description` steers material far less than it steers colour — if stage 2
+needs a specific material, expect to iterate, and remember a tileset is 2–3
+generations a try.

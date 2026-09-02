@@ -1,0 +1,1251 @@
+{
+    "id": "2e44791f-404c-4174-81fe-bc2f6a082215",
+    "name": "weathered grey driftwood planks, rusted bolts",
+    "tileset_data": {
+        "tiles": [
+            {
+                "id": "3eaa5248-9951-43f0-aecd-557259b7e237",
+                "name": "wang_13",
+                "corners": {
+                    "NE": "upper",
+                    "NW": "upper",
+                    "SE": "upper",
+                    "SW": "lower"
+                },
+                "connections": {
+                    "east": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07"
+                    ],
+                    "west": [
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "north": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5"
+                    ],
+                    "south": [
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_13",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        1,
+                        1,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        0,
+                        1,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 2,
+                    "row": 4
+                },
+                "bounding_box": {
+                    "x": 0,
+                    "y": 0,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "2dce1ff1-3877-4d91-9294-1175d4275f3e",
+                "name": "wang_10",
+                "corners": {
+                    "NE": "lower",
+                    "NW": "upper",
+                    "SE": "lower",
+                    "SW": "upper"
+                },
+                "connections": {
+                    "east": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "west": [
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "north": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5"
+                    ],
+                    "south": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_10",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        1,
+                        0,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        1,
+                        0,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 6,
+                    "row": 2
+                },
+                "bounding_box": {
+                    "x": 16,
+                    "y": 0,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "3c5e6974-ce83-4bed-bd65-7cc64f989a4d",
+                "name": "wang_4",
+                "corners": {
+                    "NE": "upper",
+                    "NW": "lower",
+                    "SE": "lower",
+                    "SW": "lower"
+                },
+                "connections": {
+                    "east": [
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "west": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "north": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4"
+                    ],
+                    "south": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_4",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        0,
+                        1,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        0,
+                        0,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 1,
+                    "row": 4
+                },
+                "bounding_box": {
+                    "x": 32,
+                    "y": 0,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "703a806e-035c-4361-a8a1-478c3ff19cd4",
+                "name": "wang_12",
+                "corners": {
+                    "NE": "upper",
+                    "NW": "upper",
+                    "SE": "lower",
+                    "SW": "lower"
+                },
+                "connections": {
+                    "east": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07"
+                    ],
+                    "west": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "north": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "south": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_12",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        1,
+                        1,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        0,
+                        0,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 5,
+                    "row": 3
+                },
+                "bounding_box": {
+                    "x": 48,
+                    "y": 0,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "d6a239d6-720e-4dc8-9f39-4dbf84edfbd7",
+                "name": "wang_6",
+                "corners": {
+                    "NE": "upper",
+                    "NW": "lower",
+                    "SE": "lower",
+                    "SW": "upper"
+                },
+                "connections": {
+                    "east": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07"
+                    ],
+                    "west": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3"
+                    ],
+                    "north": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "south": [
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_6",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        0,
+                        1,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        1,
+                        0,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 2,
+                    "row": 5
+                },
+                "bounding_box": {
+                    "x": 0,
+                    "y": 16,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "f94e745d-fa85-4458-af2f-457facfea702",
+                "name": "wang_8",
+                "corners": {
+                    "NE": "lower",
+                    "NW": "upper",
+                    "SE": "lower",
+                    "SW": "lower"
+                },
+                "connections": {
+                    "east": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f"
+                    ],
+                    "west": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e"
+                    ],
+                    "north": [
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "south": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_8",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        1,
+                        0,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        0,
+                        0,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 6,
+                    "row": 3
+                },
+                "bounding_box": {
+                    "x": 16,
+                    "y": 16,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                "name": "wang_0",
+                "corners": {
+                    "NE": "lower",
+                    "NW": "lower",
+                    "SE": "lower",
+                    "SW": "lower"
+                },
+                "connections": {
+                    "east": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f"
+                    ],
+                    "west": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3"
+                    ],
+                    "north": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4"
+                    ],
+                    "south": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_0",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        0,
+                        0,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        0,
+                        0,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 3,
+                    "row": 6
+                },
+                "bounding_box": {
+                    "x": 32,
+                    "y": 16,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "c6a78fc0-b537-4c7c-b23e-6042d920b17a",
+                "name": "wang_1",
+                "corners": {
+                    "NE": "lower",
+                    "NW": "lower",
+                    "SE": "upper",
+                    "SW": "lower"
+                },
+                "connections": {
+                    "east": [
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07"
+                    ],
+                    "west": [
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e"
+                    ],
+                    "north": [
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5"
+                    ],
+                    "south": [
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_1",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        0,
+                        0,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        0,
+                        1,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 1,
+                    "row": 1
+                },
+                "bounding_box": {
+                    "x": 48,
+                    "y": 16,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "258b43d8-1e05-473e-aacb-9f6741a89a4f",
+                "name": "wang_11",
+                "corners": {
+                    "NE": "lower",
+                    "NW": "upper",
+                    "SE": "upper",
+                    "SW": "upper"
+                },
+                "connections": {
+                    "east": [
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "west": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e"
+                    ],
+                    "north": [
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "south": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_11",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        1,
+                        0,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        1,
+                        1,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 3,
+                    "row": 2
+                },
+                "bounding_box": {
+                    "x": 0,
+                    "y": 32,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "f1af51f6-2a06-45d7-8d6e-6c5aa1ac1fdd",
+                "name": "wang_3",
+                "corners": {
+                    "NE": "lower",
+                    "NW": "lower",
+                    "SE": "upper",
+                    "SW": "upper"
+                },
+                "connections": {
+                    "east": [
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "west": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3"
+                    ],
+                    "north": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4"
+                    ],
+                    "south": [
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_3",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        0,
+                        0,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        1,
+                        1,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 2,
+                    "row": 1
+                },
+                "bounding_box": {
+                    "x": 16,
+                    "y": 32,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "ad95a59e-a4e8-4f55-9fb5-5525d1f6698a",
+                "name": "wang_2",
+                "corners": {
+                    "NE": "lower",
+                    "NW": "lower",
+                    "SE": "lower",
+                    "SW": "upper"
+                },
+                "connections": {
+                    "east": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f"
+                    ],
+                    "west": [
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "north": [
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "south": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_2",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        0,
+                        0,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        1,
+                        0,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 3,
+                    "row": 1
+                },
+                "bounding_box": {
+                    "x": 32,
+                    "y": 32,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "e1042e47-c127-4476-974c-5edcd35700ce",
+                "name": "wang_5",
+                "corners": {
+                    "NE": "upper",
+                    "NW": "lower",
+                    "SE": "upper",
+                    "SW": "lower"
+                },
+                "connections": {
+                    "east": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f"
+                    ],
+                    "west": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "north": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4"
+                    ],
+                    "south": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_5",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        0,
+                        1,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        0,
+                        1,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 1,
+                    "row": 2
+                },
+                "bounding_box": {
+                    "x": 48,
+                    "y": 32,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "3994808d-04a9-4a40-88c1-a6bbe070a853",
+                "name": "wang_15",
+                "corners": {
+                    "NE": "upper",
+                    "NW": "upper",
+                    "SE": "upper",
+                    "SW": "upper"
+                },
+                "connections": {
+                    "east": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "west": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "north": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "south": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_15",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        1,
+                        1,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        1,
+                        1,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 2,
+                    "row": 2
+                },
+                "bounding_box": {
+                    "x": 0,
+                    "y": 48,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "d04c94ef-91e7-4930-b1b1-78e0c554b634",
+                "name": "wang_14",
+                "corners": {
+                    "NE": "upper",
+                    "NW": "upper",
+                    "SE": "lower",
+                    "SW": "upper"
+                },
+                "connections": {
+                    "east": [
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "west": [
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "north": [
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "dd823371-1f03-4fbd-bae7-443342e786c0",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ],
+                    "south": [
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "8b620a2f-714c-4db3-afc5-9ca8bdf9c43f",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "8a6d08fb-8888-46c9-8f90-1e7cfde6e07a"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_14",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        1,
+                        1,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        1,
+                        0,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 4,
+                    "row": 3
+                },
+                "bounding_box": {
+                    "x": 16,
+                    "y": 48,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "9479dbfc-159a-4a9b-a637-a55f647c50d8",
+                "name": "wang_9",
+                "corners": {
+                    "NE": "lower",
+                    "NW": "upper",
+                    "SE": "upper",
+                    "SW": "lower"
+                },
+                "connections": {
+                    "east": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "west": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e"
+                    ],
+                    "north": [
+                        "73424d5c-8153-4a59-8260-6f7c82f386f5",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "506728ec-fb6b-4873-96b0-fa5d39dc84c5"
+                    ],
+                    "south": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3",
+                        "f1cd074e-8421-4bfa-9008-da462a526d07",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_9",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        1,
+                        0,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        0,
+                        1,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 4,
+                    "row": 4
+                },
+                "bounding_box": {
+                    "x": 32,
+                    "y": 48,
+                    "width": 16,
+                    "height": 16
+                }
+            },
+            {
+                "id": "d7c19cb1-afee-4fc3-a59d-68021342f690",
+                "name": "wang_7",
+                "corners": {
+                    "NE": "upper",
+                    "NW": "lower",
+                    "SE": "upper",
+                    "SW": "upper"
+                },
+                "connections": {
+                    "east": [
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "32ac076b-c9b8-463e-9a6a-ad417e8874e4",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "west": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "e88f8d0a-3da6-4afa-b9eb-059ddf37bb1c",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983",
+                        "1464ab25-5fe3-48d5-92f9-0710e8889eb3"
+                    ],
+                    "north": [
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "bd549a8d-fe6e-4758-b9ed-db1318a7545e",
+                        "00c6a6b5-a5ab-4797-b90f-e8833ce8c18e",
+                        "7b8b947b-168e-4c46-8fd2-1ac1634fbb82"
+                    ],
+                    "south": [
+                        "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5",
+                        "8cc0ff1a-3046-4fd0-82cd-6a4039f065d7",
+                        "2047fea1-9e54-4dad-b859-e649192f020b",
+                        "f561da1a-530f-4ffa-9a60-f594ef60f983"
+                    ]
+                },
+                "description": "transparent background and weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards - wang_7",
+                "pattern_4x4": {
+                    "row_0": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ],
+                    "row_1": [
+                        255,
+                        0,
+                        1,
+                        255
+                    ],
+                    "row_2": [
+                        255,
+                        1,
+                        1,
+                        255
+                    ],
+                    "row_3": [
+                        255,
+                        255,
+                        255,
+                        255
+                    ]
+                },
+                "original_position": {
+                    "col": 4,
+                    "row": 2
+                },
+                "bounding_box": {
+                    "x": 48,
+                    "y": 48,
+                    "width": 16,
+                    "height": 16
+                }
+            }
+        ],
+        "tile_size": {
+            "width": 16,
+            "height": 16
+        },
+        "total_tiles": 16,
+        "tileset_type": "sidescroller",
+        "terrain_types": [
+            "central",
+            "background"
+        ],
+        "spritesheet_url": "https://backblaze.pixellab.ai/file/pixellab-tiles/46000f3f-7b71-4471-9101-9e53852e8efe/2e44791f-404c-4174-81fe-bc2f6a082215/spritesheet.png",
+        "spritesheet_grid": {
+            "cols": 4,
+            "rows": 4
+        },
+        "spritesheet_layout": "tileset15_4x4"
+    },
+    "base_tile_ids": {
+        "lower": "e9fec8e1-6f64-4650-8d4e-87655c6fa5d5"
+    },
+    "created_at": "2026-09-02T05:17:36.156139+00:00",
+    "metadata": {
+        "terrain_prompts": {
+            "lower": "weathered grey driftwood planks, rusted bolts, salt stained, gaps between boards",
+            "upper": "pale sun-bleached plank surface with peeling paint"
+        }
+    },
+    "format": "tileset15",
+    "layout": {
+        "type": "tileset15",
+        "description": "4x4 grid of 16 unique Wang tiles",
+        "grid_size": {
+            "width": 4,
+            "height": 4
+        },
+        "tile_count": 16
+    },
+    "pattern_system": {
+        "type": "4x4_wildcard",
+        "description": "4\u00d74 patterns with wildcards for flexible tile matching",
+        "wildcard_value": 255,
+        "pattern_layout": {
+            "description": "4\u00d74 grid where center 2\u00d72 matches tile corners, outer ring uses wildcards",
+            "example": {
+                "row_0": "All wildcards (*)",
+                "row_1": "Wildcard + NW corner + NE corner + Wildcard",
+                "row_2": "Wildcard + SW corner + SE corner + Wildcard",
+                "row_3": "All wildcards (*)"
+            }
+        },
+        "terrain_encoding": {
+            "lower": 0,
+            "upper": 1,
+            "transition": 2,
+            "wildcard": 255
+        },
+        "usage": {
+            "description": "Sample 4\u00d74 terrain around tile position, encode as pattern key, lookup in cache",
+            "benefits": [
+                "O(1) lookup performance",
+                "Flexible edge matching",
+                "Unified pattern system"
+            ]
+        }
+    },
+    "tileset_image": {
+        "filename": "tileset_2e44791f-404c-4174-81fe-bc2f6a082215.png",
+        "format": "PNG",
+        "dimensions": {
+            "width": 64,
+            "height": 64
+        }
+    },
+    "usage": {
+        "description": "Sidescroller tileset for 2D platformer games",
+        "sprite_sheet_url": "/mcp/sidescroller-tilesets/2e44791f-404c-4174-81fe-bc2f6a082215/image",
+        "game_engines": [
+            {
+                "name": "Godot",
+                "instructions": "Import PNG as texture, create TileMap node, configure tile collision shapes"
+            },
+            {
+                "name": "Unity",
+                "instructions": "Import PNG, create Tilemap and Grid, configure tile collision with TilemapCollider2D"
+            },
+            {
+                "name": "Generic",
+                "instructions": "Use sprite_sheet data to extract individual tiles by bounding_box coordinates"
+            }
+        ],
+        "tile_placement": "Use edge-based logic to select appropriate tiles based on neighboring terrain"
+    }
+}
