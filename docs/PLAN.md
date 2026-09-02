@@ -168,15 +168,24 @@ Two traps found while building it, both worth knowing before M4:
 `Area2D.monitorable = false` also switches off that area's *body* detection on Godot 4.7,
 and autoload identifiers do not resolve in a `--script` entry point — reach them by path.
 
-### M4 — Enemy framework + Stage 1 (3–4 days)
+### M4 — Enemy framework + Stage 1 (in progress)
 
-- `Enemy` base class: health, contact damage, weapon-damage table lookup, death explosion,
-  off-screen despawn + respawn-on-rescroll (MM's exact behaviour — enemies reset when
-  their spawn point re-enters the camera region).
-- Six enemy archetypes: walker, hopper, turret, flyer-sine, spawner, wall-crawler.
-- Room-based camera: horizontal scroll-lock rooms, screen-transition doors, vertical
-  scroll rooms, ladder-driven vertical transitions.
-- Stage 1 built end-to-end in `TileMapLayer` with checkpoints and a boss door.
+- ✅ `Enemy` base class: health, contact damage, weapon-damage table lookup, death
+  explosion, off-screen despawn + respawn-on-rescroll. Art is scaled from the sprite's
+  own measured height rather than a per-enemy constant, because the whole roster shares
+  one 256 px cell whatever size the art inside it is.
+- ✅ Six enemy archetypes: walker, hopper, turret, flyer-sine, spawner, wall-crawler, all
+  six wearing their stage 1 skins in `art_preview.tscn`.
+- ✅ Scroll-locked rooms and the stage camera. This removed two pieces of scaffolding:
+  the invisible walls at the deck ends are the room's limits now, and the fixed camera
+  offset is the camera's vertical anchor.
+- ⬜ Screen-transition doors, vertical scroll rooms, ladder-driven vertical transitions.
+- ⬜ Stage 1 built end-to-end in `TileMapLayer` with checkpoints and a boss door. The
+  preview places enemies by hand as a viewing harness; encounter design is not started.
+
+**Watch for:** the boardwalk's raised sections are two tiles, which a walk cannot clear —
+traversal needs jumps. Fine as geometry, but it means the current layout is not walkable
+end to end, which matters once enemies are placed for real.
 
 **Accept:** a full stage is playable from teleport-in to boss door with no soft locks;
 scrolling back and forth respawns enemies identically each time.

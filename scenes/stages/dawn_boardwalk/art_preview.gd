@@ -25,6 +25,27 @@ const PLAYER_SCENE := preload("res://scenes/actors/player/player.tscn")
 const TILESET := preload("res://resources/tilesets/dawn_boardwalk.tres")
 const HUD_SCRIPT := preload("res://scenes/ui/hud.gd")
 
+const WALKER := preload("res://scenes/actors/enemies/walker.gd")
+const HOPPER := preload("res://scenes/actors/enemies/hopper.gd")
+const TURRET := preload("res://scenes/actors/enemies/turret.gd")
+const FLYER := preload("res://scenes/actors/enemies/flyer.gd")
+const SPAWNER := preload("res://scenes/actors/enemies/spawner.gd")
+const CRAWLER := preload("res://scenes/actors/enemies/wall_crawler.gd")
+
+## One of each archetype, wearing its stage 1 skin from PLAN.md section 4.
+##
+## [script, sprite_frames name, animation, cell x, rows above the deck]. Placed
+## by hand because this is still a viewing harness -- authored rooms with real
+## encounter design are the rest of M4.
+const ENEMIES := [
+	[WALKER,  "dockrat",       &"walk",  4.0,  0.0],
+	[HOPPER,  "bollard",       &"hop",   9.0,  0.0],
+	[TURRET,  "lampjack",      &"idle",  16.0, 2.0],
+	[FLYER,   "gullbot",       &"fly",   24.0, 5.0],
+	[SPAWNER, "barnacle_hive", &"idle",  30.0, 1.0],
+	[CRAWLER, "limpet",        &"crawl", 27.0, 0.0],
+]
+
 ## A gap in the deck, [from, to) in cells. Falling through it is the M3
 ## acceptance case: the pit sensor below kills, and a knockback you cannot steer
 ## out of is what puts you in it.
@@ -82,6 +103,8 @@ func _ready() -> void:
 	_player.position = Vector2(SPAWN_CELL.x, SPAWN_CELL.y - 2.0) * tuning.tile_size()
 	add_child(_player)
 
+	_add_enemies(tuning.tile_size())
+
 	_add_hud()
 	# The room's limits are what stop the player leaving now, and the camera's
 	# vertical anchor is what frames the deck low. Both used to be faked here --
@@ -110,6 +133,33 @@ func _add_checkpoints(tile: float) -> void:
 		var checkpoint := Checkpoint.new()
 		checkpoint.position = Vector2(float(cell_x), float(DECK_ROW)) * tile
 		add_child(checkpoint)
+
+
+## A spawn marker per archetype. Markers rather than instances, so they follow
+## the same spawn-on-approach and despawn-off-screen rule the authored rooms
+## will -- placing instances here would hide any bug in that rule.
+func _add_enemies(tile: float) -> void:
+	for entry in ENEMIES:
+		var frames_path := "res://resources/sprite_frames/%s.tres" % entry[1]
+		if not ResourceLoader.exists(frames_path):
+			continue
+		var marker := SpawnMarker.new()
+		marker.name = "Spawn_%s" % String(entry[1]).capitalize()
+		marker.enemy_scene = _enemy_scene(entry[0], load(frames_path), entry[2])
+		marker.position = Vector2(float(entry[3]), float(DECK_ROW) - float(entry[4])) * tile
+		add_child(marker)
+
+
+## Wraps an archetype script and its art into a PackedScene, because markers
+## spawn scenes rather than scripts.
+func _enemy_scene(script: GDScript, frames: SpriteFrames, anim: StringName) -> PackedScene:
+	var enemy := script.new() as Enemy
+	enemy.sprite_frames = frames
+	enemy.anim_name = anim
+	var packed := PackedScene.new()
+	packed.pack(enemy)
+	enemy.free()
+	return packed
 
 
 func _add_hud() -> void:

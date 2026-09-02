@@ -24,9 +24,21 @@ signal died(enemy: Enemy)
 ## (ARCHITECTURE section 5.5).
 @export var persistent: bool = false
 
+## Art for this enemy, from resources/sprite_frames. Optional: the archetype
+## tests run without it, and a grey box is a valid placeholder while a stage is
+## being laid out.
+@export var sprite_frames: SpriteFrames
+## Which animation to play. Enemies mostly have one.
+@export var anim_name: StringName = &"walk"
+## How tall the art is drawn, as a multiple of the collision box. Slightly over
+## 1 because a sprite that exactly fits its hitbox looks like it is sunk into
+## the floor.
+@export var art_height_scale := 1.35
+
 var health: Health
 var hurtbox: Hurtbox
 var contact: Hitbox
+var sprite: AnimatedSprite2D
 var tuning: PlayerTuning
 ## Set by the SpawnMarker that created this enemy, so the marker can be re-armed
 ## when the enemy is freed rather than leaving a hole in the room.
@@ -45,6 +57,7 @@ func _ready() -> void:
 	_build_health()
 	_build_hurtbox()
 	_build_contact()
+	_build_sprite()
 	setup()
 
 
@@ -103,6 +116,56 @@ func _on_died(_info: DamageInfo) -> void:
 		spawn_marker.mark_spent()
 	died.emit(self)
 	queue_free()
+
+
+## Scales the art from what it actually measures rather than from a constant.
+##
+## Enemy art comes out of AutoSprite in the same 256 px cell as a boss, so a
+## Dockrat is drawn in the same size cell as a Robot Master and the art inside it
+## is whatever size it is. Hand-entering a per-enemy scale would be thirteen
+## numbers to keep in step with the art; measuring the opaque height means an
+## enemy is the size its box says it is, whatever the cell.
+func _build_sprite() -> void:
+	if sprite_frames == null:
+		return
+	sprite = AnimatedSprite2D.new()
+	sprite.name = "Sprite"
+	sprite.sprite_frames = sprite_frames
+	var playing: StringName = anim_name
+	if not sprite_frames.has_animation(playing):
+		var names := sprite_frames.get_animation_names()
+		if names.is_empty():
+			return
+		playing = StringName(names[0])
+	sprite.animation = playing
+	sprite.play(playing)
+
+	var art_height := _measure_art_height(playing)
+	if art_height > 0.0:
+		var factor := body_size().y * art_height_scale / art_height
+		sprite.scale = Vector2(factor, factor)
+	sprite.centered = true
+	# The actor's origin is at its feet, so the art is lifted by half of what it
+	# is drawn at rather than centred on the origin.
+	sprite.offset = Vector2.ZERO
+	sprite.position = Vector2(0.0, -body_size().y * art_height_scale * 0.5)
+	add_child(sprite)
+
+
+## Height of the opaque pixels in a frame, or 0 when it cannot be measured.
+func _measure_art_height(playing: StringName) -> float:
+	if sprite_frames.get_frame_count(playing) <= 0:
+		return 0.0
+	var tex := sprite_frames.get_frame_texture(playing, 0)
+	if tex == null:
+		return 0.0
+	var image := tex.get_image()
+	if image == null:
+		return 0.0
+	if image.is_compressed() and image.decompress() != OK:
+		return 0.0
+	var used := image.get_used_rect()
+	return float(used.size.y)
 
 
 func _build_health() -> void:
