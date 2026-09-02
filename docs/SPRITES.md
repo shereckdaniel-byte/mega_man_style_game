@@ -281,6 +281,47 @@ resolves to `spritesheetIds`. **Poll no faster than every 30 s.** Note that
 `list_spritesheets` does not return the animation `name` and `latestOnly` collapses every
 `custom` animation into one entry — map name → sheet through the `jobId` instead.
 
+### 6a. Generating a whole roster — what the batch of 2026-09-02 taught
+
+Thirteen characters (seven bosses, six enemies) and fifty animations, in one batch so the
+style holds. Five things that are not in the tool descriptions:
+
+**Costs, measured.** `create_character` is 1 credit at `turbo` and 3 at `pro`;
+`generate_spritesheet` is 5 per animation at the default `turbo` video tier. The roster
+cost 39 (13 base images at `pro`) + 3 (one redo) + 250 (fifty animations) = 292 of 366.
+`pro` base images are worth it: every animation is generated *from* the base, so a weak
+base is paid for once per animation afterwards.
+
+**Do the base images first, all of them, and look at them together.** A base is 3 credits
+and its six animations are 30. One character came back with a wooden piling baked into
+the sprite — scenery that would never match the wall it was supposed to cling to — and
+catching that before animating cost 3 credits instead of 33.
+
+**Bearer auth fetches files directly; the `sig=` tokens are optional.** The tool output
+warns that `baseImageUrl` and `sheetUrl` carry `?sig=` tokens that expire in minutes,
+which makes a long batch awkward. They are not required:
+
+```sh
+curl -fsSL -H "Authorization: Bearer $AUTOSPRITE_API_KEY" \
+  https://www.autosprite.io/api/files/characters/<id>/base
+curl -fsSL -H "Authorization: Bearer $AUTOSPRITE_API_KEY" \
+  https://www.autosprite.io/api/files/spritesheets/<id>/sheet   # and /atlas
+```
+
+**`get_job_status` rate-limits hard, and fails as non-JSON rather than as an error.** A
+tight loop over fifty jobs starts returning something that is not JSON at all, so a naive
+parser crashes mid-download. Pace the calls (6 s was enough), treat a parse failure as
+"not ready", and make the downloader resumable by skipping any animation whose
+`atlas.json` already exists.
+
+**`create_character` can time out at 60 s and still have created the character.** Check
+`list_characters` before retrying, or you will pay twice for the same design.
+
+**Custom animations come back in submission order.** The mapping still has to go through
+the `jobId` — the sheet listing reports `kind: "custom"` for all of them and never the
+`name` — but where the order was checked against the art (Arc's `attack` fires its
+weapon, `hurt` recoils, `death` collapses), submission order held.
+
 ---
 
 ## 7. Art direction — settled
