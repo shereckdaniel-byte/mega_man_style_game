@@ -98,7 +98,7 @@ func _run() -> void:
 		if _stage.is_transitioning():
 			_release()
 			continue
-		_drive()
+		_drive(frame)
 		var x: float = _player.global_position.x
 		if x > best + 4.0:
 			best = x
@@ -274,9 +274,19 @@ func _phase_name(phase: int) -> String:
 	return names[phase] if phase >= 0 and phase < names.size() else "?"
 
 
-## One frame of input: always walk right, jump when the deck ahead demands it.
-func _drive() -> void:
+## One frame of input: walk right, shoot, and jump when the deck ahead demands it.
+##
+## It shoots the whole way for a reason. The traversal bot used to only walk and
+## jump, which meant the stage runs measured *surviving* the enemies rather than
+## fighting them -- and that is precisely the blind spot that let the Dockrat
+## ship unkillable for two milestones. A run that never fires cannot notice that
+## firing does nothing.
+func _drive(frame: int = 0) -> void:
 	Input.action_press(&"move_right")
+	if frame % SHOOT_PERIOD == 0:
+		Input.action_press(&"shoot")
+	elif frame % SHOOT_PERIOD == 1:
+		Input.action_release(&"shoot")
 
 	if _jump_left > 0:
 		_jump_left -= 1

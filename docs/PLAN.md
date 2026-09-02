@@ -219,12 +219,26 @@ Tide Crawler is unlocked with a full 28-tick bar. The weakness table gives the A
 4 damage where the buster does 1, inside the roster's 2–4× rule, and Tide is not weak to
 its own weapon.
 
-**Measured over six runs: five wins, one loss** (that one with Tide on 5 HP). The bot
-arrives at the arena on 14 of 28 HP, having taken the stage's hits on the way, and
-finishes on 4–12. That is roughly where a first boss should sit — winnable with no
-weapons, and not free — but read it for what it is: this bot shoots on a fixed cadence
-and knows two dodges. A person is much better than it, so **5-in-6 for the bot is not
-5-in-6 for a player**, and the fight has not been played by a human yet.
+**Measured over six runs: six wins, arriving at the arena on 24 of 28 HP and finishing
+on 16–20.**
+
+Those numbers replace an earlier set (arrive on 14, finish on 4–12, five wins in six) that
+was measured against a bugged stage and a bot that never fired during it. Both halves of
+that were wrong and the errors pulled in the same direction, which is why the first
+figures looked reassuringly like a first boss should:
+
+- Most of stage 1's enemies could not be shot at all. The Dockrat's hurtbox topped out
+  below the buster's line, so the walkers, the Limpets and the Bollards were unkillable.
+- The traversal bot never pressed fire, so its runs measured *surviving* the stage rather
+  than fighting it — and a run that never fires cannot notice that firing does nothing.
+  It fires the whole way now.
+
+**Read this as a difficulty signal.** With the enemies actually killable and the bot
+actually shooting, stage 1 costs 4 HP end to end and Tide costs another 4–8. That is
+comfortable, and possibly too comfortable — a first stage should not be *free*. It is not
+a reason to buff anything yet: the bot is crude, no human has played it, and the honest
+next step is for one to. But when stage 2 gets built, stage 1 is the wrong yardstick to
+copy without a person's opinion of it first.
 
 **Telegraphs are structural, not a convention.** `BossPattern` is tell → act → recover
 as three frame counts, and `Boss` runs them in that order, so there is nowhere to put an
