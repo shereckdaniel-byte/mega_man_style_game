@@ -13,3 +13,7 @@ export_presets.cfg
 # OS
 .DS_Store
 Thumbs.db
+
+# Secrets: AUTOSPRITE_API_KEY lives here, never in .mcp.json
+.env
+.env.*

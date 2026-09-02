@@ -1,234 +1,237 @@
 # Sprite Pipeline — AutoSprite → Godot 4.7
 
-Source of truth for the workflow: AutoSprite's Godot integration guide (AnimatedSprite2D +
-SpriteFrames). This document adds the project-specific conventions and replaces the manual
-"click frames in the SpriteFrames panel" step with a script, because we regenerate art
-often and hand-clicking does not survive that.
+> **Verified against real exports on 2026-09-02.** Everything in the pre-M0 draft of this
+> document about the atlas format was a guess, and all of it was wrong. What follows is
+> read off actual AutoSprite output (`MAIN-Character-spritesheet.zip`,
+> `Wave-Man-spritesheet.zip`) and exercised by `tools/autosprite_importer.gd` and
+> `tests/test_sprite_frames.gd`.
 
 ---
 
-## 1. Workflow
+## 1. Export layout
+
+AutoSprite emits **one directory per animation**, each with its own spritesheet — not one
+sheet per character:
 
 ```
-AutoSprite  ──(PNG spritesheet + JSON atlas)──▶  assets/sprites/<kind>/<name>/
-                                                        │
-                                          tools/autosprite_import.gd (EditorScript)
-                                                        ▼
-                                    resources/sprite_frames/<name>.tres  (SpriteFrames)
-                                                        │
-                                                        ▼
-                                    AnimatedSprite2D.sprite_frames  in the actor scene
+<Character>-spritesheet.zip
+└── <Animation Name>/
+    ├── atlas.json          frame rectangles + meta
+    ├── spritesheet.png     grid of frames
+    └── frames/0001.png…    the same frames again, individually
 ```
 
-1. Generate the character in AutoSprite with the animation set from §4.
-2. Export the spritesheet **PNG + JSON atlas** (the JSON carries frame size, columns and
-   frame count — we need it; a bare PNG export means falling back to manual grid entry).
-3. Drop both files into `assets/sprites/<kind>/<name>/` using the same basename.
-4. In the editor, run `tools/autosprite_import.gd` (File ▸ Run, or the Tools menu).
-5. Commit the PNG, the JSON, **and** the generated `.tres`.
+`frames/` is redundant with the sheet and is ~90% of the download (the two exports are
+15 MB unpacked, 3 MB without it). **Commit only `spritesheet.png` and `atlas.json`.**
 
-Actor scenes reference the generated `SpriteFrames` by path, so regenerating art never
-requires touching a scene file.
+### atlas.json
+
+```json
+{
+  "frames": {
+    "0": { "x": 0,   "y": 0, "w": 256, "h": 256, "duration": 1 },
+    "1": { "x": 256, "y": 0, "w": 256, "h": 256, "duration": 1 }
+  },
+  "meta": {
+    "size":       { "w": 1280, "h": 1280 },
+    "frame_size": { "w": 256,  "h": 256  },
+    "duration_s": 2.333,
+    "background_mode": "toonout_tensordock"
+  }
+}
+```
+
+Three things to know:
+
+- **`frames` is an object keyed by stringified integers, not an array.** Sort the keys
+  numerically. Sorted as text, frame `"10"` lands between `"1"` and `"2"` and the
+  animation plays scrambled — which reads as bad art rather than a bug.
+  `tests/test_sprite_frames.gd` asserts frame order advances left-to-right, top-to-bottom.
+- **There is no `columns` or `frameCount` field.** Every frame carries its own rect, so
+  the grid never has to be inferred.
+- **Duration is total seconds, not fps.** Divide: 25 frames / 2.333 s ≈ 10.7 fps.
+
+### Observed characteristics
+
+| Property | Value |
+| --- | --- |
+| Frames per animation | 25 |
+| Frame cell | 256 × 256 |
+| Sheet | 1280 × 1280 (5 × 5) |
+| Playback | 10.7 fps |
+| Character within the cell | ~78 × 177 px (86% of the cell is transparent) |
+| Distinct colours, one frame | ~230, with anti-aliased edges |
+
+**This is smooth high-detail art, not upscaled pixel art.** 82% of horizontal colour runs
+across the body are a single pixel long, so there is no upscale factor to reverse — it
+cannot be losslessly reduced to a small pixel grid. Two consequences, both open (see §7):
+
+1. A 177 px character does not fit a 256 × 224 viewport; it is 79% of the screen height
+   where a Mega Man 3 sprite is 11%.
+2. The two-tone palette-swap shader for weapon colours (§3) cannot work on 230 anti-aliased
+   colours.
 
 ---
 
 ## 2. Conventions
 
-| Convention | Value | Why |
-| --- | --- | --- |
-| Frame cell | 48 × 48 px | Character occupies ~24 px tall inside it; leaves room for muzzle flash, slide dust, and wide poses without changing cell size per animation |
-| Anchor | Bottom-centre of the cell aligns to the actor's feet | `AnimatedSprite2D.offset = Vector2(0, -24)` with `centered = true` |
-| Palette | 2 primary tones + outline, flat shading, no gradients or AA | Required for the weapon palette-swap shader (§3) |
-| Facing | Draw **right-facing only**; mirror with `flip_h` | Halves the frame count |
-| Naming | `assets/sprites/player/player.png` + `player.json` | Importer pairs by basename |
-| Animation names | `snake_case`, exactly the strings in §4 | The resource lint test asserts these exist |
+| Convention | Value |
+| --- | --- |
+| Location | `assets/sprites/player/`, `assets/sprites/bosses/<name>/` |
+| Committed files | `<Animation>/spritesheet.png` + `<Animation>/atlas.json` only |
+| Facing | Right-facing only; mirror with `flip_h` |
+| Generated output | `resources/sprite_frames/<character>.tres` |
+| Animation names | `snake_case`, direction suffix stripped |
 
-**Collision never derives from the sprite.** The 48 × 48 cell is art; the hitbox is the
-16 × 24 rect from ARCHITECTURE §3. Changing the cell size must not change gameplay.
+**Collision never derives from the sprite.** The cell is art; the hitbox is the 16 × 24
+rect in ARCHITECTURE §3. Changing cell size or art scale must not change gameplay.
 
-### Import settings
+### Name normalisation
 
-Nearest-neighbour filtering is set project-wide (ARCHITECTURE §2), and mipmaps are off via
-the importer default. If a sprite still looks blurry, check that the node has not
-overridden `texture_filter` locally — that is the only remaining place it can go wrong.
+AutoSprite's directory names are inconsistent — `idle_right` next to `Hit React` next to
+`arm cannon attack`. The importer maps known names through `NAME_MAP` and snake-cases the
+rest, so a newly generated animation shows up under a usable name instead of being dropped.
+
+| AutoSprite | Imported as |
+| --- | --- |
+| `idle_right`, `walk_right`, `run_right`, `jump_right` | `idle`, `walk`, `run`, `jump` |
+| `attack_right` | `attack` |
+| `arm cannon attack` | `idle_shoot` |
+| `Hit React`, `Hurt` | `hurt` |
+| `Death`, `Victory` | `death`, `victory` |
+| `wave gun` | `attack_special` |
 
 ---
 
-## 3. Palette swap
+## 3. Palette swap — blocked
 
-The player's colours change with the equipped weapon. Implement as a `ShaderMaterial` on
-the `AnimatedSprite2D` that remaps two source colours to the weapon's `palette` array:
+The plan was a `ShaderMaterial` remapping two authored body tones to the equipped weapon's
+colours, the way the NES palette swap worked.
 
-```glsl
-shader_type canvas_item;
-uniform vec4 src_a : source_color;   // the two authored body tones
-uniform vec4 src_b : source_color;
-uniform vec4 dst_a : source_color;   // weapon palette
-uniform vec4 dst_b : source_color;
-const float EPS = 0.02;
+**This does not work on the current art.** An exact-match shader needs flat tones; one
+frame has ~230 colours with anti-aliased edges and gradients. Options, in order of
+preference:
 
-void fragment() {
-    vec4 c = texture(TEXTURE, UV);
-    if (c.a > 0.5) {
-        if (distance(c.rgb, src_a.rgb) < EPS) c.rgb = dst_a.rgb;
-        else if (distance(c.rgb, src_b.rgb) < EPS) c.rgb = dst_b.rgb;
-    }
-    COLOR = c;
-}
+1. **Regenerate as flat-shaded pixel art** — restores the original plan intact.
+2. **Hue-rotate in the shader** instead of remapping exact colours. Works on any art, but
+   the result is a tint rather than the crisp two-colour swap of the original, and dark
+   outlines shift with it unless masked by luminance.
+3. **Generate a colour variant per weapon in AutoSprite.** Highest fidelity, but it is
+   8 × the art for one character and every regeneration multiplies.
+
+Resolve alongside the art-direction decision in §7.
+
+---
+
+## 4. Animation coverage
+
+What the two exports actually contain, against what the M1 controller needs:
+
+| Needed | Player | Wave Man | Note |
+| --- | --- | --- | --- |
+| `idle` | ✅ | ✅ | |
+| `walk` | ✅ | ✅ | |
+| `run` | — | ✅ | Not needed; MM3 has one ground speed |
+| `jump` | ✅ | ✅ | Single pose; no separate `fall` |
+| `fall` | ❌ | ❌ | Can reuse `jump` |
+| `land` | ❌ | ❌ | Cosmetic, droppable |
+| **`slide`** | ❌ | n/a | **The MM3 signature move. Blocks M1.** |
+| **`climb`**, `climb_top` | ❌ | n/a | **Blocks ladders in M1.** |
+| `idle_shoot` | ✅ (`arm cannon attack`) | ✅ (`wave gun`) | |
+| **`walk_shoot`**, **`jump_shoot`** | ❌ | n/a | **Blocks "fire while moving", §1 of PLAN.** |
+| `climb_shoot` | ❌ | n/a | |
+| `hurt` | ✅ (`Hit React`) | ✅ | |
+| `death` | ✅ | ✅ | Enemies share one explosion effect instead |
+| `teleport_in` / `teleport_out` | ❌ | ❌ | Stage start/clear |
+| `victory` | ✅ | n/a | |
+| `attack` | ✅ | ✅ | Boss-specific |
+
+Five player animations block M1: **`slide`, `climb`, `walk_shoot`, `jump_shoot`,
+`teleport_in`/`teleport_out`**. None are AutoSprite stock types, so they need Custom
+Animations with explicit pose descriptions — and they should be generated **in the same
+session as the base character** so the style matches.
+
+25 frames at 10.7 fps is also far more than a NES cycle (walk is 3 frames). Extra frames
+are harmless — the controller owns timing, the animation is cosmetic — but they cost
+texture memory: one character is currently 1.4 MB across 8 animations.
+
+---
+
+## 5. The importer
+
+```
+tools/autosprite_importer.gd         AutoSpriteImporter — all the logic
+tools/autosprite_import.gd           SceneTree wrapper, for CLI and CI
+tools/autosprite_import_editor.gd    EditorScript wrapper, for File > Run
 ```
 
-This only works if AutoSprite emits **exactly** those two flat tones on the body. Prompt
-for flat NES-style shading, then verify with a colour-count check on the exported PNG
-before generating the other seven characters — a gradient here costs a full regeneration.
-
----
-
-## 4. Animation manifest
-
-### Player (generate first, at M2)
-
-| Animation | Frames | FPS | Loop | Driven by |
-| --- | --- | --- | --- | --- |
-| `idle` | 1 | — | ✓ | Idle state |
-| `idle_blink` | 3 | 8 | ✗ | Idle, every ~4 s |
-| `walk` | 3 | 12 | ✓ | Walk state |
-| `jump` | 1 | — | ✗ | Jump (rising) |
-| `fall` | 1 | — | ✗ | Fall (velocity.y > 0) |
-| `land` | 2 | 16 | ✗ | 4-frame cosmetic on floor contact |
-| `slide` | 1 | — | ✗ | Slide state |
-| `climb` | 2 | 8 | ✓ | Climb, advances only while moving |
-| `climb_top` | 1 | — | ✗ | Mounting/dismounting the ladder top |
-| `idle_shoot` | 1 | — | ✗ | Idle + `shoot_timer > 0` |
-| `walk_shoot` | 3 | 12 | ✓ | Walk + shooting |
-| `jump_shoot` | 1 | — | ✗ | Airborne + shooting |
-| `climb_shoot` | 1 | — | ✗ | Climb + shooting (one-armed) |
-| `hurt` | 2 | 12 | ✓ | Hurt state, plays for `knockback_frames` |
-| `teleport_in` | 3 | 12 | ✗ | Stage start beam-down |
-| `teleport_out` | 3 | 12 | ✗ | Stage clear |
-| `victory` | 2 | 8 | ✗ | Weapon-get screen |
-
-The `_shoot` variants are why the suffix trick in ARCHITECTURE §5.1 matters: 17
-animations, not 34, and no extra states.
-
-AutoSprite's stock animation types cover idle / walk / jump / attack / hurt / death
-directly. `slide`, `climb`, `teleport_in`, `teleport_out` and the `_shoot` variants are
-project-specific — generate those through **Custom Animations** (or Advanced Mode) with
-explicit pose descriptions, and generate them in the *same session as the base character*
-so the style stays consistent.
-
-### Bosses (M5–M6)
-
-Per boss, minimum set: `idle`, `intro` (teleport-in), `walk` or `hover`, `attack_a`,
-`attack_b`, `jump`, `hurt`, `defeat`. Anything beyond that is per-boss and driven by its
-pattern state machine.
-
-### Enemies (M4)
-
-Per archetype: `idle`/`move`, `attack` (if it has one), `death` is shared — every enemy
-dies into the same 8-particle explosion, so it is one reusable effect scene, not per-enemy
-art.
-
-### Shared effects (generate once)
-
-`explosion_small`, `explosion_boss` (larger, longer), `muzzle_flash`, `slide_dust`,
-`spawn_beam`, `pickup_sparkle`.
-
----
-
-## 5. Automated importer
-
-`tools/autosprite_import.gd` — run from the editor. Sketch to implement at M2:
-
-```gdscript
-@tool
-extends EditorScript
-
-const SRC_ROOT := "res://assets/sprites"
-const OUT_ROOT := "res://resources/sprite_frames"
-
-func _run() -> void:
-    for json_path in _find_files(SRC_ROOT, "json"):
-        var png_path := json_path.get_basename() + ".png"
-        if not ResourceLoader.exists(png_path):
-            push_warning("No PNG beside %s" % json_path); continue
-        var atlas: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(json_path))
-        var frames := _build(load(png_path), atlas)
-        var out := "%s/%s.tres" % [OUT_ROOT, json_path.get_file().get_basename()]
-        ResourceSaver.save(frames, out)
-        print("wrote ", out)
-
-func _build(sheet: Texture2D, atlas: Dictionary) -> SpriteFrames:
-    # Tolerate naming differences between AutoSprite export versions.
-    var cols: int   = _pick(atlas, ["columns", "cols"], 0)
-    var count: int  = _pick(atlas, ["frameCount", "frames", "numFrames"], 0)
-    var fw: int     = _pick(atlas, ["frameWidth", "width"], 0)
-    var fh: int     = _pick(atlas, ["frameHeight", "height"], 0)
-    if cols <= 0 and fw > 0: cols = int(sheet.get_width() / fw)
-    if fw <= 0 and cols > 0: fw = int(sheet.get_width() / cols)
-    assert(cols > 0 and fw > 0 and fh > 0, "atlas missing frame geometry")
-    if count <= 0: count = cols * int(sheet.get_height() / fh)
-
-    var sf := SpriteFrames.new()
-    sf.remove_animation("default")
-    for anim in _animations(atlas, count):
-        var name: StringName = anim["name"]
-        sf.add_animation(name)
-        sf.set_animation_speed(name, anim.get("fps", 12.0))
-        sf.set_animation_loop(name, anim.get("loop", true))
-        for i in range(anim["from"], anim["to"] + 1):
-            var at := AtlasTexture.new()
-            at.atlas = sheet
-            at.region = Rect2(float((i % cols) * fw), float((i / cols) * fh), float(fw), float(fh))
-            at.filter_clip = true
-            sf.add_frame(name, at)
-    return sf
+```sh
+godot --headless --script res://tools/autosprite_import.gd
 ```
 
-`_animations()` returns the atlas's own animation list when the export includes one
-(name + frame range per animation), and otherwise falls back to a sidecar
-`<name>.anims.json` we author by hand in the manifest format of §4. Both paths must exist:
-AutoSprite exports vary, and the hand-authored sidecar is also how we override FPS and
-loop flags without regenerating art.
+The split exists because **`EditorScript` cannot run headless** — `godot --script` rejects
+anything that is not a `SceneTree` or `MainLoop`, so the documented "add an EditorScript
+and use File > Run" approach cannot be used from CI. The logic lives in a plain
+`RefCounted` and both wrappers are three lines.
 
-**Verify the atlas key names against a real export before writing this.** The `_pick`
-fallback list above is a guess at the schema; one 30-second look at the first real JSON
-replaces the guessing with fact.
+It finds characters by shape, not by a fixed depth — any directory whose children contain
+an `atlas.json` — so `assets/sprites/player/` and `assets/sprites/bosses/wave_man/` both
+work. Frame rects come straight from the atlas, fps from `frame_count / duration_s`, and
+looping from a policy list (`idle`, `walk`, `run`, `climb`, `hurt` loop; everything else
+plays once).
+
+Actor scenes reference `resources/sprite_frames/<character>.tres` by path, so regenerating
+art never requires touching a scene.
 
 ### Manual fallback
 
-If the JSON is unavailable, the documented manual route still works: add an
-`AnimatedSprite2D`, create a new `SpriteFrames`, use the grid icon (*Add frames from sprite
-sheet*), set Horizontal/Vertical to the sheet's columns/rows, select frames in order, and
-repeat per animation. Use this only to unblock; get back on the script path before the
-frame count multiplies.
+The documented route still works to unblock: `AnimatedSprite2D` → new `SpriteFrames` → grid
+icon → set Horizontal/Vertical → select frames → Add Frames. Use it once, then go back to
+the script; at 25 frames × 17 animations × 9 characters, hand-clicking is not a pipeline.
 
 ---
 
-## 6. State → animation mapping
+## 6. Generating new sprites via MCP
 
-```gdscript
-func _sprite_anim() -> StringName:
-    var base: StringName = state_machine.current.anim_name   # each State declares one
-    if shoot_timer > 0 and base in SHOOTABLE:                # idle, walk, jump, fall, climb
-        return StringName("%s_shoot" % base)
-    return base
+`.mcp.json` declares the AutoSprite MCP server. The key is **not** committed — it comes
+from `AUTOSPRITE_API_KEY` in the environment (see `.env.example`):
+
+```json
+{ "mcpServers": { "autosprite": {
+    "type": "http",
+    "url": "https://www.autosprite.io/api/mcp",
+    "headers": { "Authorization": "Bearer ${AUTOSPRITE_API_KEY}" } } } }
 ```
 
-`fall` reuses `jump_shoot` — one airborne firing pose, as in the original. Never gate a
-state transition on `animation_finished`; the controller owns timing and the art follows.
-The two exceptions, where the animation genuinely owns the duration, are `teleport_in` and
-`teleport_out`.
+Two things must be true before it can be used from a Claude Code web session:
+
+1. **The session must be restarted** for `.mcp.json` to load.
+2. **`www.autosprite.io` must be allowed by the environment's network policy.** It is
+   currently denied — the proxy answers `403` to `CONNECT www.autosprite.io:443` — so the
+   server is unreachable from the container regardless of the key. Add the domain to the
+   environment's allowed hosts.
 
 ---
 
-## 7. Checklist before generating the other seven bosses
+## 7. Open decisions
 
-Do all of this on the player and boss #1 first. A style or schema mistake caught here
-costs one regeneration; caught later it costs eight.
+Blocking, and bigger than the sprite pipeline: **the art's scale and style do not match the
+game the plan describes.** See PLAN.md §6.
 
-- [ ] Exported JSON key names confirmed; `autosprite_import.gd` reads a real file.
-- [ ] Body uses exactly two flat tones; palette-swap shader verified on three weapons.
-- [ ] 48 × 48 cell, feet on the bottom-centre anchor, no vertical drift between animations.
-- [ ] Sprites crisp at 1×, 3×, and 6× window scale.
-- [ ] Right-facing only; `flip_h` produces no asymmetry artefacts.
-- [ ] Resource-lint test passes: every animation name in §4 exists in the generated `.tres`.
+| | Art scale | Consequence |
+| --- | --- | --- |
+| **Regenerate as pixel art** | ~24 px character | Plan survives intact: 256 × 224, nearest filtering, palette swap, the whole tuning table. Costs a full regeneration of both characters. |
+| **Keep the art, go HD** | 177 px character | Viewport becomes ~1280 × 720, tiles ~48 px, and **every constant in `PlayerTuning` rescales by ~3×**. Nearest filtering becomes wrong (the art is not pixel art — use linear). Palette swap becomes a hue rotation. |
+| **Downscale on import** | 24–64 px | Cheapest, worst-looking: 177 → 24 destroys anti-aliased detail into mush. Viable at 64 px (2.8× reduction) with a mid-resolution viewport. |
+
+Nothing downstream of this should be built until it is settled — level tile size, camera
+room dimensions, and the entire movement tuning table all hang off it.
+
+### Checklist before generating the other seven bosses
+
+- [ ] Scale and art style settled (§7); one character regenerated and approved in-engine.
+- [ ] The five missing player animations exist (§4).
+- [ ] Weapon colour approach settled (§3).
+- [ ] Frame count per animation agreed — 25 is generous for a NES-style cycle.
+- [ ] `godot --headless --script res://tools/autosprite_import.gd` runs clean.
+- [ ] `tests/test_sprite_frames.gd` passes.

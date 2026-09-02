@@ -90,16 +90,24 @@ Also at M1: **calibrate the absolute values against reference footage.** The con
 internally consistent and tested, but whether 4.9375 px/frame is the true NES jump
 velocity is unverified — measure a known ledge height in a reference video and adjust.
 
-### M2 — Sprite pipeline (1–2 days)
+### M2 — Sprite pipeline (partly done, brought forward)
 
-- Generate the player character in AutoSprite per `docs/SPRITES.md`.
-- Build `tools/autosprite_import.gd`: an `EditorScript` that reads an AutoSprite JSON
-  atlas and writes a `SpriteFrames` `.tres` — no hand-clicking in the SpriteFrames panel.
-- Import preset forcing Nearest filter / mipmaps off for `res://assets/sprites/**`.
-- Swap the player's placeholder for `AnimatedSprite2D`; wire state → animation mapping.
+Art arrived before M1, so the importer was built early against real exports rather than
+the guessed format. See SPRITES.md, which is now verified rather than assumed.
+
+- ✅ Importer built and working: 17 animations across two characters import clean.
+  Split into `AutoSpriteImporter` (logic) + SceneTree and EditorScript wrappers, because
+  `EditorScript` cannot run headless and therefore cannot run in CI.
+- ✅ `tests/test_sprite_frames.gd` lints generated resources and name normalisation.
+- ✅ Redundant per-frame PNGs excluded from the repo: 15 MB of export becomes 3 MB.
+- ⛔ **Blocked:** art scale and style (SPRITES.md §7), the five missing player
+  animations (§4), and the weapon palette approach (§3).
+- ⛔ Filtering: nearest is correct for pixel art and *wrong* for the art as delivered.
+  Settled by the same decision.
 
 **Accept:** re-running the importer after regenerating a character updates animations
-in place with no scene edits and no lost frame ordering. Sprites are crisp at 1×, 3×, 6×.
+in place with no scene edits and no lost frame ordering (done); sprites look right at the
+chosen scale (blocked).
 
 ### M3 — Combat core (2–3 days)
 
@@ -230,9 +238,12 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
+| **Art scale/style does not match the design** | **Blocks M1** | **Live.** The delivered sprites are 177 px smooth HD art; the design assumes a 24 px pixel-art character in a 256 × 224 viewport. Decision needed — SPRITES.md §7 |
+| AutoSprite MCP unreachable from the web session | Blocks regeneration | `www.autosprite.io` is denied by the environment network policy; allow the domain and restart the session |
 | ~~Godot 4.7 API drift~~ | ~~Blocks M0~~ | **Closed at M0.** Verified on 4.7.stable, pinned in `.godot-version`, CI runs against it |
-| AutoSprite output style is inconsistent between characters | Art rework | Lock one character prompt/seed convention at M2, generate all 8 bosses in one batch |
-| AutoSprite frame counts don't match the animation lengths the controller expects | Animation desync | Controller drives timing; animations are cosmetic. Never gate state exits on `animation_finished` except for teleport and weapon-get |
+| AutoSprite output style is inconsistent between characters | Art rework | Lock one character prompt/seed convention at M2, generate all 8 bosses in one batch. Already visible: animation directory names alternate between `idle_right` and `Hit React` |
+| AutoSprite frame counts don't match the animation lengths the controller expects | Animation desync | Controller drives timing; animations are cosmetic. Never gate state exits on `animation_finished` except for teleport and weapon-get. Confirmed: exports are 25 frames at 10.7 fps against NES cycles of 3 |
+| Missing animations block the controller | Blocks M1 | `slide`, `climb`, `walk_shoot`, `jump_shoot`, `teleport_*` are absent from the player export — SPRITES.md §4 |
 | Hand-authoring 8 stages is the schedule | Slips M6 | Build stage 1 fully, then extract a gimmick-block library before stages 2–8 |
 | Pixel-perfect + camera smoothing fight each other | Jitter | Camera snapping off, no position smoothing, integer stretch — settled in ARCHITECTURE §2 and asserted in `tests/test_project_settings.gd` |
 | Continuous-vs-discrete physics maths in level design | Unclearable ledges | **Hit once already at M0.** `jump_apex_px()` integrates for real; a test locks the number |
