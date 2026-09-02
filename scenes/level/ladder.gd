@@ -18,7 +18,10 @@ var _shape: CollisionShape2D
 
 func _ready() -> void:
 	collision_layer = 1 << 2   # layer 3: ladder
-	collision_mask = 0         # ladders are sensed by the player, not sensing
+	# The ladder is what watches: body_entered only fires for layers in this
+	# mask, so leaving it at 0 silently made every ladder undetectable and Climb
+	# unreachable. Watch player_body (layer 4) and nothing else.
+	collision_mask = 1 << 3    # layer 4: player_body
 	monitoring = false
 	monitorable = true
 	_rebuild()

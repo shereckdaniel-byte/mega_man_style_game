@@ -135,21 +135,45 @@ What the two exports actually contain, against what the M1 controller needs:
 | `jump` | ✅ | ✅ | Single pose; no separate `fall` |
 | `fall` | ❌ | ❌ | Can reuse `jump` |
 | `land` | ❌ | ❌ | Cosmetic, droppable |
-| **`slide`** | ❌ | n/a | **The MM3 signature move. Blocks M1.** |
-| **`climb`**, `climb_top` | ❌ | n/a | **Blocks ladders in M1.** |
+| **`slide`** | ✅ | n/a | Generated 2026-09-02. Trimmed to frames 18-24 |
+| **`climb`** | ✅ | n/a | Generated 2026-09-02, rear view. Trimmed to 7-19 |
+| `climb_top` | ❌ | n/a | Mount/dismount polish, deferred to M4 |
 | `idle_shoot` | ✅ (`arm cannon attack`) | ✅ (`wave gun`) | |
-| **`walk_shoot`**, **`jump_shoot`** | ❌ | n/a | **Blocks "fire while moving", §1 of PLAN.** |
+| **`walk_shoot`** | ✅ | n/a | Generated 2026-09-02. Trimmed to 11-20 |
+| **`jump_shoot`** | ✅ | n/a | Generated 2026-09-02. Trimmed to 12-14 |
 | `climb_shoot` | ❌ | n/a | |
 | `hurt` | ✅ (`Hit React`) | ✅ | |
 | `death` | ✅ | ✅ | Enemies share one explosion effect instead |
-| `teleport_in` / `teleport_out` | ❌ | ❌ | Stage start/clear |
+| `teleport_in` / `teleport_out` | ✅ | ❌ | Generated 2026-09-02; `teleport_in` trimmed to 2-24 |
 | `victory` | ✅ | n/a | |
 | `attack` | ✅ | ✅ | Boss-specific |
 
-Five player animations block M1: **`slide`, `climb`, `walk_shoot`, `jump_shoot`,
-`teleport_in`/`teleport_out`**. None are AutoSprite stock types, so they need Custom
-Animations with explicit pose descriptions — and they should be generated **in the same
-session as the base character** so the style matches.
+**All six are now generated** (2026-09-02), as `custom` animations with explicit pose
+descriptions, in one batch so the style matches — see §4a. The only player animations
+still missing are `fall`, `land`, `climb_top` and `climb_shoot`, none of which block
+anything: the controller falls back to a base animation for each.
+
+### 4a. Generated animations have a wind-up — trim them
+
+AutoSprite renders a clip as a small performance: a wind-up, the move, then a recovery.
+That matters because **the controller owns state timing and never waits on the
+animation**, so a short state only ever shows the animation's opening frames. A slide
+lasts `slide_frames` = 26 physics frames = 0.43 s, which at these clips' ~12 fps is about
+**five animation frames**. Untrimmed, `slide` spends those five frames standing up and
+the character never visibly slides — the exact bug the animation was generated to fix.
+
+`AutoSpriteImporter.TRIM` names the frame range each move actually lives in. Playback
+speed is taken from the *source* frame count, so trimming changes which frames play,
+never how fast. The atlases stay exactly as downloaded; the selection is reviewable code.
+
+Two further things read off the real output:
+
+- **The clips are 2.042 s, not 2.333 s** (the `turbo` video tier emits a 2 s clip), so the
+  new animations run at 12.24 fps against the originals' 10.72. Both are well inside the
+  1–60 fps the linter allows, and since the controller drives timing it changes nothing.
+- **Vertical drift within a clip is real.** `slide`'s first usable frames bob 50 source px
+  (30 world px) up and down; frames 18–24 are a settled band of 6 px. Prefer a stable band
+  over a longer one — a bobbing sprite reads as floating, not sliding.
 
 25 frames at 10.7 fps is also far more than a NES cycle (walk is 3 frames). Extra frames
 are harmless — the controller owns timing, the animation is cosmetic — but they cost
@@ -180,6 +204,11 @@ work. Frame rects come straight from the atlas, fps from `frame_count / duration
 looping from a policy list (`idle`, `walk`, `run`, `climb`, `hurt` loop; everything else
 plays once).
 
+Three policy tables sit at the top of `autosprite_importer.gd` and are the only things
+that normally need editing: `NAME_MAP` (directory name → animation name), `LOOPING`, and
+`TRIM` (which frames of a clip to keep — see §4a). All three are plain data, so retuning
+an animation is a one-line change with no scene edits.
+
 Actor scenes reference `resources/sprite_frames/<character>.tres` by path, so regenerating
 art never requires touching a scene.
 
@@ -206,10 +235,47 @@ from `AUTOSPRITE_API_KEY` in the environment (see `.env.example`):
 Two things must be true before it can be used from a Claude Code web session:
 
 1. **The session must be restarted** for `.mcp.json` to load.
-2. **`www.autosprite.io` must be allowed by the environment's network policy.** It is
-   currently denied — the proxy answers `403` to `CONNECT www.autosprite.io:443` — so the
-   server is unreachable from the container regardless of the key. Add the domain to the
-   environment's allowed hosts.
+2. **`www.autosprite.io` must be allowed by the environment's network policy.**
+
+**Resolved 2026-09-02.** The domain is now reachable and the six missing player
+animations were generated over it. Note the failure mode that remains: the MCP server
+listed in `.mcp.json` did **not** load as `mcp__autosprite__*` tools even with the domain
+allowed. Talking to the same endpoint directly works and is what was used:
+
+```sh
+curl -sS -X POST https://www.autosprite.io/api/mcp \
+  -H "Authorization: Bearer $AUTOSPRITE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+It speaks streamable-HTTP JSON-RPC and answers in SSE frames (`data: {...}`), so read the
+last `data:` line. `tools/list` returns the authoritative tool schemas — use it instead of
+guessing payload shapes.
+
+### What generating an animation actually costs
+
+`generate_spritesheet` takes `characterId` plus an `animations[]` array. For a move that
+is not a stock kind, use `{"kind": "custom", "name": "<exact directory name>", "prompt":
+"..."}` — `name` becomes the export directory, so naming it `slide` rather than
+`Slide Move` means no `NAME_MAP` entry is needed. `prompt` is capped at **600 characters**.
+
+| Option | Effect |
+| --- | --- |
+| `videoTier: "turbo"` (default) | 5 credits, a 2 s clip |
+| `first_frame_quality: "pro"` | +3 credits, sharper and far more faithful opening pose |
+| `spritesheet: {frameCount: 25, frameSize: 256}` | matches the existing exports |
+| `loop: true` | for cycles; `custom` never auto-loops |
+
+`first_frame_quality: "pro"` is worth it for unusual poses — the first frame is what the
+video animates from, so a wrong first frame wastes the whole clip. The eight animations
+generated on 2026-09-02 (six, plus `climb` and `jump_shoot` regenerated) cost 64 credits.
+
+Jobs are async: the call returns `workflows[]` with a `jobId` each, and `get_job_status`
+resolves to `spritesheetIds`. **Poll no faster than every 30 s.** Note that
+`list_spritesheets` does not return the animation `name` and `latestOnly` collapses every
+`custom` animation into one entry — map name → sheet through the `jobId` instead.
 
 ---
 
@@ -236,15 +302,44 @@ Two knock-on effects, both already applied:
 - The two-tone palette swap (§3) is not viable. Hue rotation is the fallback; decide at M5
   when weapons land.
 
-Still open: the five missing player animations in §4 block nothing structurally — the
-controller falls back to a base animation and `tests/test_player_movement.gd` covers the
-behaviour — but `slide` and `climb` look wrong until they exist.
+**Closed 2026-09-02:** the six missing player animations now exist (§4) and were verified
+in-engine, not just in the atlas — `tools/screenshot.gd` drives the player into each state
+and prints the state and animation it actually captured.
+
+### Per-animation baseline drift
+
+`SOURCE_ART_BASELINE` (223) and `SOURCE_ART_HEIGHT` (177) in `player.gd` are single
+constants measured from `idle`, but **every animation lands its feet somewhere slightly
+different inside the 256 px cell.** Measured against the collision box base, where
+negative floats above the ground and positive sinks into it:
+
+| | float/sink (world px) | | float/sink (world px) |
+| --- | --- | --- | --- |
+| `idle` | −0.6 | `walk` | **+8.5** |
+| `slide` | −7.3 | `attack` | −9.2 |
+| `climb` | −11.6 | `death` | +9.2 |
+| `walk_shoot` | −5.5 | `jump` | −7.9 |
+| `teleport_in` | −6.1 | `hurt` | +4.9 |
+
+This spread is **pre-existing, not something the new art introduced** — `walk` already
+sinks 8.5 px and `attack` already floats 9.2 px. The new animations sit inside roughly the
+same band; `climb` is the worst at −11.6.
+
+Do **not** try to fix this by retuning `SOURCE_ART_BASELINE`: it is one number shared by
+every animation, so moving it to suit `slide` breaks `idle`, which is currently exact.
+A real fix needs a per-animation baseline offset applied at import, which is a design
+change worth making deliberately rather than as a side effect. Left open.
 
 ### Checklist before generating the other seven bosses
 
-- [ ] Scale and art style settled (§7); one character regenerated and approved in-engine.
-- [ ] The five missing player animations exist (§4).
+- [x] Scale and art style settled (§7); one character regenerated and approved in-engine.
+- [x] The six missing player animations exist (§4).
 - [ ] Weapon colour approach settled (§3).
-- [ ] Frame count per animation agreed — 25 is generous for a NES-style cycle.
-- [ ] `godot --headless --script res://tools/autosprite_import.gd` runs clean.
-- [ ] `tests/test_sprite_frames.gd` passes.
+- [x] Frame count per animation agreed — 25 generated, then trimmed per §4a.
+- [x] `godot --headless --script res://tools/autosprite_import.gd` runs clean.
+- [x] `tests/test_sprite_frames.gd` passes.
+- [ ] Per-animation baseline drift (§7) decided — accept it, or offset at import.
+
+When the bosses are generated, budget for the wind-up problem up front: generate, look at
+a 25-frame contact sheet per animation, and set `TRIM` before judging the art. Several
+animations that look wrong in-engine are correct clips shown at the wrong frame.

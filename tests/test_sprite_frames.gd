@@ -39,6 +39,30 @@ func test_unmapped_names_survive() -> void:
 	assert_eq(importer._snake_case("  Double  Space "), "double_space")
 
 
+## Trimming keeps the atlas's own frame order and returns exactly the requested
+## inclusive slice. Driven from TRIM itself so retuning a range stays a one-line
+## edit rather than a test failure.
+func test_trim_keeps_the_requested_slice() -> void:
+	var keys: Array = range(25)
+	for anim_name: String in AutoSpriteImporter.TRIM:
+		var bounds: Array = AutoSpriteImporter.TRIM[anim_name]
+		var first: int = int(bounds[0])
+		var last: int = int(bounds[1])
+		assert_true(first >= 0 and last >= first and last < keys.size(),
+			"%s bounds %s fit a 25-frame clip" % [anim_name, bounds])
+		var kept: Array = importer._trim(anim_name, keys)
+		assert_eq(kept, range(first, last + 1),
+			"%s keeps frames %d-%d in order" % [anim_name, first, last])
+	assert_eq(importer._trim("idle", keys).size(), 25, "an untrimmed name is untouched")
+
+
+## A clip shorter than its trim range must clamp rather than crash or come back
+## empty, so a regenerated animation with fewer frames still imports.
+func test_trim_clamps_to_a_short_clip() -> void:
+	assert_eq(importer._trim("slide", [0, 1, 2]).size(), 1, "bounds clamp to a short clip")
+	assert_true(importer._trim("slide", []).is_empty(), "an empty clip stays empty")
+
+
 # --- Generated resources ------------------------------------------------------
 
 func test_sprite_frames_were_generated() -> void:
@@ -87,6 +111,38 @@ func test_frames_are_in_left_to_right_top_to_bottom_order() -> void:
 					"%s/%s frame %d at %s does not advance from %s" % [
 						path.get_file(), name, i, at, previous])
 				previous = at
+
+
+## The wind-up frames must be gone from the built resource, not just from the
+## helper. A slide only ever shows about five frames, so if frame 0 is still the
+## standing pose the character never visibly slides.
+func test_trimmed_animations_drop_their_wind_up() -> void:
+	var frames: SpriteFrames = load(SPRITE_FRAMES_DIR.path_join("player.tres"))
+	assert_not_null(frames, "player.tres")
+	if frames == null:
+		return
+	for anim_name: String in AutoSpriteImporter.TRIM:
+		var name := StringName(anim_name)
+		if not frames.has_animation(name):
+			continue
+		var bounds: Array = AutoSpriteImporter.TRIM[anim_name]
+		var expected: int = int(bounds[1]) - int(bounds[0]) + 1
+		assert_eq(frames.get_frame_count(name), expected,
+			"%s keeps frames %d-%d" % [anim_name, bounds[0], bounds[1]])
+
+
+## Trimming picks which frames play, never how fast. Every animation from one
+## AutoSprite batch shares a clip length, so a trimmed one must keep the same
+## frame rate as an untrimmed sibling rather than speeding up.
+func test_trimming_does_not_change_playback_speed() -> void:
+	var frames: SpriteFrames = load(SPRITE_FRAMES_DIR.path_join("player.tres"))
+	if frames == null or not frames.has_animation(&"teleport_out"):
+		return
+	var untrimmed := frames.get_animation_speed(&"teleport_out")
+	for anim: StringName in [&"slide", &"walk_shoot", &"teleport_in"]:
+		if frames.has_animation(anim):
+			assert_almost_eq(frames.get_animation_speed(anim), untrimmed, 0.01,
+				"%s plays at the batch's frame rate" % anim)
 
 
 func test_animation_speeds_are_plausible() -> void:

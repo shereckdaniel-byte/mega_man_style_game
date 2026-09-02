@@ -108,6 +108,14 @@ NES jump velocity is unverified. `world_scale` makes this a one-line change if i
 Also deferred to M4: ladder *behaviour* is implemented and the test room has one, but
 spikes and mount/dismount polish land with the real level tooling.
 
+A third bug surfaced on 2026-09-02 while screenshotting the new `climb` animation:
+**`Ladder` set `collision_mask = 0`**, so its `body_entered` never fired, `player.ladders`
+stayed empty and the `Climb` state was unreachable — every ladder in the game was scenery.
+The comment said ladders "are sensed by the player, not sensing", but an `Area2D` that
+connects `body_entered` is the thing doing the sensing and needs the player's layer in its
+mask. Fixed to `1 << 3` (`player_body`). It went unnoticed because no test covers ladders;
+M4 should add one when it picks up mount/dismount polish.
+
 ### M2 — Sprite pipeline (partly done, brought forward)
 
 Art arrived before M1, so the importer was built early against real exports rather than
@@ -118,14 +126,21 @@ the guessed format. See SPRITES.md, which is now verified rather than assumed.
   `EditorScript` cannot run headless and therefore cannot run in CI.
 - ✅ `tests/test_sprite_frames.gd` lints generated resources and name normalisation.
 - ✅ Redundant per-frame PNGs excluded from the repo: 15 MB of export becomes 3 MB.
-- ⛔ **Blocked:** art scale and style (SPRITES.md §7), the five missing player
-  animations (§4), and the weapon palette approach (§3).
-- ⛔ Filtering: nearest is correct for pixel art and *wrong* for the art as delivered.
-  Settled by the same decision.
+- ✅ Art scale and style settled as HD (SPRITES.md §7); filtering reversed to linear.
+- ✅ **The six missing player animations exist** — `slide`, `climb`, `walk_shoot`,
+  `jump_shoot`, `teleport_in`, `teleport_out`, generated 2026-09-02 in one batch so the
+  style matches. 14 player animations now import.
+- ✅ Importer gained a `TRIM` policy table. Generated clips open with a wind-up, and the
+  controller never waits on an animation, so a short state showed only the wind-up — a
+  slide displayed the character standing up. SPRITES.md §4a.
+- ⛔ **Still blocked:** the weapon palette approach (§3), which waits on M5.
+- ⚠️ Open: per-animation baseline drift (SPRITES.md §7). Pre-existing — `walk` already
+  sinks 8.5 px — but worth a deliberate decision before the other seven bosses land.
 
-**Accept:** re-running the importer after regenerating a character updates animations
-in place with no scene edits and no lost frame ordering (done); sprites look right at the
-chosen scale (blocked).
+**Accepted:** re-running the importer after regenerating a character updates animations in
+place with no scene edits and no lost frame ordering; the sprites were checked in-engine
+at the chosen scale via `tools/screenshot.gd`, which now drives the player into each state
+and prints the state and animation it actually captured. **63 tests / 1688 assertions.**
 
 ### M3 — Combat core (2–3 days)
 
@@ -257,11 +272,13 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | ~~Art scale/style does not match the design~~ | ~~Blocks M1~~ | **Closed.** Settled as HD: 1920 × 1080, `world_scale` 4.5, linear filtering. SPRITES.md §7 |
-| AutoSprite MCP unreachable from the web session | Blocks regeneration | `www.autosprite.io` is denied by the environment network policy; allow the domain and restart the session |
+| ~~AutoSprite MCP unreachable from the web session~~ | ~~Blocks regeneration~~ | **Closed 2026-09-02.** The domain is allowed and generation works. The MCP server still does not register as `mcp__autosprite__*` tools, so the endpoint is driven directly over JSON-RPC — recipe in SPRITES.md §6 |
 | ~~Godot 4.7 API drift~~ | ~~Blocks M0~~ | **Closed at M0.** Verified on 4.7.stable, pinned in `.godot-version`, CI runs against it |
 | AutoSprite output style is inconsistent between characters | Art rework | Lock one character prompt/seed convention at M2, generate all 8 bosses in one batch. Already visible: animation directory names alternate between `idle_right` and `Hit React` |
-| AutoSprite frame counts don't match the animation lengths the controller expects | Animation desync | Controller drives timing; animations are cosmetic. Never gate state exits on `animation_finished` except for teleport and weapon-get. Confirmed: exports are 25 frames at 10.7 fps against NES cycles of 3 |
-| Missing animations block the controller | Blocks M1 | `slide`, `climb`, `walk_shoot`, `jump_shoot`, `teleport_*` are absent from the player export — SPRITES.md §4 |
+| AutoSprite frame counts don't match the animation lengths the controller expects | Animation desync | Controller drives timing; animations are cosmetic. Never gate state exits on `animation_finished` except for teleport and weapon-get. Confirmed: exports are 25 frames, the original batch at 10.7 fps and the 2026-09 batch at 12.2 fps (a 2.042 s `turbo` clip) — the mismatch is harmless for exactly this reason |
+| ~~Missing animations block the controller~~ | ~~Blocks M1~~ | **Closed 2026-09-02.** All six generated and verified in-engine — SPRITES.md §4 |
+| Generated clips open with a wind-up the player never sees | Move looks wrong | The controller owns timing, so a 26-frame slide shows ~5 animation frames. `AutoSpriteImporter.TRIM` selects the frames the move lives in; check a contact sheet before judging any new animation — SPRITES.md §4a |
+| Art style drifts between separately generated animations | Inconsistent character | Generate a character's animations in one batch. Regenerating a single animation from the same base image held style fine; a fresh batch weeks later is the untested case |
 | Hand-authoring 8 stages is the schedule | Slips M6 | Build stage 1 fully, then extract a gimmick-block library before stages 2–8 |
 | Pixel-perfect + camera smoothing fight each other | Jitter | Camera snapping off, no position smoothing, integer stretch — settled in ARCHITECTURE §2 and asserted in `tests/test_project_settings.gd` |
 | Continuous-vs-discrete physics maths in level design | Unclearable ledges | **Hit once already at M0.** `jump_apex_px()` integrates for real; a test locks the number |

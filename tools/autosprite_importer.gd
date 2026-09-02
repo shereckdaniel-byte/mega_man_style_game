@@ -52,6 +52,27 @@ const NAME_MAP := {
 ## Animations that repeat. Everything else plays once.
 const LOOPING := ["idle", "walk", "run", "climb", "hurt", "walk_shoot", "run_shoot"]
 
+## Frames to keep, as [first, last] inclusive indices into the atlas's own
+## numeric frame order. Empty means keep everything.
+##
+## AutoSprite renders a clip as a little performance: a wind-up, the move, then
+## a recovery. The controller owns state timing and never waits on the
+## animation, so a short state only ever shows the opening frames -- a slide
+## lasts 26 physics frames, which at these clips' ~12 fps is five animation
+## frames. Untrimmed, `slide` spends those five frames standing up and the
+## character never reaches the low pose, which is the exact bug the animation
+## was generated to fix. Trimming picks the frames the move actually lives in.
+##
+## Playback speed is deliberately taken from the *source* frame count, so
+## trimming changes which frames play, never how fast they play.
+const TRIM := {
+	"slide": [18, 24],         # the settled low skim; 0-8 stand up, 9-17 bob 30 px vertically
+	"climb": [7, 19],          # the hand-over-hand reach; either end is a static stand
+	"walk_shoot": [11, 20],    # the arm cannon is only extended across these
+	"jump_shoot": [12, 14],    # tucked with the cannon lit; it stands before, drops the cannon after
+	"teleport_in": [2, 24],    # 0-1 are a stray standing pose before the beam
+}
+
 ## Sprites are authored right-facing and mirrored with flip_h, so the direction
 ## suffix carries no information once imported.
 const DIRECTION_SUFFIXES := ["_right", "_left", "_down", "_up"]
@@ -145,12 +166,18 @@ func _add_animation(frames: SpriteFrames, anim_name: String, sheet: Texture2D,
 	keys.sort_custom(func(a: Variant, b: Variant) -> bool:
 		return int(str(a)) < int(str(b)))
 
+	# fps comes from the full clip; trimming must not speed the motion up.
+	var source_frames := keys.size()
+	keys = _trim(anim_name, keys)
+	if keys.is_empty():
+		return false
+
 	var name := StringName(anim_name)
 	if frames.has_animation(name):
 		frames.remove_animation(name)
 	frames.add_animation(name)
 	frames.set_animation_loop(name, anim_name in LOOPING)
-	frames.set_animation_speed(name, _fps(atlas, keys.size()))
+	frames.set_animation_speed(name, _fps(atlas, source_frames))
 
 	for key: Variant in keys:
 		var r: Dictionary = rects[key]
@@ -163,6 +190,16 @@ func _add_animation(frames: SpriteFrames, anim_name: String, sheet: Texture2D,
 		tex.filter_clip = true
 		frames.add_frame(name, tex)
 	return true
+
+
+## Keeps only TRIM's slice of an animation's frames, in order.
+func _trim(anim_name: String, keys: Array) -> Array:
+	if not TRIM.has(anim_name) or keys.is_empty():
+		return keys
+	var bounds: Array = TRIM[anim_name]
+	var first := clampi(int(bounds[0]), 0, keys.size() - 1)
+	var last := clampi(int(bounds[1]), first, keys.size() - 1)
+	return keys.slice(first, last + 1)
 
 
 ## AutoSprite reports total duration rather than a frame rate.
