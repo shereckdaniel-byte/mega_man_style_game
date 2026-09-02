@@ -9,6 +9,11 @@ class_name Player
 extends CharacterBody2D
 
 signal state_changed(from: StringName, to: StringName)
+## Health reached zero. The Dead state runs the sequence; this is for the HUD,
+## the stage and anything else that wants to know.
+signal died()
+signal respawned()
+signal shot_fired(shot: BusterShot)
 
 const FLOOR_NORMAL := Vector2.UP
 ## Measured from the AutoSprite export's opaque bounding box. The character does
@@ -19,12 +24,32 @@ const FLOOR_NORMAL := Vector2.UP
 const SOURCE_ART_HEIGHT := 177.0
 const SOURCE_ART_BASELINE := 223.0
 
+const BUSTER_SHOT := preload("res://scenes/actors/projectiles/buster_shot.gd")
+
+## Where the arm cannon is, per state, in NES pixels from the actor's origin --
+## which is at its feet, so y is negative. x is forward, and gets mirrored by
+## `facing`. The character is 24 NES px tall and holds the cannon at chest
+## height; sliding drops it almost to the floor.
+##
+## A state with no entry here uses DEFAULT_MUZZLE. Firing a pellet out of the
+## character's ankle is the visible symptom of a missing row.
+const MUZZLE := {
+	&"Idle": Vector2(13.0, -16.0),
+	&"Walk": Vector2(13.0, -16.0),
+	&"Jump": Vector2(13.0, -18.0),
+	&"Fall": Vector2(13.0, -18.0),
+	&"Climb": Vector2(10.0, -17.0),
+}
+const DEFAULT_MUZZLE := Vector2(13.0, -16.0)
+
 @export var tuning: PlayerTuning
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision: CollisionShape2D = $CollisionShape2D
 @onready var headroom: RayCast2D = $HeadroomCast
 @onready var state_machine: StateMachine = $StateMachine
+@onready var health: Health = $Health
+@onready var hurtbox: Hurtbox = $Hurtbox
 
 ## +1 right, -1 left. Never 0, so the character keeps facing where it last was.
 var facing: int = 1
@@ -36,6 +61,10 @@ var _jump_buffer_left := 0
 var _coyote_left := 0
 var _stand_shape: RectangleShape2D
 var _slide_shape: RectangleShape2D
+## Live pellets, for the 3-on-screen cap. Freed shots are filtered out on read
+## rather than tracked with signals -- queue_free is deferred, so a shot that
+## died this frame is still a valid reference until the frame ends.
+var _shots: Array[BusterShot] = []
 
 
 func _ready() -> void:
@@ -49,12 +78,15 @@ func _ready() -> void:
 	state_machine.state_changed.connect(
 		func(from: StringName, to: StringName) -> void: state_changed.emit(from, to))
 	floor_snap_length = tuning.px(2.0)
+	_setup_damage()
 
 
 func _physics_process(delta: float) -> void:
 	_tick_timers()
+	health.tick()
 	state_machine.physics_update(delta)
 	move_and_slide()
+	_try_shoot()
 	_update_sprite()
 
 
@@ -136,6 +168,81 @@ func note_shot_fired() -> void:
 	_shoot_frames_left = tuning.shoot_pose_frames
 
 
+# --- Buster -------------------------------------------------------------------
+
+## Live pellets on screen, after dropping any freed since last frame.
+func live_shots() -> int:
+	_shots = _shots.filter(func(shot: BusterShot) -> bool: return is_instance_valid(shot))
+	return _shots.size()
+
+
+func can_shoot() -> bool:
+	var state := state_machine.current
+	if state == null or not state.can_shoot:
+		return false
+	if health.is_dead():
+		return false
+	return live_shots() < tuning.max_buster_shots
+
+
+## Arm-cannon position for the current state, in world coordinates.
+func muzzle_position() -> Vector2:
+	var offset: Vector2 = MUZZLE.get(state_machine.current_name(), DEFAULT_MUZZLE)
+	return global_position + Vector2(offset.x * float(facing), offset.y) * tuning.world_scale
+
+
+## Fires one pellet. Returns it, or null when the shot was refused.
+func fire() -> BusterShot:
+	if not can_shoot():
+		return null
+	var weapon: StringName = WeaponManager.current
+	if not WeaponManager.consume(weapon):
+		return null
+
+	var shot := BUSTER_SHOT.new() as BusterShot
+	shot.launch(muzzle_position(), facing, tuning, weapon)
+	# Parented to the level, not to the player: a pellet does not travel with
+	# the shooter, and a shot fired on the frame the player dies must outlive it.
+	var level := get_parent()
+	if level == null:
+		shot.free()
+		return null
+	level.add_child(shot)
+	_shots.append(shot)
+	note_shot_fired()
+	shot_fired.emit(shot)
+	return shot
+
+
+# --- Damage -------------------------------------------------------------------
+
+## Applied by the Hurtbox when a hit lands. Knockback is a state, because being
+## unable to steer out of it is the whole point -- see states/hurt.gd.
+func on_damaged(info: DamageInfo, taken: int) -> void:
+	if taken <= 0:
+		return
+	if health.is_dead():
+		state_machine.transition_to(&"Dead")
+		return
+	if info.has_flag(DamageInfo.NO_KNOCKBACK):
+		return
+	state_machine.transition_to(&"Hurt", {"source_position": info.source_position})
+
+
+## Full health, back at the checkpoint, with a moment of grace so the thing that
+## killed you cannot kill you again on the first frame.
+func respawn_at(position: Vector2) -> void:
+	global_position = position
+	velocity = Vector2.ZERO
+	facing = 1
+	health.refill()
+	health.grant_invulnerability(tuning.iframes)
+	use_slide_hitbox(false)
+	sprite.visible = true
+	state_machine.transition_to(&"Idle")
+	respawned.emit()
+
+
 func is_shooting() -> bool:
 	return _shoot_frames_left > 0
 
@@ -161,6 +268,33 @@ func _tick_timers() -> void:
 		_coyote_left = tuning.coyote_frames
 	elif _coyote_left > 0:
 		_coyote_left -= 1
+
+
+## Wires the damage components. Layers come from Layers rather than literal
+## shifts -- see scripts/core/collision_layers.gd for why.
+func _setup_damage() -> void:
+	health.max_hp = Health.BAR_TICKS
+	health.invulnerable_frames = tuning.iframes
+	health.current = health.max_hp
+
+	hurtbox.collision_layer = Layers.bit(Layers.PLAYER_HURTBOX)
+	# A hurtbox never looks; hitboxes find it. Masking anything here would only
+	# cost overlap checks that nothing reads.
+	hurtbox.collision_mask = 0
+	var box := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = tuning.hitbox_size()
+	box.shape = rect
+	box.position.y = -rect.size.y * 0.5
+	hurtbox.add_child(box)
+
+	hurtbox.took_damage.connect(on_damaged)
+	health.died.connect(func(_info: DamageInfo) -> void: died.emit())
+
+
+func _try_shoot() -> void:
+	if Input.is_action_just_pressed(&"shoot"):
+		fire()
 
 
 func _build_shapes() -> void:
@@ -219,6 +353,7 @@ func sprite_feet_offset() -> float:
 
 func _update_sprite() -> void:
 	sprite.flip_h = facing < 0
+	_update_flicker()
 	var wanted := _sprite_animation()
 	if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(wanted):
 		if sprite.animation != wanted:
@@ -226,6 +361,21 @@ func _update_sprite() -> void:
 	elif sprite.animation != &"idle" and sprite.sprite_frames != null \
 			and sprite.sprite_frames.has_animation(&"idle"):
 		sprite.play(&"idle")
+
+
+## Blinks the sprite while invulnerable, two frames on and two frames off. The
+## flicker is the only feedback that i-frames are running, so it is deliberately
+## coarse enough to see rather than a smooth fade.
+##
+## Driven off the countdown rather than a separate timer, so it cannot outlive
+## the invulnerability and leave the player invisible.
+func _update_flicker() -> void:
+	var frames_left := health.invulnerable_frames_left()
+	if frames_left <= 0:
+		sprite.visible = true
+		return
+	var period := maxi(1, tuning.flicker_period_frames)
+	sprite.visible = (frames_left / period) % 2 == 0
 
 
 ## Shooting is not a state -- it is a suffix. That is what keeps 9 states from
