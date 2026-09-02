@@ -307,8 +307,17 @@ rotation weighted by saturation, so the outline and highlights stay put and only
 tones carry the weapon's colour. It is a tint rather than the original's crisp two-colour
 swap — the trade is written up in §3.
 
-**Still open:** a weapon-get screen that shows the boss art rather than its name in text,
-and the boss's own hurt/flash feedback, which currently relies on the energy bar alone.
+**Both closed.** The weapon-get screen shows the defeated boss, and a boss flashes while
+its i-frames run. Beating Tide now runs a full sequence — award, victory pose, beam out —
+which consumes the last two player animations nothing played.
+
+Two bugs closed with them, neither visible to the test suite, both found by looking at the
+screen. **Tide had no art**: nothing ever assigned the boss's sprite frames, so it fought
+through the whole milestone as an invisible collision box — the fight worked, the tests
+passed and the playthrough won. And **Tide jumped out of the arena**: apex goes with the
+*square* of launch velocity, so a value chosen to look "a bit more than the player's" was
+an 11.6-tile leap into an 11-tile room; it left through the ceiling and kept fighting from
+above it.
 
 ### M6 — Content build-out (2–3 weeks)
 
