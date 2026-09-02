@@ -134,8 +134,13 @@ the guessed format. See SPRITES.md, which is now verified rather than assumed.
   controller never waits on an animation, so a short state showed only the wind-up — a
   slide displayed the character standing up. SPRITES.md §4a.
 - ⛔ **Still blocked:** the weapon palette approach (§3), which waits on M5.
-- ⚠️ Open: per-animation baseline drift (SPRITES.md §7). Pre-existing — `walk` already
-  sinks 8.5 px — but worth a deliberate decision before the other seven bosses land.
+- ✅ Per-animation baseline drift fixed at import (SPRITES.md §7). AutoSprite framed each
+  clip independently, so the row the character stood on ranged 204–238 across the
+  player's fourteen animations; `walk` sank 6 px into the floor and `slide` hovered 39 px
+  above it. The importer now measures each animation's alpha and shifts it onto a shared
+  `BASELINE_ROW`. Both characters land within 1 px. The pre-existing
+  `test_sprite_feet_sit_on_the_origin` could never have caught this — it derives its
+  answer from the same constant it is checking, so it returns 0 for any art.
 
 **Accepted:** re-running the importer after regenerating a character updates animations in
 place with no scene edits and no lost frame ordering; the sprites were checked in-engine

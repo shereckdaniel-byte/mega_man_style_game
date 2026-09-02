@@ -209,6 +209,10 @@ that normally need editing: `NAME_MAP` (directory name → animation name), `LOO
 `TRIM` (which frames of a clip to keep — see §4a). All three are plain data, so retuning
 an animation is a one-line change with no scene edits.
 
+The importer also **normalises every animation's feet onto `BASELINE_ROW`** by measuring
+the alpha channel, which needs no configuration — see §7. That happens for every character
+it imports, so bosses and enemies get it for free.
+
 Actor scenes reference `resources/sprite_frames/<character>.tres` by path, so regenerating
 art never requires touching a scene.
 
@@ -306,29 +310,46 @@ Two knock-on effects, both already applied:
 in-engine, not just in the atlas — `tools/screenshot.gd` drives the player into each state
 and prints the state and animation it actually captured.
 
-### Per-animation baseline drift
+### Per-animation baseline drift — fixed at import
 
-`SOURCE_ART_BASELINE` (223) and `SOURCE_ART_HEIGHT` (177) in `player.gd` are single
-constants measured from `idle`, but **every animation lands its feet somewhere slightly
-different inside the 256 px cell.** Measured against the collision box base, where
-negative floats above the ground and positive sinks into it:
+**The problem.** AutoSprite frames every clip independently, so the row the character
+stands on drifts between animations. Measured across the player's fourteen, the lowest
+opaque row ranged from **204 (`climb`) to 238 (`walk`)** — a 34 px spread in art that is
+supposed to share one ground line. Wave Man had the same spread, 205 to 212.
 
-| | float/sink (world px) | | float/sink (world px) |
-| --- | --- | --- | --- |
-| `idle` | −0.6 | `walk` | **+8.5** |
-| `slide` | −7.3 | `attack` | −9.2 |
-| `climb` | −11.6 | `death` | +9.2 |
-| `walk_shoot` | −5.5 | `jump` | −7.9 |
-| `teleport_in` | −6.1 | `hurt` | +4.9 |
+`AnimatedSprite2D` has a single `offset` for the whole node and no per-animation
+equivalent, so a scene can only ever compensate for one of them. `player.gd` compensates
+for `SOURCE_ART_BASELINE` = 223, measured from `idle`; every other animation was off by
+`(its baseline − 223) × 0.6102` world px. In the test room that was `walk` sinking 6 px
+into the floor and `slide` hovering **39 px** above it.
 
-This spread is **pre-existing, not something the new art introduced** — `walk` already
-sinks 8.5 px and `attack` already floats 9.2 px. The new animations sit inside roughly the
-same band; `climb` is the worst at −11.6.
+Retuning `SOURCE_ART_BASELINE` cannot fix this — it is one number serving fourteen
+animations with fourteen different baselines, so moving it to suit `slide` buries `idle`.
 
-Do **not** try to fix this by retuning `SOURCE_ART_BASELINE`: it is one number shared by
-every animation, so moving it to suit `slide` breaks `idle`, which is currently exact.
-A real fix needs a per-animation baseline offset applied at import, which is a design
-change worth making deliberately rather than as a side effect. Left open.
+**The fix.** `AutoSpriteImporter` measures each animation's baseline from the alpha
+channel and shifts the art onto `BASELINE_ROW` (223, which must equal the scene's
+`SOURCE_ART_BASELINE` — a test asserts it). The shift is `AtlasTexture.margin.position.y`:
+
+- verified on 4.7 — with `margin.size` left at zero, `get_size()` stays the region size
+  and only the drawn pixels move, so centring is untouched;
+- the `region` is unchanged, so a frame still samples only its own cell and cannot bleed
+  in its neighbour;
+- the baseline is the **median** of the per-frame lowest rows, not the mean, so a clip
+  that leaves the ground for part of its length is aligned by the frames standing on it.
+
+Drawn content **clips at the frame box**, so a shift larger than the transparent padding
+would slice pixels off the character. The importer measures the available padding and
+clamps, warning which animation was clamped and by how much. Nothing needed clamping for
+the current 22 animations.
+
+Result: every animation on both characters lands within 1 px of the ground line.
+
+**Why no existing test caught it.** `Player.sprite_feet_offset()` derives its answer from
+`SOURCE_ART_BASELINE` and from the `sprite.offset` that was *set* from
+`SOURCE_ART_BASELINE`. The terms cancel algebraically and it returns 0 for any art at all,
+so `test_sprite_feet_sit_on_the_origin` verifies the offset arithmetic against itself and
+never reads a pixel. `test_every_animation_stands_on_the_same_baseline` measures the real
+alpha instead; disabling the normalisation makes it fail on all 20 drifting animations.
 
 ### Checklist before generating the other seven bosses
 
@@ -338,7 +359,7 @@ change worth making deliberately rather than as a side effect. Left open.
 - [x] Frame count per animation agreed — 25 generated, then trimmed per §4a.
 - [x] `godot --headless --script res://tools/autosprite_import.gd` runs clean.
 - [x] `tests/test_sprite_frames.gd` passes.
-- [ ] Per-animation baseline drift (§7) decided — accept it, or offset at import.
+- [x] Per-animation baseline drift (§7) — normalised at import onto `BASELINE_ROW`.
 
 When the bosses are generated, budget for the wind-up problem up front: generate, look at
 a 25-frame contact sheet per animation, and set `TRIM` before judging the art. Several

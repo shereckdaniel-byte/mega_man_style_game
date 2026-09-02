@@ -200,12 +200,17 @@ func _cell_size() -> Vector2:
 	return Vector2(256.0, 256.0)
 
 
-## Where the drawn feet land relative to the node origin, in world px. Zero
-## means the sprite stands exactly on the base of the collision box; positive
-## means it sinks into the floor.
+## Checks the sprite offset arithmetic: that the cell padding compensation lines
+## SOURCE_ART_BASELINE up with the node origin. Zero means correct.
 ##
 ## The sprite is centred, so the cell's centre sits at `offset`; the baseline row
 ## is `BASELINE - cell_height / 2` below that centre.
+##
+## This does NOT measure the art. Both terms derive from SOURCE_ART_BASELINE and
+## cancel, so it returns zero whatever the pixels look like -- which is why it
+## missed the animations whose feet sat up to 15 px off their cell's baseline.
+## `tests/test_sprite_frames.gd` reads the actual alpha; the importer normalises
+## every animation onto AutoSpriteImporter.BASELINE_ROW so this stays honest.
 func sprite_feet_offset() -> float:
 	var half_cell := _cell_size().y * 0.5
 	var baseline_from_centre := SOURCE_ART_BASELINE - half_cell

@@ -145,6 +145,67 @@ func test_trimming_does_not_change_playback_speed() -> void:
 				"%s plays at the batch's frame rate" % anim)
 
 
+## The importer normalises art onto BASELINE_ROW and the scene compensates for
+## `Player.SOURCE_ART_BASELINE`. If the two drift apart, every sprite in the game
+## sinks or floats by the difference and nothing else complains.
+func test_importer_and_scene_agree_on_the_baseline() -> void:
+	assert_eq(AutoSpriteImporter.BASELINE_ROW, int(Player.SOURCE_ART_BASELINE),
+		"importer normalises to a row the player scene does not compensate for")
+
+
+## Reads the actual alpha of the imported art and checks where the character's
+## feet land, which is the thing that was wrong: AutoSprite frames every clip
+## independently, so before normalisation the lowest opaque row ranged from 204
+## to 238 across the player's animations and the character visibly sank in some
+## and hovered in others.
+##
+## This has to measure pixels. `Player.sprite_feet_offset()` cannot catch it --
+## it derives the answer from SOURCE_ART_BASELINE and the offset that was set
+## from SOURCE_ART_BASELINE, so the terms cancel and it returns 0 for any art.
+func test_every_animation_stands_on_the_same_baseline() -> void:
+	for path in _generated():
+		var frames: SpriteFrames = load(path)
+		if frames == null:
+			continue
+		for name in frames.get_animation_names():
+			var baseline := _baseline_of(frames, name)
+			if baseline < 0:
+				continue  # fully transparent animation; nothing to stand on
+			assert_almost_eq(float(baseline), Player.SOURCE_ART_BASELINE, 2.0,
+				"%s/%s feet land on row %d, not %d (a clamped shift warns at import)"
+					% [path.get_file(), name, baseline, int(Player.SOURCE_ART_BASELINE)])
+
+
+## Median lowest opaque row across an animation's frames, in cell coordinates,
+## including the margin the importer used to shift the art.
+func _baseline_of(frames: SpriteFrames, name: StringName) -> int:
+	var count := frames.get_frame_count(name)
+	if count == 0:
+		return -1
+	var image: Image = null
+	var bottoms: Array[int] = []
+	for i in count:
+		var tex := frames.get_frame_texture(name, i)
+		if not (tex is AtlasTexture):
+			continue
+		var atlas_tex := tex as AtlasTexture
+		if image == null:
+			image = atlas_tex.atlas.get_image()
+			if image == null:
+				return -1
+			if image.is_compressed():
+				if image.decompress() != OK:
+					return -1
+		var used := image.get_region(Rect2i(atlas_tex.region)).get_used_rect()
+		if used.size.y <= 0:
+			continue
+		bottoms.append(used.position.y + used.size.y - 1 + int(atlas_tex.margin.position.y))
+	if bottoms.is_empty():
+		return -1
+	bottoms.sort()
+	return bottoms[bottoms.size() / 2]
+
+
 func test_animation_speeds_are_plausible() -> void:
 	for path in _generated():
 		var frames: SpriteFrames = load(path)

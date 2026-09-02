@@ -73,6 +73,24 @@ const TRIM := {
 	"teleport_in": [2, 24],    # 0-1 are a stray standing pose before the beam
 }
 
+## The cell row every animation's feet are normalised onto.
+##
+## AutoSprite frames each clip independently, so the row the character stands on
+## drifts between animations -- measured across the player's fourteen, the
+## lowest opaque row ranges from 204 (`climb`) to 238 (`walk`), a 34 px spread in
+## art that is meant to share one ground line. `AnimatedSprite2D` has a single
+## `offset` for the whole node and no per-animation equivalent, so a scene can
+## only ever compensate for one of them; the others float or sink by the
+## difference. Normalising here fixes it once for every actor.
+##
+## Must equal `Player.SOURCE_ART_BASELINE`, which is what the scene compensates
+## for. `tests/test_sprite_frames.gd` asserts they agree.
+const BASELINE_ROW := 223
+
+## Alpha above which a pixel counts as part of the character rather than as
+## anti-aliased edge fringe.
+const OPAQUE_THRESHOLD := 0.06
+
 ## Sprites are authored right-facing and mirrored with flip_h, so the direction
 ## suffix carries no information once imported.
 const DIRECTION_SUFFIXES := ["_right", "_left", "_down", "_up"]
@@ -179,17 +197,74 @@ func _add_animation(frames: SpriteFrames, anim_name: String, sheet: Texture2D,
 	frames.set_animation_loop(name, anim_name in LOOPING)
 	frames.set_animation_speed(name, _fps(atlas, source_frames))
 
+	var regions: Array[Rect2] = []
 	for key: Variant in keys:
 		var r: Dictionary = rects[key]
+		regions.append(Rect2(
+			float(r.get("x", 0)), float(r.get("y", 0)),
+			float(r.get("w", 0)), float(r.get("h", 0))))
+
+	var shift := _baseline_shift(sheet, regions, anim_name)
+	for region in regions:
 		var tex := AtlasTexture.new()
 		tex.atlas = sheet
-		tex.region = Rect2(
-			float(r.get("x", 0)), float(r.get("y", 0)),
-			float(r.get("w", 0)), float(r.get("h", 0)))
+		tex.region = region
+		# margin.position offsets where the region is drawn while leaving the
+		# texture's size alone, so centring is unaffected and the region still
+		# samples only its own cell. Verified against 4.7: a size of zero keeps
+		# get_size() at the region size and moves the drawn pixels by position.
+		if shift != 0.0:
+			tex.margin = Rect2(0.0, shift, 0.0, 0.0)
 		# Without filter_clip, neighbouring frames bleed in at the region edge.
 		tex.filter_clip = true
 		frames.add_frame(name, tex)
 	return true
+
+
+## How far to move an animation's art so its feet land on BASELINE_ROW.
+##
+## Positive moves the art down. The shift is clamped to the transparent padding
+## the frames actually have, because a drawn region is clipped to its own box:
+## shifting further than the padding would slice pixels off the character. A
+## clamp means an animation stays slightly off rather than losing its feet.
+func _baseline_shift(sheet: Texture2D, regions: Array[Rect2], anim_name: String) -> float:
+	var image := sheet.get_image()
+	if image == null:
+		return 0.0
+	if image.is_compressed():
+		if image.decompress() != OK:
+			return 0.0
+
+	var bottoms: Array[int] = []
+	var lowest := -1
+	var highest := 1 << 30
+	for region in regions:
+		var used := image.get_region(Rect2i(region)).get_used_rect()
+		if used.size.y <= 0:
+			continue  # a fully transparent frame carries no baseline
+		var bottom: int = used.position.y + used.size.y - 1
+		bottoms.append(bottom)
+		lowest = maxi(lowest, bottom)
+		highest = mini(highest, used.position.y)
+	if bottoms.is_empty():
+		return 0.0
+
+	# The median, not the mean: a clip where the character leaves the ground for
+	# part of it should be aligned by the frames that are standing on it.
+	bottoms.sort()
+	var baseline: int = bottoms[bottoms.size() / 2]
+	var shift: int = BASELINE_ROW - baseline
+	if shift == 0:
+		return 0.0
+
+	var cell_height: int = int(regions[0].size.y)
+	var room: int = (cell_height - 1 - lowest) if shift > 0 else highest
+	if absi(shift) > room:
+		var clamped: int = room * signi(shift)
+		push_warning("%s: baseline %d wants a %d px shift but only %d px of padding; using %d"
+			% [anim_name, baseline, shift, room, clamped])
+		shift = clamped
+	return float(shift)
 
 
 ## Keeps only TRIM's slice of an animation's frames, in order.

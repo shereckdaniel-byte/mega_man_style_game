@@ -265,6 +265,9 @@ func test_slide_can_be_cancelled_into_a_jump() -> void:
 ## The art does not fill its cell -- it is 177 px tall with its feet on row 223
 ## of 256 -- so aligning the sprite to the cell instead of to the art sinks the
 ## character into the floor. Cheap to get wrong, and it looks like a physics bug.
+## Guards the offset arithmetic only. It cannot catch art whose feet sit at the
+## wrong row in its cell -- see Player.sprite_feet_offset() and
+## test_sprite_frames.gd's test_every_animation_stands_on_the_same_baseline.
 func test_sprite_feet_sit_on_the_origin() -> void:
 	assert_almost_eq(player.sprite_feet_offset(), 0.0, 0.5,
 		"drawn feet vs the base of the collision box")
