@@ -6,8 +6,11 @@
 ## able to keep to.
 ##
 ## Speed and the on-screen cap come from PlayerTuning: 5 px/frame and 3 live
-## pellets. That cap is what limits the buster's damage over time, because this
-## game has no charge shot to limit instead.
+## pellets, and that cap is what limits the buster's damage over time.
+##
+## There *is* a charge now (ChargedShot), but it does not change that: a charged
+## blast is slower damage per frame than tapping, so the cap on pellets is still
+## the ceiling. See docs/PLAN.md section 2a.
 class_name BusterShot
 extends WeaponShot
 

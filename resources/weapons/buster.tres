@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="WeaponData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/weapon_data.gd" id="1_data"]
 [ext_resource type="Script" path="res://scenes/actors/projectiles/buster_shot.gd" id="2_shot"]
+[ext_resource type="Script" path="res://scenes/actors/projectiles/charged_shot.gd" id="3_charged"]
 
 [resource]
 script = ExtResource("1_data")
@@ -14,5 +15,14 @@ max_on_screen = 3
 fire_cooldown_frames = 0
 damage = 1
 flags = 0
+chargeable = true
+charge_mid_frames = 40
+charge_full_frames = 85
+charged_projectile_script = ExtResource("3_charged")
+charged_mid_damage = 2
+charged_full_damage = 3
+charged_ammo_cost = 0
+charged_max_on_screen = 1
+charged_weapon_id = &"buster_charged"
 palette = Array[Color]([Color(0.45, 0.78, 1, 1), Color(0.96, 0.98, 1, 1)])
 tuning = {}

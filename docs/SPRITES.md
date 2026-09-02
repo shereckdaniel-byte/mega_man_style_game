@@ -457,12 +457,16 @@ are to regenerate its art or extend this scaling to `Enemy`, not to raise the bo
 
 ### A note on the unused clips
 
-`attack` is a **two-handed sword pose**, on a character whose whole design is an arm
-cannon. `victory` and `teleport_out` are also never played — the player's states only ask
-for `idle`, `walk`, `jump`, `slide`, `climb`, `hurt`, `death`, `teleport_in` and the
-`_shoot` variants. The sword clip is dead weight that will mislead whoever reads the
-animation list next; it should be dropped or regenerated as a melee-free pose if a
-close-quarters attack is ever wanted.
+`attack` **is now used** — it is the sword swing (docs/PLAN.md §2a). It turned out to be a
+dual-wield low guard stance rather than the two-handed lunge it was first described as,
+which is why the swing reads as planted and committed. Its head-to-feet height is 21% under
+`idle`, and that is correct posture rather than framing drift: the character really is
+crouched in that stance. It is deliberately **not** in `Player.UPRIGHT_ANIMS` for that
+reason — normalising it would stand the character up mid-swing.
+
+`victory` and `teleport_out` are still never played. The player's states ask for `idle`,
+`walk`, `jump`, `slide`, `climb`, `hurt`, `death`, `attack`, `teleport_in` and the `_shoot`
+variants.
 
 **Why no existing test caught it.** `Player.sprite_feet_offset()` derives its answer from
 `SOURCE_ART_BASELINE` and from the `sprite.offset` that was *set* from

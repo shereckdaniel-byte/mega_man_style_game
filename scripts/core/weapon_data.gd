@@ -47,6 +47,68 @@ extends Resource
 @export var palette: Array[Color] = []
 @export var icon: Texture2D
 
+# --- Charge ---------------------------------------------------------------------
+#
+# Opt-in per weapon. A weapon that leaves `chargeable` false behaves exactly as
+# it did before charging existed, which is why adding this did not touch the
+# Tide Crawler or the Arc Lance.
+#
+# Two stages, like MM4 onward: hold to mid, keep holding to full. Tapping still
+# fires a normal shot on the press, so a full charge costs one ordinary shot up
+# front and charging is never strictly better than tapping.
+
+@export var chargeable: bool = false
+## Frames of holding to reach the first charged stage.
+@export var charge_mid_frames: int = 40
+## Frames to reach the second. Must exceed `charge_mid_frames`.
+@export var charge_full_frames: int = 85
+
+## Instantiated with `.new()` like `projectile_script`, and handed a level of
+## 1 (mid) or 2 (full).
+@export var charged_projectile_script: Script
+@export var charged_mid_damage: int = 2
+@export var charged_full_damage: int = 3
+@export var charged_ammo_cost: int = 0
+@export var charged_max_on_screen: int = 1
+
+## The id a charged shot carries into the damage tables.
+##
+## **Not the weapon's own id**, and this is the trap: a charged shot tagged
+## `buster` looks up `buster` in every boss's table, finds the 1 that tap fire is
+## meant to do, and quietly does 1 damage no matter how long you held the button.
+## Nothing errors -- the charge just does nothing. Empty means `<id>_charged`.
+@export var charged_weapon_id: StringName = &""
+
+
+## Charge stage for a number of frames held: 0 none, 1 mid, 2 full.
+func charge_level_at(frames_held: int) -> int:
+	if not chargeable:
+		return 0
+	if frames_held >= maxi(charge_full_frames, charge_mid_frames + 1):
+		return 2
+	if frames_held >= charge_mid_frames:
+		return 1
+	return 0
+
+
+## How far through the charge, 0..1, for the bar.
+func charge_fraction_at(frames_held: int) -> float:
+	if not chargeable:
+		return 0.0
+	var full := float(maxi(charge_full_frames, 1))
+	return clampf(float(frames_held) / full, 0.0, 1.0)
+
+
+func damage_for_level(level: int) -> int:
+	return charged_full_damage if level >= 2 else charged_mid_damage
+
+
+func charged_id() -> StringName:
+	if charged_weapon_id != &"":
+		return charged_weapon_id
+	return StringName("%s_charged" % id)
+
+
 ## Free-form per-weapon numbers, read by that weapon's projectile script.
 ## Keeps speed/turn-rate/arc constants in the resource with the rest of the
 ## weapon rather than hard-coded in the script, without giving WeaponData a

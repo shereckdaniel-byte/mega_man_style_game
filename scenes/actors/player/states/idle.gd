@@ -12,6 +12,10 @@ func physics_update(_delta: float) -> StringName:
 		return &"Fall"
 	if player.slide_requested() and player.has_headroom():
 		return &"Slide"
+	# After the slide check: down+jump is a slide, and a melee bound to a third
+	# button must not shadow it.
+	if player.melee_requested() and player.can_melee():
+		return &"Attack"
 	if player.jump_requested() and player.can_jump_from_ground():
 		return &"Jump"
 	if player.on_ladder() and Input.is_action_pressed(&"move_up"):

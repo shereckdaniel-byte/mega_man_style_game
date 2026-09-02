@@ -374,6 +374,28 @@ weapon, because a weapon that masks nothing simply does no damage and never erro
 The buster costs 0 and is never removed. It is the floor the player cannot fall
 through: run every weapon dry and there is still an attack.
 
+**Charge** is a second block on the same resource, opt-in per weapon
+(`chargeable`, two stage thresholds, a charged projectile script, per-stage damage,
+its own ammo cost and on-screen cap). Only the buster sets it today; the mechanism
+is built for all eight.
+
+One field earns its own warning. `charged_weapon_id` is the id a blast carries into
+the damage tables, and it is **not** the weapon's own id. A charged shot tagged
+`buster` looks up the 1 that tap fire is meant to do and quietly does 1 damage
+however long the button was held — no error, no visible difference except a boss
+that will not die. Empty falls back to `<id>_charged`.
+
+Damage and the charged id are set in `ChargedShot._configure()`, not by the shooter.
+`WeaponShot._ready()` fills them from the WeaponData on entering the tree, so
+assigning them before `add_child` is silently overwritten and assigning them after
+leaves two places deciding the same thing. `_configure` is the hook that runs at the
+right moment.
+
+The **sword** is not a weapon in this sense — no resource, no ammo, no selection. It
+is a Hitbox on the player switched on for a window inside the `Attack` state, tagged
+`sword` so damage tables can answer it. Its box starts at the ground line rather
+than at the arm, for the reason in §5.2's note on `Enemy.MIN_HURTBOX_NES`.
+
 ### 5.7 Autoloads
 
 | Autoload | Owns |

@@ -17,6 +17,8 @@ signal respawned()
 ## game over means; the player only reports it.
 signal game_over()
 signal shot_fired(shot: WeaponShot)
+## The charge crossed into a new stage: 0 released, 1 mid, 2 full.
+signal charge_level_changed(level: int)
 
 const FLOOR_NORMAL := Vector2.UP
 ## Measured from the AutoSprite export's opaque bounding box. The character does
@@ -60,6 +62,22 @@ const WEAPON_PALETTE := preload("res://scenes/actors/player/weapon_palette.gdsha
 ## palette swap because this art has ~230 colours per frame and nothing to match.
 const PALETTE_GREY_FLOOR := 0.12
 const PALETTE_SATURATION := 1.08
+
+# --- Sword ----------------------------------------------------------------------
+
+## The blade's reach and height in NES px, and how far in front of the player it
+## sits. Measured from the feet, like every other actor metric here.
+##
+## **It starts at the ground, not at the arm.** A slash placed at the arm's
+## height would sail over a Dockrat and a Limpet for precisely the reason the
+## buster did (Enemy.MIN_HURTBOX_NES) -- and this time with no projectile to
+## watch flying past, so it would look like the sword simply did not work.
+const MELEE_SIZE_NES := Vector2(20.0, 22.0)
+const MELEE_REACH_NES := 16.0
+## Damage. Three times a pellet, for standing inside an enemy's reach with no
+## way to cancel out of the swing.
+const MELEE_DAMAGE := 3
+const MELEE_WEAPON_ID := &"sword"
 
 ## Where the arm cannon is, per state, in NES pixels from the actor's origin --
 ## which is at its feet, so y is negative. x is forward, and gets mirrored by
@@ -106,6 +124,10 @@ var _shots: Array[WeaponShot] = []
 ## Frames left before the selected weapon may fire again. The buster's cooldown
 ## is 0, so for the buster the on-screen cap is still the only limiter.
 var _fire_cooldown := 0
+## Frames the fire button has been held. Only counts up for a chargeable weapon.
+var _charge_frames := 0
+var _charge_level := 0
+var melee: Hitbox
 ## Frozen during a door transition and the teleport-in: physics still runs so
 ## the player keeps standing on the floor, but input and state changes do not.
 var _frozen := false
@@ -125,6 +147,7 @@ func _ready() -> void:
 	entry_position = global_position
 	_setup_damage()
 	_setup_palette()
+	_setup_melee()
 
 
 func _physics_process(delta: float) -> void:
@@ -138,6 +161,8 @@ func _physics_process(delta: float) -> void:
 		return
 	_tick_timers()
 	health.tick()
+	if melee != null and melee.monitoring:
+		melee.tick()
 	state_machine.physics_update(delta)
 	move_and_slide()
 	_try_switch_weapon()
@@ -225,6 +250,7 @@ func set_frozen(value: bool) -> void:
 	_frozen = value
 	if value:
 		velocity = Vector2.ZERO
+		cancel_charge()
 
 
 func is_frozen() -> bool:
@@ -333,6 +359,79 @@ func fire() -> WeaponShot:
 	return shot
 
 
+# --- Sword ----------------------------------------------------------------------
+
+## Builds the blade's hitbox, switched off until a swing turns it on.
+##
+## It is one Hitbox rather than a node per swing: creating and freeing an Area2D
+## inside a 20-frame window means the physics server may not have registered the
+## overlap before the window closes, and the swing silently misses.
+func _setup_melee() -> void:
+	melee = Hitbox.new()
+	melee.name = "Melee"
+	melee.amount = MELEE_DAMAGE
+	melee.weapon_id = MELEE_WEAPON_ID
+	# Not one_shot: a swing that catches two enemies in its arc should hit both.
+	# Their own i-frames stop it hitting the same one twice.
+	melee.one_shot = false
+	melee.collision_layer = Layers.bit(Layers.PLAYER_ATTACK)
+	melee.collision_mask = Layers.bit(Layers.ENEMY_HURTBOX)
+	melee.monitoring = false
+
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = MELEE_SIZE_NES * tuning.world_scale
+	shape.shape = rect
+	melee.add_child(shape)
+	add_child(melee)
+	_aim_melee()
+
+
+## Puts the blade in front of the player, standing on the ground line.
+func _aim_melee() -> void:
+	if melee == null:
+		return
+	var scale_factor := tuning.world_scale
+	melee.position = Vector2(
+		float(facing) * MELEE_REACH_NES * scale_factor,
+		-MELEE_SIZE_NES.y * 0.5 * scale_factor)
+
+
+## Called by the Attack state as the swing starts.
+func begin_melee() -> void:
+	_aim_melee()
+	set_melee_active(false)
+
+
+func end_melee() -> void:
+	set_melee_active(false)
+
+
+func set_melee_active(value: bool) -> void:
+	if melee == null:
+		return
+	if value:
+		_aim_melee()
+	if melee.monitoring == value:
+		return
+	melee.monitoring = value
+	if value:
+		melee.rearm()
+
+
+func melee_is_active() -> bool:
+	return melee != null and melee.monitoring
+
+
+## Whether a sword swing can start right now.
+func melee_requested() -> bool:
+	return Input.is_action_just_pressed(&"melee")
+
+
+func can_melee() -> bool:
+	return is_on_floor() and not health.is_dead() and not _frozen
+
+
 # --- Weapon colour --------------------------------------------------------------
 
 ## Puts the hue-rotation shader on the sprite and follows the weapon selection.
@@ -386,6 +485,7 @@ func weapon_hue_shift(weapon_id: StringName) -> float:
 
 ## Health reached zero, however it got there. The Dead state owns the sequence.
 func _on_health_died(_info: DamageInfo) -> void:
+	cancel_charge()
 	died.emit()
 	if state_machine.current_name() != &"Dead":
 		state_machine.transition_to(&"Dead")
@@ -399,6 +499,10 @@ func _on_health_died(_info: DamageInfo) -> void:
 func on_damaged(info: DamageInfo, taken: int) -> void:
 	if taken <= 0 or health.is_dead():
 		return
+	# Losing the charge is part of what taking a hit costs. Keeping it would
+	# also mean the blast goes off on whatever frame the knockback happens to
+	# end, which is not a moment the player chose.
+	cancel_charge()
 	if info.has_flag(DamageInfo.NO_KNOCKBACK):
 		return
 	state_machine.transition_to(&"Hurt", {"source_position": info.source_position})
@@ -486,9 +590,120 @@ func _setup_damage() -> void:
 	health.died.connect(_on_health_died)
 
 
+## Fire, and charge.
+##
+## Pressing fires a normal shot straight away *and* starts the charge, which is
+## the MM4-onward behaviour and the reason charging is not simply better than
+## tapping: a full charge costs you an ordinary shot up front, and tapping is
+## still the higher damage per frame. What the charge buys is one big hit while
+## you are busy staying alive, not a faster kill.
 func _try_shoot() -> void:
 	if Input.is_action_just_pressed(&"shoot"):
 		fire()
+	_tick_charge()
+
+
+func _tick_charge() -> void:
+	var data := current_weapon_data()
+	var chargeable: bool = data != null and data.chargeable
+
+	if not chargeable or not Input.is_action_pressed(&"shoot") or health.is_dead():
+		if _charge_frames > 0:
+			_release_charge()
+		return
+
+	_charge_frames += 1
+	var level: int = data.charge_level_at(_charge_frames)
+	if level != _charge_level:
+		_charge_level = level
+		charge_level_changed.emit(level)
+
+
+## Lets go of the charge, firing the blast if it reached a stage.
+func _release_charge() -> void:
+	var level := _charge_level
+	var data := current_weapon_data()
+	_charge_frames = 0
+	if _charge_level != 0:
+		_charge_level = 0
+		charge_level_changed.emit(0)
+	if level <= 0 or data == null:
+		return
+	fire_charged(level, data)
+
+
+## Drops the charge without firing.
+##
+## Taking a hit, dying, freezing for a door, or switching weapon all cancel it.
+## A charge that survived any of those would go off later at a moment the player
+## did not choose -- the worst of which is a blast released by the respawn.
+func cancel_charge() -> void:
+	_charge_frames = 0
+	if _charge_level != 0:
+		_charge_level = 0
+		charge_level_changed.emit(0)
+
+
+func charge_frames() -> int:
+	return _charge_frames
+
+
+func charge_level() -> int:
+	return _charge_level
+
+
+## How far through the charge, 0..1, for the bar.
+func charge_fraction() -> float:
+	var data := current_weapon_data()
+	return data.charge_fraction_at(_charge_frames) if data != null else 0.0
+
+
+## Fires the charged blast. Separate from `fire()` because almost nothing about
+## it is shared: a different projectile, a different cap, a different ammo cost
+## and -- the part that is easy to get wrong -- a different weapon id, so the
+## damage tables can tell it from a tap.
+func fire_charged(level: int, data: WeaponData) -> WeaponShot:
+	if data.charged_projectile_script == null:
+		return null
+	var state := state_machine.current
+	if state == null or not state.can_shoot or health.is_dead():
+		return null
+	if _charged_on_screen() >= data.charged_max_on_screen:
+		return null
+
+	var weapons := weapons_autoload()
+	if weapons != null and data.charged_ammo_cost > 0:
+		if not weapons.consume(current_weapon(), data.charged_ammo_cost):
+			return null
+
+	var shot := data.charged_projectile_script.new() as WeaponShot
+	if shot == null:
+		return null
+	if shot is ChargedShot:
+		(shot as ChargedShot).charge_level = level
+	shot.launch(muzzle_position(), facing, tuning, data)
+
+	var level_node := get_parent()
+	if level_node == null:
+		shot.free()
+		return null
+	# Damage and the charged weapon id are ChargedShot._configure's job, which
+	# runs on entering the tree -- see the note there.
+	level_node.add_child(shot)
+	_shots.append(shot)
+	note_shot_fired()
+	shot_fired.emit(shot)
+	return shot
+
+
+## Live charged blasts, which have their own cap so a charge cannot be stacked
+## three deep the way pellets can.
+func _charged_on_screen() -> int:
+	var count := 0
+	for shot in _shots:
+		if is_instance_valid(shot) and shot is ChargedShot:
+			count += 1
+	return count
 
 
 ## Cycles weapons without opening the menu.
@@ -508,8 +723,10 @@ func _try_switch_weapon() -> void:
 		return
 	if Input.is_action_just_pressed(&"weapon_next"):
 		weapons.cycle(1)
+		cancel_charge()
 	elif Input.is_action_just_pressed(&"weapon_prev"):
 		weapons.cycle(-1)
+		cancel_charge()
 
 
 func _build_shapes() -> void:
@@ -608,6 +825,7 @@ func sprite_feet_offset() -> float:
 func _update_sprite() -> void:
 	sprite.flip_h = facing < 0
 	_update_flicker()
+	_update_charge_tint()
 	var wanted := _sprite_animation()
 	if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(wanted):
 		if sprite.animation != wanted:
@@ -618,6 +836,28 @@ func _update_sprite() -> void:
 			and sprite.sprite_frames.has_animation(&"idle"):
 		sprite.play(&"idle")
 		_apply_art_scale(&"idle")
+
+
+## Pulses the character while the charge is held.
+##
+## This, not the bar, is the feedback the player actually reads -- their eyes are
+## on the character during a fight, and the original conveyed the whole charge
+## state this way with no meter at all.
+##
+## Driven through `modulate` rather than the palette shader's hue, deliberately.
+## The hue says which weapon is equipped (SPRITES section 3) and pulsing it would
+## make the character read as switching weapons mid-charge. Brightness is a free
+## channel. `visible` is left to the i-frame flicker, so the two never fight.
+func _update_charge_tint() -> void:
+	if _charge_level <= 0:
+		if sprite.modulate != Color.WHITE:
+			sprite.modulate = Color.WHITE
+		return
+	# Faster and brighter at full, so the two stages are told apart at a glance.
+	var period := 4 if _charge_level >= 2 else 8
+	var lift := 0.55 if _charge_level >= 2 else 0.28
+	var on := (_charge_frames / period) % 2 == 0
+	sprite.modulate = Color(1.0 + lift, 1.0 + lift, 1.0 + lift) if on else Color.WHITE
 
 
 ## Blinks the sprite while invulnerable, two frames on and two frames off. The

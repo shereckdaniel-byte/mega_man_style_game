@@ -25,10 +25,51 @@ progression loop:
 - **Second half** — revisit-stages with harder mini-bosses, then a 4-stage fortress ending
   in a boss rush and a two-phase final boss.
 
-Deliberately **not** in scope (these are MM4+ features, not MM3):
+Deliberately **not** in scope:
 
-- No charge shot. The buster fires a fixed pellet; max 3 player shots on screen.
 - No shop, no upgrade currency, no branching narrative.
+
+**Reversed:** this list used to open with "no charge shot — these are MM4+ features, not
+MM3". The charge shot is in, by decision, along with a sword. Both are departures from the
+MM3 template and both are wanted; the template is a starting point, not a cage. What the
+departure costs is written down in §2a so it is not rediscovered later.
+
+### 2a. Three attacks
+
+| | Input | Cost | Damage | Range |
+| --- | --- | --- | --- | --- |
+| **Arm cannon** | tap `shoot` | free | 1 | screen, 3 live |
+| **Charged cannon** | hold `shoot`, release | free | 2 mid / 3 full | screen, 1 live |
+| **Sword** | `melee` | free | 3 | adjacent, commits 20 frames |
+
+Pressing fire shoots a pellet **immediately** and starts the charge, so a full charge costs
+one ordinary shot up front. That is MM4-onward behaviour and it is what stops holding from
+being strictly better than tapping — in raw damage per frame, tapping still wins. What a
+charge buys is one big hit landed while you are busy staying alive, not a faster kill.
+
+**The charged shot does 3, not 4, and that number is load-bearing.** A boss's weakness does
+4 where the buster does 1 (§4). If a charge matched a weakness there would be no reason to
+hunt for the right weapon, and boss order — the rock-paper-scissors spine of the whole
+game — would stop meaning anything. `tests/test_attacks.gd` asserts a weakness still beats
+a full charge, so this cannot be tuned away by accident.
+
+The charge is **per weapon, opt-in**: `WeaponData` carries the whole block and only the
+buster sets `chargeable` today. The mechanism is built for all eight; proving it on one
+weapon first is deliberate.
+
+The sword is a committed swing — planted, no cancel, ground only. Take the commitment away
+and there is no reason ever to fire the buster. Ground-only is a limitation, not a
+decision: the clip is a planted two-blade guard stance that reads wrong in mid-air, and an
+air slash wants its own animation and its own arc.
+
+Two things that would have shipped broken and are worth remembering:
+
+- A charged shot must carry its **own weapon id**. Tagged `buster`, it looks up the 1 that
+  tap fire is meant to do and quietly does 1 damage no matter how long you held the
+  button. Nothing errors.
+- The sword's hitbox starts at the **ground line**, not at the arm. A blade at the buster's
+  height would sail over a Dockrat for exactly the reason the buster did — and with no
+  projectile to watch flying past, it would simply look broken.
 
 ### Definition of "MM3 feel"
 
@@ -347,7 +388,8 @@ Whatever the names, cover these eight behaviours so the arsenal stays non-redund
 2. Homing / turning projectile (anti-evader)
 3. Splitting or mirrored beam (multi-lane)
 4. Heavy slow arcing knuckle (high damage, hard to aim)
-5. Contact/ram melee (risk-reward, no projectile)
+5. Piercing bore (passes *through* enemies and breakable blocks instead of stopping at
+   the first thing it hits — uses `DamageInfo.PIERCE`)
 6. Terrain-crawling projectile (hits ground-huggers behind cover)
 7. Stun/disable (locks a target, often deals no damage)
 8. Multi-angle throwable that returns (utility + platform-cutting)
@@ -371,7 +413,7 @@ drowned, post-industrial coast at dawn. Every stage is somewhere in that world.
 | 5 | **Gale** | Turbine Row — offshore wind farm | Gale Cutter | 8 · returning throwable | wind | Tide |
 | 6 | **Cinder** | Stack — waste incinerator | Cinder Spray | 1 · rapid spread | conveyor | Frost |
 | 7 | **Frost** | Cold Store — refrigerated docks | Frost Lock | 7 · stun/disable | ice | Quarry |
-| 8 | **Quarry** | Sinkhole — flooded mine | Quarry Spin | 5 · contact ram | water (swim) | Cinder |
+| 8 | **Quarry** | Sinkhole — flooded mine | Quarry Bore | 5 · piercing bore | water (swim) | Cinder |
 
 **Tide is the buster-only boss.** Something has to be beatable with no weapons at all, and
 it should be the stage that is actually built — that is where a player who wanders in

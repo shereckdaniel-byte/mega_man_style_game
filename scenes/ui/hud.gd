@@ -22,10 +22,12 @@ const BOSS_FILL := Color(1.0, 0.45, 0.42)
 var energy: EnergyBar
 var weapon: EnergyBar
 var boss: EnergyBar
+var charge: ChargeBar
 
 var _scale := 4.5
 var _weapons: Node = null
 var _boss_health: Health = null
+var _player: Player = null
 
 
 func _ready() -> void:
@@ -42,6 +44,15 @@ func _ready() -> void:
 	boss.fill_colour = BOSS_FILL
 	boss.visible = false
 
+	# Under the vertical bars rather than beside them: the charge is a thing
+	# that happens *while* you are watching the character, so it belongs where a
+	# glance already goes, not out at the end of a row.
+	charge = ChargeBar.new()
+	charge.name = "Charge"
+	charge.position = Vector2(MARGIN_NES.x,
+		MARGIN_NES.y + EnergyBar.SEGMENT_NES.y * float(Health.BAR_TICKS) * 1.6) * _scale
+	add_child(charge)
+
 	_weapons = get_node_or_null(^"/root/WeaponManager")
 	if _weapons != null:
 		_weapons.weapon_changed.connect(_on_weapon_changed)
@@ -56,6 +67,20 @@ func track(player: Player) -> void:
 	# A respawn refills the bar off-screen; animating it back up would run the
 	# refill while the player is already standing there.
 	player.respawned.connect(func() -> void: energy.snap_to(player.health.current))
+	_player = player
+	_refresh_charge_threshold()
+
+
+## The charge bar is polled rather than driven by a signal.
+##
+## `charge_level_changed` fires on the two stage boundaries, which is enough to
+## flash the character but not enough to *fill* a bar -- the fill moves every
+## frame in between. Polling one float off the player is cheaper than a
+## per-frame signal and cannot fall out of step with it.
+func _physics_process(_delta: float) -> void:
+	if _player == null or not is_instance_valid(_player) or charge == null:
+		return
+	charge.set_charge(_player.charge_fraction(), _player.charge_level())
 
 
 ## Shows the boss bar and fills it from empty, which is the intro beat.
@@ -81,7 +106,20 @@ func _add_bar(bar_name: String, column: int) -> EnergyBar:
 	return bar
 
 
+## Where the threshold mark sits depends on the equipped weapon's own timings,
+## so it moves when the weapon does.
+func _refresh_charge_threshold() -> void:
+	if charge == null or _weapons == null:
+		return
+	var data: WeaponData = _weapons.current_data()
+	if data == null or not data.chargeable or data.charge_full_frames <= 0:
+		charge.set_threshold(1.0)
+		return
+	charge.set_threshold(float(data.charge_mid_frames) / float(data.charge_full_frames))
+
+
 func _on_weapon_changed(weapon_id: StringName) -> void:
+	_refresh_charge_threshold()
 	if _weapons == null:
 		return
 	# The buster has no ammo, so it gets no bar. Everything else does.
