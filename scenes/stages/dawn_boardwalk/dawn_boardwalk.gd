@@ -89,7 +89,12 @@ const ROOMS := [
 		"enemies": [
 			[HOPPER, "bollard", &"hop", 16.0, 0.0],
 			[TURRET, "lampjack", &"idle", 23.0, 2.0],
-			[FLYER, "gullbot", &"fly", 8.0, 5.0],
+			# 3 tiles up, not 5. A flyer sweeps 1.5 tiles either side of its
+			# marker, so 5 put the Gullbot's whole arc at 3.5-6.5 tiles -- above
+			# a standing shot (which reaches 1.19) and above a jumping one
+			# (4.08) for all but a sliver of its cycle. At 3 it descends to 1.5,
+			# where a standing player can catch it at the bottom of the arc.
+			[FLYER, "gullbot", &"fly", 8.0, 3.0],
 		],
 		"checkpoint": 2.0,
 	},

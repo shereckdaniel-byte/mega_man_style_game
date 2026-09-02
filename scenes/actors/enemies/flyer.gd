@@ -55,3 +55,17 @@ func behave(delta: float) -> void:
 func body_size() -> Vector2:
 	var tile := tuning.tile_size()
 	return Vector2(tile * 0.9, tile * 0.6)
+
+
+## A flyer is fought in the air, so its hurtbox is its body and nothing more.
+##
+## Enemy's minimum exists to stop a *ground* enemy sitting under the buster's
+## line. Applying it here would hang a tile of invisible hurtbox below a flying
+## enemy, and the player would hit something where nothing is drawn.
+##
+## What makes a flyer fair is therefore its **path**, not its box: the bottom of
+## its sweep has to come within reach. At stage 1's placement the Gullbot
+## descends to 1.5 tiles above the deck, which a standing shot reaches at the
+## bottom of the arc and a jump reaches comfortably.
+func shootable_from_the_ground() -> bool:
+	return false

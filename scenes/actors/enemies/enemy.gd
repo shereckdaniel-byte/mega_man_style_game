@@ -183,7 +183,7 @@ func _build_hurtbox() -> void:
 	hurtbox.name = "Hurtbox"
 	hurtbox.collision_layer = Layers.bit(Layers.ENEMY_HURTBOX)
 	hurtbox.collision_mask = 0
-	hurtbox.add_child(_box_shape())
+	hurtbox.add_child(_hurt_shape())
 	add_child(hurtbox)
 
 
@@ -201,6 +201,17 @@ func _build_contact() -> void:
 	add_child(contact)
 
 
+## The hurtbox's shape. Uses `hurtbox_size()` rather than `body_size()` so a
+## short enemy still reaches the buster's line -- see MIN_HURTBOX_NES.
+func _hurt_shape() -> CollisionShape2D:
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = hurtbox_size()
+	shape.shape = rect
+	shape.position.y = -rect.size.y * 0.5
+	return shape
+
+
 ## Default box, sized from the body's own collision shape so a subclass only has
 ## to set that one shape and the hurt/contact boxes follow.
 func _box_shape() -> CollisionShape2D:
@@ -216,3 +227,43 @@ func _box_shape() -> CollisionShape2D:
 ## one tile, which is the size of most NES small fry.
 func body_size() -> Vector2:
 	return Vector2(tuning.tile_size(), tuning.tile_size())
+
+
+## The height an enemy's hurtbox must reach to be shootable, in NES px.
+##
+## The buster fires from 16 NES px above the player's feet (Player.MUZZLE) and
+## the pellet is 6 tall, so a standing shot occupies the band 13 to 19 px above
+## the ground. An enemy shorter than that is not "hard to hit" -- it is
+## **impossible** to hit, and nothing says so: the shot sails over and the enemy
+## does not react, which reads as a broken hitbox rather than a design choice.
+##
+## This is 16 rather than 13 so there is real overlap rather than a shot that
+## grazes the top pixel. Dockrat shipped at 10.6 and Limpet at 11.2; both were
+## unkillable for the whole of M4 and M5, and 193 passing tests did not notice,
+## because the enemy tests put a hitbox straight onto the hurtbox instead of
+## firing the buster. `tests/test_enemy_hittability.gd` fires it now.
+##
+## An enemy that genuinely should be un-shootable from the ground -- something
+## that burrows, or hugs a ceiling -- should say so by overriding
+## `shootable_from_the_ground()`, not by being quietly too short.
+const MIN_HURTBOX_NES := 16.0
+
+
+## Whether this enemy is meant to be hit by a standing shot. Almost everything
+## is; a subclass that means otherwise overrides this and says why.
+func shootable_from_the_ground() -> bool:
+	return true
+
+
+## The hurtbox's height, which is the body's own unless that would put the
+## enemy under the buster's line.
+##
+## Deliberately separate from `body_size()`: the body height decides where the
+## enemy fits and how it reads on screen, and those are not the same question as
+## whether it can be shot. Raising a Limpet's *body* to a full tile would stop it
+## looking like a limpet; raising its hurtbox does not.
+func hurtbox_size() -> Vector2:
+	var size := body_size()
+	if not shootable_from_the_ground():
+		return size
+	return Vector2(size.x, maxf(size.y, MIN_HURTBOX_NES * tuning.world_scale))

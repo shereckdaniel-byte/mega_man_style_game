@@ -71,8 +71,18 @@ func turn() -> void:
 
 
 func body_size() -> Vector2:
-	# Two thirds of a tile: small fry read as small, and a walker that filled a
-	# tile would not fit under the boardwalk's raised sections.
+	# Two thirds of a tile, so small fry read as small.
+	#
+	# The second half of this comment used to claim a full-tile walker "would not
+	# fit under the boardwalk's raised sections". There is nothing to fit under:
+	# stage 1's raised sections are solid blocks standing on the deck, not
+	# overhangs. The constraint was imaginary, and the number it justified put
+	# the Dockrat's hurtbox at 10.6 NES px -- entirely below the buster's line,
+	# which made the most common enemy in the game unkillable.
+	#
+	# The height stays, because it is right for how the enemy reads. What
+	# changed is that the hurtbox no longer follows it down: see
+	# Enemy.MIN_HURTBOX_NES.
 	var tile := tuning.tile_size()
 	return Vector2(tile * 0.66, tile * 0.66)
 
