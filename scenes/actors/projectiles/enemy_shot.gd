@@ -22,12 +22,19 @@ const EDGE_COLOUR := Color(1.0, 0.62, 0.30)
 ## Hitbox size in NES px. Overridable because not every enemy projectile is a
 ## pellet -- a boss's low wave has to be wide enough to read as something you
 ## jump and short enough that jumping clears it.
+##
+## Changing this does **not** change the silhouette. A projectile that wants to
+## look like something other than a pellet overrides `_draw` -- see CrestWave.
+## This used to carry a branch in `_draw` that drew a bar instead of a circle
+## when the size was not square, which is a general class holding a special case
+## for one boss's attack.
 @export var size_nes := SIZE_NES
 
 var _velocity := Vector2.ZERO
 var _tuning: PlayerTuning
 var _spawn_position := Vector2.ZERO
 var _damage := 2
+var _frames_alive := 0
 
 
 ## Called before the shot enters the tree. Direction is a vector, not a sign:
@@ -70,22 +77,29 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_frames_alive += 1
 	position += _velocity * delta
 	if _off_screen():
 		queue_free()
 
 
+## Physics frames since launch, for a subclass that animates itself.
+func frames_alive() -> int:
+	return _frames_alive
+
+
+## Unit vector the shot is travelling along.
+func heading() -> Vector2:
+	return _velocity.normalized() if _velocity.length() > 0.001 else Vector2.RIGHT
+
+
+## A pellet. Anything that is not a pellet overrides this rather than adding a
+## case here -- the last version of this function grew a branch for a boss's
+## wave and the wave still came out a rectangle.
 func _draw() -> void:
-	# Round when it is a pellet, a rounded bar when it has been widened -- a
-	# circle stretched to a wave's proportions reads as a mistake.
-	if is_equal_approx(size_nes.x, size_nes.y):
-		var radius := size_nes.x * _tuning.world_scale * 0.5
-		draw_circle(Vector2.ZERO, radius, EDGE_COLOUR)
-		draw_circle(Vector2.ZERO, radius * 0.5, CORE_COLOUR)
-		return
-	var half := size_nes * _tuning.world_scale * 0.5
-	draw_rect(Rect2(-half, half * 2.0), EDGE_COLOUR)
-	draw_rect(Rect2(-half * 0.7, half * 1.4), CORE_COLOUR)
+	var radius := minf(size_nes.x, size_nes.y) * _tuning.world_scale * 0.5
+	draw_circle(Vector2.ZERO, radius, EDGE_COLOUR)
+	draw_circle(Vector2.ZERO, radius * 0.5, CORE_COLOUR)
 
 
 func _off_screen() -> bool:

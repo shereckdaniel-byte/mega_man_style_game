@@ -19,6 +19,7 @@ class_name Tide
 extends Boss
 
 const ENEMY_SHOT := preload("res://scenes/actors/projectiles/enemy_shot.gd")
+const CREST_WAVE := preload("res://scenes/actors/projectiles/crest_wave.gd")
 ## Weakness table. Arc Lance does 4 where the buster does 1 -- the 4x from the
 ## roster, written as the absolute number the table wants rather than as a
 ## multiplier (see DamageTable). Tide is deliberately NOT weak to its own
@@ -41,7 +42,7 @@ const INDEX := 0
 const BODY_NES := Vector2(20.0, 26.0)
 
 ## --- Crest: the floor wave ---
-const CREST_WAVE_SIZE_NES := Vector2(18.0, 11.0)
+## Its size lives on CrestWave, which owns its own silhouette.
 const CREST_SPEED_PF := 2.4
 const CREST_DAMAGE := 3
 ## Height of the wave's centre above the boss's feet, in NES px. Low enough that
@@ -168,8 +169,7 @@ func recover(_pattern: BossPattern, _frame: int) -> void:
 ## and a wave that died on the arena's own wall would never reach a player
 ## standing in the corner -- which is exactly where a cornered player is.
 func _fire_crest() -> void:
-	var shot := ENEMY_SHOT.new() as EnemyShot
-	shot.size_nes = CREST_WAVE_SIZE_NES
+	var shot := CREST_WAVE.new() as CrestWave
 	var at := global_position + Vector2(
 		float(facing()) * BODY_NES.x * 0.6 * tuning.world_scale,
 		-CREST_RIDE_NES * tuning.world_scale)
