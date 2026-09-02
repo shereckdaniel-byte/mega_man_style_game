@@ -168,27 +168,41 @@ Two traps found while building it, both worth knowing before M4:
 `Area2D.monitorable = false` also switches off that area's *body* detection on Godot 4.7,
 and autoload identifiers do not resolve in a `--script` entry point — reach them by path.
 
-### M4 — Enemy framework + Stage 1 (in progress)
+### M4 — Enemy framework + Stage 1 ✅ done
 
 - ✅ `Enemy` base class: health, contact damage, weapon-damage table lookup, death
   explosion, off-screen despawn + respawn-on-rescroll. Art is scaled from the sprite's
   own measured height rather than a per-enemy constant, because the whole roster shares
   one 256 px cell whatever size the art inside it is.
-- ✅ Six enemy archetypes: walker, hopper, turret, flyer-sine, spawner, wall-crawler, all
-  six wearing their stage 1 skins in `art_preview.tscn`.
-- ✅ Scroll-locked rooms and the stage camera. This removed two pieces of scaffolding:
-  the invisible walls at the deck ends are the room's limits now, and the fixed camera
-  offset is the camera's vertical anchor.
-- ⬜ Screen-transition doors, vertical scroll rooms, ladder-driven vertical transitions.
-- ⬜ Stage 1 built end-to-end in `TileMapLayer` with checkpoints and a boss door. The
-  preview places enemies by hand as a viewing harness; encounter design is not started.
+- ✅ Six enemy archetypes: walker, hopper, turret, flyer-sine, spawner, wall-crawler.
+- ✅ Scroll-locked rooms, the stage camera, and screen-transition doors. This removed two
+  pieces of scaffolding: the invisible walls at the deck ends are the room's limits now,
+  and the fixed camera offset is the camera's vertical anchor.
+- ✅ Stage 1 built end-to-end: four rooms authored from a table, with gaps, raised spans,
+  per-room checkpoints, nine enemy markers across five archetypes, and a boss door.
+- ⬜ Vertical scroll rooms and ladder-driven vertical transitions. Not needed by stage 1,
+  which is horizontal; the first stage that needs a shaft will want them.
 
-**Watch for:** the boardwalk's raised sections are two tiles, which a walk cannot clear —
-traversal needs jumps. Fine as geometry, but it means the current layout is not walkable
-end to end, which matters once enemies are placed for real.
+**Accepted:** `tools/playthrough.gd` drives the stage from spawn to the boss door —
+four rooms, three transitions, **0 deaths, 14 of 28 HP left**. Enemies respawn identically
+on rescroll, which `tests/test_rooms.gd` locks down.
 
-**Accept:** a full stage is playable from teleport-in to boss door with no soft locks;
-scrolling back and forth respawns enemies identically each time.
+Three bugs came out of that playthrough that no unit test would have found, all now
+fixed: a bottomless pit that did not kill during i-frames (a `Hazard` honours them; a pit
+is not damage, so it is a `KillPlane` that bypasses them); a kill that left the player
+walking at 0 HP, because death was routed through the hurtbox rather than through
+`Health`; and a block three tiles above the deck in a corridor with no way round it.
+
+**Authoring limits, now constants with a test each** (`tests/test_dawn_boardwalk.gd`): a
+block rises at most 2 tiles above the deck and a gap is at most 2 cells wide. A full jump
+reaches 2.89 tiles and covers about 3.4 across, so 3 is frame-perfect in either axis —
+a late-stage ask, not a first-stage one. Checkpoints must stand on solid deck.
+
+**A caution about the playthrough tool.** It is a traversal check, not a difficulty one,
+and its failures are not automatically the stage's. Set to jump when a gap is two cells
+ahead rather than one, it launched a cell early, landed *in* the gap, and made a
+perfectly finishable stage look impossible. Read a failure as "look at this", not as
+"the stage is broken".
 
 ### M5 — Boss framework + weapon get (2–3 days)
 
