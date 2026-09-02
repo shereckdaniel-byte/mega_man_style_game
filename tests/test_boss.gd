@@ -60,6 +60,33 @@ func test_a_boss_lands_on_the_floor_rather_than_through_it() -> void:
 		"boss ended at y=%.0f, floor is %.0f" % [boss.global_position.y, FLOOR_TOP])
 
 
+## Tide fought through the whole of M5 as an invisible box, because nothing
+## assigned its sprite frames and nothing checked. The fight worked, the tests
+## passed and the playthrough won -- a boss with no art is not a broken boss to
+## anything except a person looking at the screen.
+func test_a_boss_brings_its_own_art() -> void:
+	assert_not_null(boss.sprite_frames, "the boss was given no sprite frames")
+	assert_not_null(boss.sprite, "the boss built no sprite node")
+	assert_true(boss.sprite.sprite_frames.get_animation_names().size() > 0)
+
+
+## The flash is the only feedback on the boss itself that a hit landed; the bar
+## is in the corner while the player is looking at the fight.
+func test_a_hit_flashes_the_boss() -> void:
+	boss.begin_intro(Vector2(600.0, FLOOR_TOP), null)
+	await _frames(INTRO_FRAMES)
+	boss.begin_fight()
+	await _frames(2)
+	boss.health.take(DamageInfo.new(1, Vector2.ZERO, &"buster"))
+	var flashed := false
+	for i in Boss.HIT_INVULNERABLE_FRAMES:
+		await tree.physics_frame
+		if boss.sprite != null and boss.sprite.modulate != Color.WHITE:
+			flashed = true
+			break
+	assert_true(flashed, "the boss never flashed after taking a hit")
+
+
 func test_a_boss_carries_the_same_28_tick_bar_as_the_player() -> void:
 	assert_eq(boss.health.max_hp, Health.BAR_TICKS)
 	assert_eq(boss.health.max_hp, 28)
@@ -188,6 +215,33 @@ func test_the_defeat_finishes_and_reports_once() -> void:
 	boss.health.kill()
 	await _frames(Boss.DEATH_FRAMES + 20)
 	assert_eq(count[0], 1, "defeated fired %d times" % count[0])
+
+
+## A boss that jumps out of its own arena is not a boss the player can fight.
+##
+## Tide did exactly that: apex scales with the square of the launch velocity, so
+## a value picked to look "a bit more than the player's" was an 11.6-tile leap
+## into an 11-tile room. Nothing failed -- it fought on from above the ceiling.
+func test_tides_leap_stays_inside_the_arena() -> void:
+	var t := PlayerTuning.new()
+	# Same discrete integration the engine does, per ARCHITECTURE section 3.
+	var v: float = Tide.SPOUT_JUMP_PF
+	var y := 0.0
+	var apex := 0.0
+	while v > 0.0:
+		y += v
+		v -= t.gravity_pf
+		apex = maxf(apex, y)
+	var tiles := apex / PlayerTuning.NES_TILE
+	# The arena is one screen tall and the deck sits 11 tiles below its top
+	# (DawnBoardwalk.ROOM_TOP). Leave a tile of headroom so the sprite is
+	# visible at the peak rather than clipped by the edge.
+	assert_true(tiles <= 10.0,
+		"Tide leaps %.1f tiles; the room is 11 above the deck" % tiles)
+	# And high enough to read as a leap rather than a hop.
+	assert_true(tiles >= t.jump_apex_tiles(),
+		"Tide's leap (%.1f tiles) is shorter than the player's jump (%.1f)"
+			% [tiles, t.jump_apex_tiles()])
 
 
 func test_tide_awards_its_own_weapon() -> void:

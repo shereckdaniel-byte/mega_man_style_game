@@ -13,6 +13,9 @@ signal state_changed(from: StringName, to: StringName)
 ## the stage and anything else that wants to know.
 signal died()
 signal respawned()
+## The beam-up finished: the player has left the stage. The stage decides what
+## happens next -- this only reports that the exit is over.
+signal stage_exited()
 ## Death sequence finished and the last life is gone. The stage decides what a
 ## game over means; the player only reports it.
 signal game_over()
@@ -257,6 +260,22 @@ func is_frozen() -> bool:
 	return _frozen
 
 
+## Starts the stage-clear sequence: pose, then beam out.
+##
+## Unfreezes first. The award screen freezes the player, and a frozen player
+## runs no states -- the celebration would sit on frame one of the pose forever.
+func begin_victory() -> void:
+	set_frozen(false)
+	cancel_charge()
+	if state_machine.has_state(&"Victory"):
+		state_machine.transition_to(&"Victory")
+
+
+## Called by the TeleportOut state when the character has cleared the screen.
+func finish_stage_exit() -> void:
+	stage_exited.emit()
+
+
 func note_shot_fired() -> void:
 	_shoot_frames_left = tuning.shoot_pose_frames
 
@@ -429,7 +448,7 @@ func melee_requested() -> bool:
 
 
 func can_melee() -> bool:
-	return is_on_floor() and not health.is_dead() and not _frozen
+	return not health.is_dead() and not _frozen
 
 
 # --- Weapon colour --------------------------------------------------------------

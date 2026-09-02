@@ -8,6 +8,12 @@
 class_name Stage
 extends Node2D
 
+## The player has beaten the stage and left it. Nothing listens yet -- the stage
+## select that will is M6 -- but the stage has to *say* it is finished somewhere,
+## or the exit sequence ends with the player floating above an empty room and no
+## way to tell that anything concluded.
+signal stage_cleared()
+
 signal room_changed(room: Room)
 signal transition_started(door: Door)
 signal transition_finished(room: Room)

@@ -42,6 +42,14 @@ const BOSS_HP := 28
 ## Flash time after a hit lands. Long enough to read, short enough that a player
 ## standing in the right place still out-damages the boss.
 const HIT_INVULNERABLE_FRAMES := 24
+## Frames per on/off step of the hit flash.
+##
+## The player's flicker hides the sprite outright, which works because being
+## invulnerable is the *player's* state to read. A boss blinking out of
+## existence reads as a rendering fault, so this brightens instead: the hit is
+## still unmistakable and the boss stays on screen to be aimed at.
+const HIT_FLASH_PERIOD := 3
+const HIT_FLASH_TINT := Color(2.4, 2.0, 2.0)
 ## How far above the arena floor the entrance beam starts, in NES px.
 const ENTRY_HEIGHT_NES := 160.0
 ## Beam descent speed, in NES px/frame.
@@ -214,6 +222,7 @@ func _physics_process(delta: float) -> void:
 			_run_pattern()
 			_apply_gravity(delta)
 			move_and_slide()
+			_update_hit_flash()
 		Phase.DYING:
 			_process_death()
 
@@ -310,6 +319,24 @@ func _choose_pattern() -> void:
 		pattern_started.emit(pattern.id)
 
 
+## Brightens the boss while its i-frames run.
+##
+## Without this the energy bar is the only thing that says a hit landed, and the
+## bar is in the corner while the player is looking at the boss. A fight where
+## you cannot tell your shots are connecting reads as a broken hitbox -- which,
+## twice in this project, is exactly what it was.
+func _update_hit_flash() -> void:
+	if sprite == null:
+		return
+	var left := health.invulnerable_frames_left()
+	if left <= 0:
+		if sprite.modulate != Color.WHITE:
+			sprite.modulate = Color.WHITE
+		return
+	var on := (left / HIT_FLASH_PERIOD) % 2 == 0
+	sprite.modulate = HIT_FLASH_TINT if on else Color.WHITE
+
+
 func _face_target() -> void:
 	if target == null or not is_instance_valid(target):
 		return
@@ -365,6 +392,8 @@ func _on_died(_info: DamageInfo) -> void:
 		return
 	phase = Phase.DYING
 	_phase_frames = 0
+	if sprite != null:
+		sprite.modulate = Color.WHITE
 	# Enemy's own flag, so `is_dead()` tells the truth from the frame the last
 	# point of damage lands rather than from the end of the explosion.
 	_dead = true

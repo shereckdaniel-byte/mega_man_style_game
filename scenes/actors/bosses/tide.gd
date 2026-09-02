@@ -25,6 +25,16 @@ const ENEMY_SHOT := preload("res://scenes/actors/projectiles/enemy_shot.gd")
 ## Tide Crawler: no boss is weak to the weapon it drops.
 const DAMAGE_TABLE := preload("res://resources/damage_tables/tide.tres")
 
+## Tide's art.
+##
+## A boss loads its own, the way it loads its own damage table. Enemies are
+## handed theirs by the stage that places them, because one archetype wears a
+## different skin per stage -- a boss is one character and there is nothing to
+## choose. Leaving it to the caller meant nobody made the call: Tide fought
+## through the whole of M5 as an invisible collision box. The fight worked, the
+## tests passed, the playthrough won, and the boss was never drawn.
+const SPRITE_FRAMES := preload("res://resources/sprite_frames/wave_man.tres")
+
 ## Boss index 0: Tide is the first of the eight (docs/PLAN.md section 4).
 const INDEX := 0
 
@@ -39,7 +49,19 @@ const CREST_DAMAGE := 3
 const CREST_RIDE_NES := 5.5
 
 ## --- Spout: the crossing leap ---
-const SPOUT_JUMP_PF := 9.5
+## Launch velocity in NES px/frame.
+##
+## **Apex goes with the square of this**, which is the trap. 9.5 looks like "a
+## bit less than twice the player's 4.94" and is in fact an 11.6-tile jump into
+## a room 11 tiles tall: Tide left through the ceiling, kept fighting from
+## off-screen, and rained droplets down on a player who could not see or reach
+## it. Every test passed -- the fight was mechanically fine and simply not on
+## the screen.
+##
+## 5.3 gives 3.7 tiles against the player's 3.2. Higher than the player, so the
+## leap reads as a boss move; well inside the room, so it stays a fight.
+## `tests/test_boss.gd` asserts the apex fits.
+const SPOUT_JUMP_PF := 5.3
 const SPOUT_RUN_PF := 2.2
 ## Droplets thrown out at the top of the arc.
 const SPOUT_DROPS := 3
@@ -79,6 +101,8 @@ func _ready() -> void:
 	anim_name = &"idle"
 	if damage_table == null:
 		damage_table = DAMAGE_TABLE
+	if sprite_frames == null:
+		sprite_frames = SPRITE_FRAMES
 	super()
 
 

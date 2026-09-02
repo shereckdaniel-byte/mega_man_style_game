@@ -21,6 +21,9 @@ const TILESET := preload("res://resources/tilesets/dawn_boardwalk.tres")
 const HUD_SCRIPT := preload("res://scenes/ui/hud.gd")
 const PAUSE_MENU := preload("res://scenes/ui/pause_menu.gd")
 const TIDE := preload("res://scenes/actors/bosses/tide.gd")
+## Tide's art, for the award screen. Loaded by path rather than preloaded so the
+## stage still opens if the sprite frames are mid-regeneration.
+const BOSS_FRAMES_PATH := "res://resources/sprite_frames/wave_man.tres"
 
 const WALKER := preload("res://scenes/actors/enemies/walker.gd")
 const HOPPER := preload("res://scenes/actors/enemies/hopper.gd")
@@ -342,14 +345,36 @@ func _add_pause_menu() -> void:
 	menu.bind(_player)
 
 
-## Tide is down. Show what the player got, and only then give control back.
+## Tide is down: award, pose, leave.
+##
+## The order is the award screen, then the victory pose, then the beam-up. The
+## screen comes first because it is the *reward* and it should land while the
+## explosion is still fresh; the pose and the exit are the punctuation after it.
 func _on_boss_cleared(_index: int, weapon_id: StringName) -> void:
 	var weapons := get_node_or_null(^"/root/WeaponManager")
 	var data: WeaponData = weapons.data_for(weapon_id) if weapons != null else null
 	var weapon_name := data.display_name if data != null else String(weapon_id).capitalize()
 	if _player != null:
 		_player.set_frozen(true)
-	var screen := WeaponGet.show_for(self, weapon_name, "Tide")
-	screen.finished.connect(func() -> void:
-		if _player != null and is_instance_valid(_player):
-			_player.set_frozen(false))
+
+	var boss_art: SpriteFrames = null
+	if ResourceLoader.exists(BOSS_FRAMES_PATH):
+		boss_art = load(BOSS_FRAMES_PATH)
+	var screen := WeaponGet.show_for(self, weapon_name, "Tide", boss_art)
+	screen.finished.connect(_begin_stage_exit)
+
+
+## The award screen is gone. Pose, then beam out.
+func _begin_stage_exit() -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	if not _player.stage_exited.is_connected(_on_stage_exited):
+		_player.stage_exited.connect(_on_stage_exited)
+	_player.begin_victory()
+
+
+func _on_stage_exited() -> void:
+	# Nothing consumes this yet; the stage select is M6. It is emitted now so
+	# the sequence has an end rather than trailing off with the player somewhere
+	# above the room.
+	stage_cleared.emit()
