@@ -809,8 +809,14 @@ func _begin_stage_exit() -> void:
 	_player.begin_victory()
 
 
+## The beam-up finished. Back to the stage select, with the boss now marked.
+##
+## `stage_cleared` is still emitted -- the ledger prints on it and a test reads
+## it -- but it is no longer emitted into nothing: the run returns to the grid
+## the player chose from, which is what makes "playable in any order" a loop
+## rather than a one-way trip.
 func _on_stage_exited() -> void:
-	# Nothing consumes this yet; the stage select is M6. It is emitted now so
-	# the sequence has an end rather than trailing off with the player somewhere
-	# above the room.
 	stage_cleared.emit()
+	var router := get_node_or_null(^"/root/SceneRouter")
+	if router != null:
+		router.goto_stage_select()

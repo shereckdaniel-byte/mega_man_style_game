@@ -3,7 +3,7 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M6c complete** — the player controller, combat, enemies, two bosses with weapon
+**Status: M6f complete** — the player controller, combat, enemies, two bosses with weapon
 gets, and **two stages**: Dawn Boardwalk and Substation, both authored as room tables
 against a shared `AuthoredStage`. Verified on Godot 4.7.stable, headless, in CI. Next up
 is the rest of M6, stages 3–8.
@@ -22,7 +22,8 @@ GODOT=/path/to/godot ./tools/check.sh     # import + boot check + tests, same as
 godot --headless --script res://tools/playthrough.gd
 godot --headless --script res://tools/playthrough.gd -- stage=substation
 
-# Play a stage directly (a plain run drops into stage 1):
+# A plain run lands on the stage select. To skip it and open one stage directly:
+godot scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn
 godot scenes/stages/substation/substation.tscn
 
 # A shot of every room, for looking at a whole stage at once. Paste them onto the

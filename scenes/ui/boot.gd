@@ -8,14 +8,20 @@ extends Node2D
 @onready var _label: Label = $CanvasLayer/Label
 
 
-## Where a windowed run lands: stage 1 proper.
+## Where a windowed run lands: the stage select.
 ##
-## Two other scenes are worth opening directly rather than routing to. The M1
+## It used to be stage 1 directly, because there was no select screen to land on.
+## A playtester's seventh note was "there is no menu to be able to select which
+## stage I want yet", which was accurate -- the plan opens with "8 Robot Master
+## stages playable in any order" and the game had no way to pick one.
+##
+## Three other scenes are worth opening directly rather than routing to. The M1
 ## tuning room (res://scenes/stages/test_room/test_room.tscn) is where movement
 ## numbers are read off the debug overlay, and is what tools/screenshot.gd
-## drives. art_preview.tscn is the bare art harness -- one room, every enemy
-## archetype in view at once, no encounter design.
-const FIRST_SCENE := "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn"
+## drives; art_preview.tscn is the bare art harness; and either stage's own
+## .tscn drops straight into that stage, which is what the playthrough bot and a
+## targeted playtest both want.
+const FIRST_SCENE := "res://scenes/ui/stage_select.tscn"
 
 
 func _ready() -> void:

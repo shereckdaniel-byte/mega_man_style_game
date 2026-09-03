@@ -674,6 +674,41 @@ waiting for a ferry that could not arrive. The walkway starts at 10. Stage 1's
 ledger is back to 0 deaths and 22 HP, unchanged, which is the check that it is
 the same stage.
 
+### M6f — The stage select ✅ done
+
+The seventh item from the playtest, and the oldest promise in the plan: section 1
+opens with "8 Robot Master stages playable in any order" and the game booted
+straight into stage 1 because there was nothing to pick from. `SceneRouter` has
+had a `STAGE_SELECT` constant pointing at a scene that did not exist since M0.
+
+- ✅ **`StageRoster`** — the eight, in one place. Boss index, name, stage, weapon,
+  portrait and scene path. The roster previously existed in three partial copies
+  (the playthrough tool's stage list, each stage's own boss constants, and
+  section 4 of this document), which is a roster that disagrees in two of them
+  the first time a stage is renamed.
+- ✅ **A 3×3 grid**, eight bosses around a sealed fortress centre, cursor wrapping
+  in both axes, confirm on jump or shoot.
+- ✅ Boot lands here; beating a boss returns here. That last one is what makes
+  "any order" a loop rather than a one-way trip — `stage_cleared` was previously
+  emitted into nothing.
+
+**Unbuilt stages are shown, not hidden**, and that is the decision worth
+recording. Six of the eight have a boss, a portrait and a name and no level yet.
+Listing only what exists would make the grid change shape every time a stage
+lands — and a select screen's entire interface is the player's memory of *where*
+a stage is. So all nine cells exist from the start, the six without a level read
+as `NOT BUILT` and refuse by name, and `tests/test_stage_select.gd` asserts every
+cell is present so a later "only show what is built" cannot quietly reshape it.
+
+Two smaller things, both the same lesson as the pause menu: a refusal says which
+stage it refused and why, rather than doing nothing; and the cursor is a border
+rather than only a tint, because a tint has to compete with the cleared and
+unbuilt states, which are also colour.
+
+**Not done here:** no title screen (M8), no password or save (M6), and the
+fortress centre stays sealed until M7. The centre is drawn locked rather than
+left blank so the shape of the finished screen is visible now.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
