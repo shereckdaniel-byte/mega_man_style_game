@@ -61,6 +61,12 @@ const RETREAT_RANGE_TILES := 3.0
 ## How far ahead, in tiles, the bot looks for spikes. Further than the gap
 ## lookahead: a jump has to *start* before the spikes, not on them.
 const SPIKE_LOOKAHEAD_TILES := 2.2
+## Cells ahead to look for a low tunnel. Two, so the slide starts before the
+## ceiling rather than under it.
+const CEILING_LOOKAHEAD := 2
+## How far a slide carries, in cells. PlayerTuning puts it at 4.06 tiles, and a
+## slide can be neither steered nor cancelled once committed.
+const SLIDE_REACH_CELLS := 5
 ## An incoming shot nearer than this, in tiles, is worth dodging.
 const DODGE_RANGE_TILES := 2.6
 ## Frames to hold the slide input.
@@ -388,6 +394,41 @@ func _drive(frame: int = 0) -> void:
 		return
 	if not _player.is_on_floor():
 		return
+	# A ceiling ahead is slid under, not jumped -- and the check comes first,
+	# because jumping into a low tunnel is how you die in one.
+	#
+	# Two guards, both learned the hard way. Re-triggering while already sliding
+	# chains slide onto slide: each one restarts the full four-tile dash, so the
+	# bot kept re-committing as it passed under a three-cell overhang and came
+	# out four tiles further along than it meant to -- straight into the gap
+	# beyond, fourteen times running. And a slide cannot be steered or cancelled,
+	# so starting one with a hole inside its reach is a decision to fall in.
+	if _player.state_machine.current_name() != &"Slide" \
+			and not _hole_within(heading, SLIDE_REACH_CELLS) \
+			and _ceiling_ahead(heading):
+		Input.action_press(&"move_down")
+		Input.action_press(&"jump")
+		_slide_left = SLIDE_HOLD
+		return
+	if _hole_ahead(heading):
+		# A gap wider than a jump is a ride, not a leap. Wait at the lip until
+		# the platform is alongside rather than walking off into the water --
+		# which the bot did twenty-one times, because "there is a hole, jump"
+		# is the only answer it had and the hole is eight cells across.
+		var ferry := _platform_for(heading)
+		if ferry != null:
+			if not _platform_is_boardable(ferry):
+				_release_move()
+				return
+			# Level and alongside: step on. Jumping onto a platform that is
+			# already at your feet only risks overshooting it into the water
+			# behind.
+			var rise := _player.global_position.y - ferry.global_position.y
+			if absf(rise) < 0.5 * _tile:
+				return
+			Input.action_press(&"jump")
+			_jump_left = JUMP_HOLD
+			return
 	if _hole_ahead(heading) or _step_ahead(heading) or _spikes_ahead(heading):
 		Input.action_press(&"jump")
 		_jump_left = JUMP_HOLD
@@ -450,6 +491,67 @@ func _spikes_ahead(heading: int) -> bool:
 		if absf(spike.global_position.y - feet.y) > 1.5 * _tile:
 			continue
 		return true
+	return false
+
+
+## A moving platform **in the current room**, if one exists.
+##
+## The room filter is the whole point. Scanning the stage instead found Under
+## East's ferry from inside Pilings, four rooms away, and the bot stood at the
+## lip of a two-cell gap waiting for a platform that was never coming -- a jump
+## it had been making without trouble all along. A gap is only a crossing if
+## the thing crossing it is here.
+func _platform_for(_heading: int) -> MovingPlatform:
+	if _stage.room == null:
+		return null
+	var bounds: Rect2 = _stage.room.world_bounds()
+	for child in _stage.get_children():
+		if child is MovingPlatform and bounds.has_point((child as Node2D).global_position):
+			return child as MovingPlatform
+	return null
+
+
+## Is the platform close enough, and level enough, to step onto?
+func _platform_is_boardable(ferry: MovingPlatform) -> bool:
+	var delta := ferry.global_position - _player.global_position
+	# In front, within a stride, and at about the height the player is standing.
+	return delta.x > -0.5 * _tile and delta.x < 2.2 * _tile \
+		and absf(delta.y) < 1.2 * _tile
+
+
+## Is there a hole within `cells` ahead? Used to refuse a slide that would
+## carry the player into one.
+func _hole_within(heading: int, cells: int) -> bool:
+	var deck := _deck_row()
+	for step in range(1, cells + 1):
+		var x := _cell_x() + step * heading
+		var floored := false
+		for y in range(deck, deck + DECK_DEPTH):
+			if _solid(Vector2i(x, y)):
+				floored = true
+		if not floored:
+			return true
+	return false
+
+
+## A low ceiling ahead: slide under it.
+##
+## Read from the tile map rather than from the room table, so the bot sees the
+## geometry the player sees. A cell filled at head height with the row below it
+## open is a tunnel; a cell filled at *both* is a wall, which is `_step_ahead`'s
+## business.
+##
+## Without this the bot walks into the tunnel, stops, and reports the stage as
+## unfinishable -- the same failure the spikes produced, for the same reason: a
+## checker whose vocabulary is narrower than the level's measures itself.
+func _ceiling_ahead(heading: int) -> bool:
+	var deck := _deck_row()
+	for step in range(1, CEILING_LOOKAHEAD + 1):
+		var x := _cell_x() + step * heading
+		var head_blocked := _solid(Vector2i(x, deck - 2))
+		var body_clear := not _solid(Vector2i(x, deck - 1))
+		if head_blocked and body_clear:
+			return true
 	return false
 
 

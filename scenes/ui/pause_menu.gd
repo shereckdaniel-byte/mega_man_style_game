@@ -17,6 +17,9 @@ signal opened()
 signal closed()
 signal weapon_selected(weapon_id: StringName)
 signal etank_used(remaining: int)
+## The player asked to start the stage again. The stage decides what that means;
+## the menu only reports it.
+signal restart_requested()
 
 const BACKDROP := Color(0.03, 0.05, 0.10, 0.90)
 const ROW_COLOUR := Color(0.78, 0.86, 0.96)
@@ -25,6 +28,14 @@ const DIM_COLOUR := Color(0.45, 0.52, 0.64)
 
 ## The E-tank row sits after the weapons and is selected like one of them.
 const ETANK_ROW := &"__etank"
+## And a restart row after that.
+##
+## Not in the original, and not pretending to be. It is here because there is no
+## title screen yet and no stage select, so the only way to try the stage again
+## is to close the game and reopen it -- which makes an evening of playtesting
+## considerably worse than it needs to be. It can go when M8 brings a real
+## front end, or stay: plenty of modern releases keep one.
+const RESTART_ROW := &"__restart"
 
 var is_open := false
 ## Row ids in display order: the unlocked weapon ids, then ETANK_ROW.
@@ -102,6 +113,13 @@ func confirm() -> bool:
 		return false
 	if row == ETANK_ROW:
 		return use_etank()
+	if row == RESTART_ROW:
+		# Closed first: the stage is about to be rebuilt underneath this menu,
+		# and a menu left open would keep the tree paused with nothing to
+		# unpause it.
+		close()
+		restart_requested.emit()
+		return true
 	if _weapons == null or not _weapons.select(row):
 		return false
 	weapon_selected.emit(row)
@@ -180,6 +198,7 @@ func _refresh_rows() -> void:
 		for id: StringName in _weapons.unlocked():
 			rows.append(id)
 	rows.append(ETANK_ROW)
+	rows.append(RESTART_ROW)
 	# Open on whatever is equipped, so the common case -- open, switch back,
 	# close -- does not start by hunting for the cursor.
 	if _weapons != null:
@@ -218,6 +237,8 @@ func _redraw_rows() -> void:
 
 
 func _row_text(id: StringName) -> String:
+	if id == RESTART_ROW:
+		return "RESTART STAGE"
 	if id == ETANK_ROW:
 		var count: int = _state.etanks if _state != null else 0
 		return "E-TANK   x%d" % count
@@ -233,6 +254,8 @@ func _row_text(id: StringName) -> String:
 
 
 func _row_available(id: StringName) -> bool:
+	if id == RESTART_ROW:
+		return true
 	if id == ETANK_ROW:
 		return _state != null and _state.etanks > 0
 	if _weapons == null:

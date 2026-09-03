@@ -240,11 +240,24 @@ func has_headroom() -> bool:
 	return not headroom.is_colliding()
 
 
+## Swaps between the standing and sliding collision boxes.
+##
+## **Deferred, and it has to be.** Swapping a shape reaches the physics server
+## directly, and Godot forbids that from inside a physics callback -- it errors
+## with `body_set_shape_disabled` and leaves the change unapplied.
+##
+## Which is easy to write and hard to hit: it needs a hit to land *while the
+## player is sliding*, because the damage arrives through `Area2D.area_entered`,
+## which runs inside the physics step. Hurt then interrupts Slide, Slide's exit
+## restores the standing box, and the swap happens in the middle of the very
+## callback that started it. Stage 1 had no reason to slide until it gained a
+## tunnel, so the first slide next to an enemy was the first time anyone saw it.
 func use_slide_hitbox(sliding: bool) -> void:
 	var shape := _slide_shape if sliding else _stand_shape
-	collision.shape = shape
+	collision.set_deferred(&"shape", shape)
 	# Shapes are centred, and the actor's origin is at its feet.
-	collision.position.y = -shape.size.y * 0.5
+	collision.set_deferred(&"position", Vector2(collision.position.x,
+		-shape.size.y * 0.5))
 
 
 ## Freezes input and state. Used by door transitions, which move the player

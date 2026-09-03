@@ -68,15 +68,31 @@ func test_opening_pauses_the_tree_and_closing_releases_it() -> void:
 	assert_false(tree.paused, "the menu closed and left the tree paused")
 
 
-## With nothing unlocked the list is the buster and the E-tank row, and that is
-## the state a new game is in -- so it is the one most likely to be hit.
-func test_a_fresh_run_lists_the_buster_and_the_etank_row() -> void:
+## With nothing unlocked the list is the buster, the E-tank row and restart --
+## the state a new game is in, so the one most likely to be hit.
+func test_a_fresh_run_lists_the_buster_and_the_standing_rows() -> void:
 	if weapons == null:
 		return
 	menu.open()
-	assert_eq(menu.rows.size(), 2, "rows were %s" % str(menu.rows))
+	assert_eq(menu.rows.size(), 3, "rows were %s" % str(menu.rows))
 	assert_has(menu.rows, weapons.BUSTER)
 	assert_has(menu.rows, PauseMenu.ETANK_ROW)
+	assert_has(menu.rows, PauseMenu.RESTART_ROW)
+
+
+## Restart closes the menu before it reports. The stage is about to be rebuilt
+## underneath it, and a menu left open keeps the tree paused with nothing around
+## to unpause it -- a frozen game behind a panel that no longer belongs to
+## anything.
+func test_restart_closes_the_menu_and_unpauses() -> void:
+	menu.open()
+	menu.selected = menu.rows.find(PauseMenu.RESTART_ROW)
+	var asked := [0]
+	menu.restart_requested.connect(func() -> void: asked[0] += 1)
+	assert_true(menu.confirm())
+	assert_eq(asked[0], 1)
+	assert_false(menu.is_open, "the menu stayed open over a rebuilt stage")
+	assert_false(tree.paused, "the tree was left paused with no menu to unpause it")
 
 
 func test_an_unlocked_weapon_appears_and_can_be_equipped() -> void:

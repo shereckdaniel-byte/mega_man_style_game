@@ -86,6 +86,17 @@ const PIT_DEPTH := 24
 ## of it dry with a tile to spare.
 const TIDE_CEILING_ABOVE_DECK := 8
 
+## Rows of solid deck a ceiling is made of.
+const CEILING_THICKNESS := 2
+
+## Clearance, in rows, that forces a slide.
+##
+## The player's standing box is 24 NES px and the sliding one is 14
+## (PlayerTuning.NES_HITBOX / NES_SLIDE_HITBOX), and a tile is 16. So one row of
+## clearance is 16 px: a slide fits with 2 px to spare and standing does not fit
+## at all. Two rows would be 32 and let the player walk straight through.
+const SLIDE_CLEARANCE := 1
+
 ## One row per room, in the order the player meets them.
 ##
 ## `col` and `band` place the room on the grid; everything else is relative to
@@ -121,6 +132,17 @@ const ROOMS := [
 			[FLYER, "gullbot", &"fly", 8.0, 3.0],
 		],
 		"checkpoint": 2.0,
+		# The slide's first appearance, and it is genuinely **optional**: one row
+		# thick, so its top sits two tiles up and a jump reaches it. Go over or
+		# go under, both work. Introducing a mechanic and requiring it in the
+		# same breath is how a stage reads as unfair, so the player meets the
+		# move here with nothing riding on it, two rooms before Under West
+		# insists on it.
+		#
+		# At cell 4, not 6. A slide covers four tiles, so an overhang at 6 sets
+		# the player down at 10 -- which is the lip of the gap. The bot fell in
+		# fourteen times running before this moved.
+		"ceilings": [[4, SLIDE_CLEARANCE, 3, 1]],
 		# **No spikes here, deliberately.** A first draft put them at cell 13,
 		# one cell past a gap ending at 12 -- which is the landing. Spikes are
 		# instant death (Hazard), so that made the second room of the game an
@@ -153,6 +175,11 @@ const ROOMS := [
 		],
 		"checkpoint": 2.0,
 		"one_ways": [[11, 3, 4]],
+		# The tunnel the room was always described as having. One row of
+		# clearance: a slide fits, standing does not, and the spikes on its
+		# underside are what say so before you try.
+		"ceilings": [[13, SLIDE_CLEARANCE, 3]],
+		"ceiling_spikes": [[13, SLIDE_CLEARANCE, 3]],
 		# Clear of both landings. The gaps end at 10 and 20 and a jump carries
 		# about two cells past that, so anything at 11 or 21 is where the player
 		# comes down -- and these kill outright. 15 and 24 are open deck the
@@ -185,8 +212,24 @@ const ROOMS := [
 		# Travels 9 cells, not 7. At 7 it stopped at cell 15 against a gap that
 		# ends at 17 and set the player down two cells short, over open water.
 		# The authoring test caught it; the level looked fine.
-		"movers": [[8, 1, 9.0, 0.0, 150]],
-		"crumbles": [[19, 1], [21, 1], [23, 1]],
+		# Flush with the deck and starting *over* the gap, not a tile above it
+		# beside it. A platform that rests above the walkway has to be jumped
+		# onto, and a jump from the lip of an eight-cell gap is a commitment
+		# made before you can see where it lands. Level with the deck, you step
+		# on when it arrives and step off when it gets there.
+		"movers": [[9, 0, 8.0, 0.0, 150]],
+		# Stepping stones *inside* the ferry's gap, level with the deck: a second
+		# way across the same water. Ride the platform slowly and safely, or hop
+		# the planks quickly and hope. That is a choice; three crumbling blocks
+		# sitting on solid deck a row up -- which is where these started -- were
+		# waist-high obstacles that did nothing but get walked into.
+		"crumbles": [[10, 0], [12, 0], [14, 0], [16, 0]],
+		# Spikes at the bottom of the things you were already going to fall
+		# into. Mechanically this changes nothing -- the pit plane was lethal
+		# already -- but it makes the stakes visible at the moment the player
+		# decides whether to board the platform or trust the planks, instead of
+		# leaving them to find out by falling into water that looked survivable.
+		"pit_spikes": [[9, 3, 8], [19, 3, 6]],
 	},
 	{
 		"name": "Tide", "col": 4, "band": BAND_UNDER,
@@ -251,6 +294,7 @@ func _ready() -> void:
 	_add_arena(tile)
 	_add_hud()
 	_add_pause_menu()
+	_player.game_over.connect(_on_game_over)
 	begin(_player, _rooms[0])
 
 
@@ -319,6 +363,28 @@ func _build_deck(world_scale: float) -> void:
 				continue  # the hole the ladder goes through
 			for y in range(deck, deck + DECK_DEPTH):
 				cells.append(Vector2i(x, y))
+		# Overhead geometry. Authored as its own key rather than as a block,
+		# because a ceiling is something the player goes *under* and a block is
+		# something they climb *onto* -- and the step test cannot tell them
+		# apart from coordinates alone. [x, clearance_rows, w] leaves
+		# `clearance_rows` of open air above the deck and fills two rows above
+		# that, which is enough to stand on top of and impossible to walk
+		# through underneath.
+		for ceiling in spec.get("ceilings", []):
+			var cx := origin + int(ceiling[0])
+			# Thickness is optional and decides whether the tunnel can be
+			# *avoided*. One row puts the top surface two tiles above the deck,
+			# which a jump reaches, so the player may go over instead of under.
+			# Two rows puts it at three, which the jump cannot clear, and the
+			# slide becomes the only way through.
+			var thickness := int(ceiling[3]) if ceiling.size() > 3 else CEILING_THICKNESS
+			var cy := deck - int(ceiling[1]) - thickness
+			for x in range(cx, cx + int(ceiling[2])):
+				for y in range(cy, cy + thickness):
+					var cell := Vector2i(x, y)
+					if not cells.has(cell):
+						cells.append(cell)
+
 		for block in spec.get("blocks", []):
 			var bx := origin + int(block[0])
 			var by := deck - int(block[1])
@@ -432,6 +498,27 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		spikes.position = Vector2(float(origin + int(entry[0])),
 			float(deck) - float(entry[1])) * tile
 		add_child(spikes)
+
+	# Spikes hung on the underside of a ceiling: the thing that makes a low
+	# tunnel a slide rather than a duck.
+	for entry in spec.get("ceiling_spikes", []):
+		var teeth := Hazard.new()
+		teeth.name = "CeilingSpikes_%d_%d" % [origin + int(entry[0]), deck]
+		teeth.size_tiles = Vector2(float(entry[2]), 0.5)
+		# Hanging just below the ceiling's face, so a standing head meets them
+		# and a sliding one passes beneath.
+		teeth.position = Vector2(float(origin + int(entry[0])),
+			float(deck) - float(entry[1]) + 0.25) * tile
+		add_child(teeth)
+
+	# Spikes on the floor of a pit the player is already crossing.
+	for entry in spec.get("pit_spikes", []):
+		var floor_teeth := Hazard.new()
+		floor_teeth.name = "PitSpikes_%d_%d" % [origin + int(entry[0]), deck]
+		floor_teeth.size_tiles = Vector2(float(entry[2]), 0.5)
+		floor_teeth.position = Vector2(float(origin + int(entry[0])),
+			float(deck) + float(entry[1])) * tile
+		add_child(floor_teeth)
 
 	for entry in spec.get("one_ways", []):
 		var plat := OneWayPlatform.new()
@@ -633,6 +720,35 @@ func _add_pause_menu() -> void:
 	menu.name = "PauseMenu"
 	add_child(menu)
 	menu.bind(_player)
+	menu.restart_requested.connect(_restart_run)
+
+
+## Out of lives. Show the screen, then start the run over.
+##
+## The whole run, not the room: lives go back to the starting count and the
+## checkpoint is cleared, because a game over that dropped the player back at
+## the last checkpoint with no lives left would be a game over in name only.
+func _on_game_over() -> void:
+	if _player != null and is_instance_valid(_player):
+		_player.set_frozen(true)
+	var screen := GameOver.show_over(self)
+	screen.finished.connect(_restart_run)
+
+
+## Back to the top of the stage with a fresh life count.
+func _restart_run() -> void:
+	var state := get_node_or_null(^"/root/GameState")
+	if state != null:
+		state.lives = state.STARTING_LIVES
+		state.clear_checkpoint()
+	var weapons := get_node_or_null(^"/root/WeaponManager")
+	if weapons != null:
+		weapons.refill_all()
+	# Rebuilt rather than repaired. A stage carries spent spawn markers, a
+	# defeated boss, a receded tide and crumbled planks; putting all of that
+	# back by hand is a list that grows every time an element is added, and the
+	# one forgotten entry is a stage that looks reset and is not.
+	get_tree().reload_current_scene()
 
 
 ## Tide is down: award, pose, leave.

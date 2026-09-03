@@ -25,6 +25,37 @@ const STAGE := preload("res://scenes/stages/dawn_boardwalk/dawn_boardwalk.gd")
 ## was failing a shape the player walks up without noticing. Sorting the
 ## surfaces and checking the rises between them asks the question the player
 ## actually faces.
+## A ceiling is exempt from the step rule, and needs its own: it has to be low
+## enough that walking into it is impossible. Two rows of clearance is 32 px
+## against a 24 px standing box -- the player strolls through and the slide the
+## tunnel exists to demand never happens.
+func test_every_ceiling_forces_a_slide() -> void:
+	var t := PlayerTuning.new()
+	for spec in STAGE.ROOMS:
+		for ceiling in spec.get("ceilings", []):
+			var clearance_px: float = float(ceiling[1]) * PlayerTuning.NES_TILE
+			assert_true(clearance_px < t.NES_HITBOX.y,
+				"%s: ceiling at cell %d leaves %.0f px, and standing needs %.0f"
+					% [spec["name"], int(ceiling[0]), clearance_px, t.NES_HITBOX.y])
+			assert_true(clearance_px >= t.NES_SLIDE_HITBOX.y,
+				"%s: ceiling at cell %d leaves %.0f px, and a slide needs %.0f"
+					% [spec["name"], int(ceiling[0]), clearance_px,
+						t.NES_SLIDE_HITBOX.y])
+
+
+## A tunnel longer than a slide traps the player inside it: they run out of
+## slide, stand up into the ceiling, and are stuck under geometry they cannot
+## walk out of.
+func test_no_tunnel_is_longer_than_a_slide() -> void:
+	var t := PlayerTuning.new()
+	var reach := t.slide_distance_tiles()
+	for spec in STAGE.ROOMS:
+		for ceiling in spec.get("ceilings", []):
+			assert_true(float(ceiling[2]) < reach,
+				"%s: a %d-cell tunnel against a slide that covers %.1f"
+					% [spec["name"], int(ceiling[2]), reach])
+
+
 func test_no_step_is_taller_than_the_player_can_climb() -> void:
 	for spec in STAGE.ROOMS:
 		var heights: Array[int] = [0]  # the deck itself
