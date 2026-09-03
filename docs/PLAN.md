@@ -599,6 +599,37 @@ Worth stating plainly because it is the second time in two milestones: **both of
 these were found by looking at the game, not by running it.** The suite was green
 and the bot was winning through the whole of stage 1's two-sun period.
 
+### M6c — Substation's own six ✅ done
+
+M6a shipped stage 2 wearing the boardwalk's enemy skins and said so. Closed here:
+six substation reskins — **Breaker, Isolator, Arrester, Corona, Splicebox,
+Creeper** — one per archetype, generated in one batch so the style holds. Each is
+a thing that is actually in a switchyard and does roughly what its archetype
+does, which is the naming rule the boardwalk's Dockrat and Lampjack already set.
+
+The swap was one column of the room table, which is what M6a's base class was
+for. SPRITES.md §8d has the batch's numbers.
+
+**One animation each, because the game only ever plays one.** `Enemy` plays
+`anim_name` and nothing switches it; stage 1's Lampjack `fire` and Barnacle Hive
+`spawn` clips have never been played by anything. Six bases and six animations
+instead of the roster batch's thirty-odd.
+
+**Two of six bases were wrong, and §6a's rule caught both** — look at every base
+before animating any. Creeper came back with a pipe baked into the sprite, which
+is precisely the failure the first roster recorded, and the spawner came back
+with legs. Six credits to fix at the base; sixteen after animating.
+
+**Two authoring rules moved out of stage 1's test file** while this was in:
+"every enemy a stage names has art" and "the art carries the animation the table
+asks for" both lived in `test_dawn_boardwalk.gd`, so stage 2 was held to neither
+— and both fail silently by design, since `AuthoredStage` skips a marker whose
+art is missing and `Enemy` falls back to the first animation it finds. They are
+in `test_stage_authoring.gd` now, which loops over the roster.
+
+**Accepted:** the bot runs Substation end to end with the new roster — 0 deaths,
+26 of 28 HP, unchanged from M6a, which is the point: a reskin is not a rebalance.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
