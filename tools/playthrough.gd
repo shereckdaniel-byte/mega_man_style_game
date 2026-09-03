@@ -2,6 +2,7 @@
 ## far it got.
 ##
 ##   godot --headless --script res://tools/playthrough.gd
+##   godot --headless --script res://tools/playthrough.gd -- stage=substation
 ##   xvfb-run -a godot --script res://tools/playthrough.gd -- <out_dir>   # + a png
 ##
 ## **It advances on `physics_frame`, and that is not a detail.** It used to await
@@ -55,9 +56,16 @@
 ## Development tool: not referenced by the game or by CI.
 extends SceneTree
 
-## The stage under test, loaded directly. See the note above on why this is not
-## `application/run/main_scene`.
-const STAGE_SCENE := "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn"
+## The stages it knows how to drive, by the name passed after `--`.
+##
+## Loaded directly rather than through `application/run/main_scene`: see the note
+## above on why. Stage 1 is the default because it is the one with a difficulty
+## question open against it.
+const STAGES := {
+	"dawn_boardwalk": "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn",
+	"substation": "res://scenes/stages/substation/substation.tscn",
+}
+const DEFAULT_STAGE := "dawn_boardwalk"
 
 const DECK_ROW := 11
 const DECK_DEPTH := 2
@@ -133,15 +141,35 @@ func _initialize() -> void:
 	_run()
 
 
+## `stage=<name>` from the arguments after `--`, or the default.
+##
+## Keyed rather than positional because the tool already takes a positional
+## out_dir, and "the first argument is the stage unless it looks like a path" is
+## the kind of rule that silently drives the wrong stage.
+func _requested_stage() -> String:
+	for argument in OS.get_cmdline_user_args():
+		if not argument.begins_with("stage="):
+			continue
+		var name := argument.substr(6).strip_edges()
+		if STAGES.has(name):
+			return name
+		push_error("unknown stage %s; known: %s" % [name, ", ".join(STAGES.keys())])
+	return DEFAULT_STAGE
+
+
 func _run() -> void:
 	await physics_frame
-	change_scene_to_file(STAGE_SCENE)
+	var stage_name := _requested_stage()
+	print("stage: %s" % stage_name)
+	change_scene_to_file(STAGES[stage_name])
 	for i in 60:
 		await physics_frame
 
 	_stage = current_scene
 	_player = _stage.get_node("Player")
-	_deck = _stage.get_node("Boardwalk")
+	# "Terrain" in every stage: AuthoredStage names it for what it is, so the
+	# bot is not stage-specific for the sake of one node name.
+	_deck = _stage.get_node("Terrain")
 	var autoload := root.get_node_or_null(^"/root/Tuning")
 	if autoload != null:
 		_tile = autoload.player.tile_size()
@@ -196,7 +224,7 @@ func _run() -> void:
 		# The room matters as well as the x. Stage 1 is a U, and the Tide room
 		# sits *underneath* the boss door in the same column -- an x-only check
 		# reports success while the player is still under the deck.
-		if _room_index >= _stage.BOSS_DOOR_ROOM and x >= goal:
+		if _room_index >= _stage.boss_door_room_index() and x >= goal:
 			reached = true
 			print("REACHED the boss door at frame %d" % frame)
 			break
@@ -226,7 +254,11 @@ func _run() -> void:
 	# when there is a display: `xvfb-run -a godot --script ... -- <out_dir>`.
 	# Headless it is skipped rather than saving a blank, which is what asking the
 	# root viewport for its texture with nothing rendered into it produces.
-	var args := OS.get_cmdline_user_args()
+	# PackedStringArray has no filter(), so this is a loop rather than a one-liner.
+	var args: Array[String] = []
+	for argument in OS.get_cmdline_user_args():
+		if not argument.begins_with("stage="):
+			args.append(argument)
 	if args.size() > 0:
 		if DisplayServer.get_name() == "headless":
 			print("no display: skipping the screenshot (run under xvfb-run for one)")
@@ -377,7 +409,7 @@ func _phase_name(phase: int) -> String:
 
 ## Which way the exit from the current room lies: 0 across, +1 down, -1 up.
 func _exit_direction() -> int:
-	var rooms: Array = _stage.ROOMS
+	var rooms: Array = _stage.room_table()
 	if _room_index + 1 >= rooms.size():
 		return 0
 	var here: int = int(rooms[_room_index]["band"])
@@ -387,7 +419,7 @@ func _exit_direction() -> int:
 
 ## The world x of the shaft the current room exits through, or -1 across.
 func _shaft_x() -> float:
-	var rooms: Array = _stage.ROOMS
+	var rooms: Array = _stage.room_table()
 	var spec: Dictionary = rooms[_room_index]
 	var shaft: Array = spec.get("shaft", spec.get("shaft_up", []))
 	if shaft.is_empty():

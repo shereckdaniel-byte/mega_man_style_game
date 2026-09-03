@@ -3,9 +3,10 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M5b complete** — the player controller, combat, enemies, a boss with a weapon
-get, and stage 1 built from eight rooms and eight level elements. Verified on Godot
-4.7.stable, headless, in CI. Next up is M6, the remaining seven stages.
+**Status: M6a complete** — the player controller, combat, enemies, two bosses with weapon
+gets, and **two stages**: Dawn Boardwalk and Substation, both authored as room tables
+against a shared `AuthoredStage`. Verified on Godot 4.7.stable, headless, in CI. Next up
+is the rest of M6, stages 3–8.
 
 **Stage 1 wants a playtester.** Its difficulty is the one open question in the plan, and
 it is not one more bot run away — see docs/PLAN.md M5b. Run the game (a windowed run drops
@@ -15,10 +16,18 @@ breakdown prints to the console on a game over or a stage clear.
 ```sh
 GODOT=/path/to/godot ./tools/check.sh     # import + boot check + tests, same as CI
 
-# The bot: stage 1 from spawn to the boss door, then the fight. Prints a ledger of
+# The bot: a stage from spawn to the boss door, then the fight. Prints a ledger of
 # what the run cost, per room and per cause. Headless, and repeatable -- it advances
 # on physics frames, so a loaded machine gets the same answer as an idle one.
 godot --headless --script res://tools/playthrough.gd
+godot --headless --script res://tools/playthrough.gd -- stage=substation
+
+# Play a stage directly (a plain run drops into stage 1):
+godot scenes/stages/substation/substation.tscn
+
+# A shot of every room, for looking at a whole stage at once. Paste them onto the
+# (col, band) grid the room table declares and the sheet is the stage's shape.
+xvfb-run -a godot --script res://tools/stage_map.gd -- /tmp/out stage=substation
 
 # The full suite is about three and a half minutes, nearly all of it spent waiting on
 # real physics frames. While working on one thing, narrow it — arguments after `--` are
@@ -42,7 +51,9 @@ godot --headless --script res://tests/run_tests.gd -- rising_tide crest_wave
 | `tools/` | `bootstrap_input_map.gd` (regenerates the input map), `check.sh` |
 | `scenes/actors/player/` | `Player` plus one script per state under `states/` |
 | `scripts/core/playtest_log.gd` | What a run cost, per room and per cause. Attached to stage 1 and to the bot, so the two reports compare. |
-| `scenes/stages/dawn_boardwalk/` | Stage 1 — where a windowed run drops you |
+| `scenes/level/authored_stage.gd` | Everything a stage shares. A stage is a room table plus its differences. |
+| `scenes/stages/dawn_boardwalk/` | Stage 1, Dawn Boardwalk — where a windowed run drops you |
+| `scenes/stages/substation/` | Stage 2, Substation — Arc, and the dark-room gimmick |
 | `scenes/stages/test_room/` | M1 tuning room, opened directly when reading movement numbers off F3 |
 | `tests/` | Headless suite, including integration tests driving the real `CharacterBody2D` |
 

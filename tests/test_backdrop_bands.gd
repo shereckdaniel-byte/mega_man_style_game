@@ -39,7 +39,7 @@ func after_each_async() -> void:
 
 func test_the_backdrop_has_plates_for_every_band_the_stage_uses() -> void:
 	for index in STAGE.ROOMS.size():
-		var band: int = STAGE.room_band(index)
+		var band: int = int(STAGE.ROOMS[index]["band"])
 		var node: Node2D = backdrop.band_node(band)
 		assert_not_null(node, "%s sits in band %d, and the backdrop has plates for it"
 			% [STAGE.ROOMS[index]["name"], band])
@@ -52,7 +52,7 @@ func test_the_backdrop_has_plates_for_every_band_the_stage_uses() -> void:
 func test_the_stage_uses_both_bands() -> void:
 	var bands: Array[int] = []
 	for index in STAGE.ROOMS.size():
-		var band: int = STAGE.room_band(index)
+		var band: int = int(STAGE.ROOMS[index]["band"])
 		if not bands.has(band):
 			bands.append(band)
 	assert_true(bands.has(STAGE.BAND_DECK), "some rooms are on the deck")
@@ -106,3 +106,106 @@ func test_the_underside_is_lit_by_the_same_water() -> void:
 	assert_true(deep.b > deep.r,
 		"the deep water under the deck is blue, not mauve (%s)" % deep)
 	assert_true(deep.v < 0.5, "and it is dark down there (v=%.2f)" % deep.v)
+
+
+# --- The sun and its reflection -----------------------------------------------
+
+## **A reflection has to scroll with the thing it reflects.**
+##
+## The sun's glint was drawn into `water.png`, which scrolls at 0.4 against the
+## sky's 0.05, so it slid out from under the sun as the camera moved -- two
+## screens along they were most of a room apart. Lifting it onto its own plate at
+## the sky's rate fixes it by construction, and this is what stops a later edit
+## to either scroll factor from quietly undoing that.
+func test_the_sun_and_its_reflection_scroll_together() -> void:
+	var sun := _plate(BACKGROUND.SUN_PLATE)
+	var glint := _plate(BACKGROUND.GLINT_PLATE)
+	assert_false(sun.is_empty(), "no %s plate" % BACKGROUND.SUN_PLATE)
+	assert_false(glint.is_empty(), "no %s plate" % BACKGROUND.GLINT_PLATE)
+	assert_almost_eq(float(glint["scroll"]), float(sun["scroll"]), 0.0001,
+		"the glint scrolls at %.2f and the sun at %.2f -- they will drift apart"
+			% [float(glint["scroll"]), float(sun["scroll"])])
+
+
+## And they must tile on the same cadence, or they drift a plate-width at a time
+## instead of continuously. Same source width is the simplest way to guarantee it.
+func test_the_sun_and_its_reflection_tile_together() -> void:
+	var sun_texture := _texture(BACKGROUND.SUN_PLATE)
+	var glint_texture := _texture(BACKGROUND.GLINT_PLATE)
+	assert_not_null(sun_texture)
+	assert_not_null(glint_texture)
+	assert_eq(glint_texture.get_width(), sun_texture.get_width(),
+		"the glint plate is a different width from the sky, so they repeat out of step")
+
+
+## The disc has to actually be under the sun, not merely locked to it. Measured
+## from the art rather than from a constant, so regenerating either plate is
+## checked rather than assumed.
+func test_the_reflection_sits_under_the_sun() -> void:
+	var sun_x := _warm_centre(_texture(BACKGROUND.SUN_PLATE))
+	var glint_x := _warm_centre(_texture(BACKGROUND.GLINT_PLATE))
+	assert_true(absf(sun_x - glint_x) <= 3.0,
+		"the sun is centred at plate x=%.1f and its reflection at x=%.1f"
+			% [sun_x, glint_x])
+
+
+## Nothing sun-shaped is left in the water plate. The disc was drawn into it
+## originally, and a copy left behind would show through as a second reflection
+## that does not move with the first.
+func test_the_water_plate_no_longer_carries_the_reflection() -> void:
+	var water := _texture("Water")
+	assert_not_null(water)
+	var image := water.get_image()
+	var bright := 0
+	for y in image.get_height():
+		for x in image.get_width():
+			var c := image.get_pixel(x, y)
+			# The disc was a large area of strongly warm pixels; the water's own
+			# highlights are pale and neutral, so warmth is what separates them.
+			if c.r + c.g - 2.0 * c.b > 0.7:
+				bright += 1
+	assert_true(bright < 60,
+		"%d sun-coloured pixels left in the water plate" % bright)
+
+
+func _plate(name: String) -> Dictionary:
+	for plate in BACKGROUND.PLATES:
+		if String(plate["name"]) == name:
+			return plate
+	return {}
+
+
+func _texture(name: String) -> Texture2D:
+	var plate := _plate(name)
+	if plate.is_empty():
+		return null
+	var path: String = BACKGROUND.PLATE_DIR + String(plate["file"])
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
+## Where a plate's warm region is centred: the sun in one, its reflection in the
+## other.
+##
+## The **centre of the warm area**, not the single warmest pixel. The two are 13
+## px apart here -- the sun's brightest pixel is off to one side of its own disc
+## and the reflection's is off to the other -- which is a fact about dithering
+## rather than about where either disc is. Thresholding at half of each plate's
+## own peak, because the reflection is dimmer than the sun by design and a shared
+## absolute cut-off finds fourteen pixels of it.
+func _warm_centre(texture: Texture2D) -> float:
+	var image := texture.get_image()
+	var peak := 0.0
+	for y in image.get_height():
+		for x in image.get_width():
+			var c := image.get_pixel(x, y)
+			if c.a >= 0.5:
+				peak = maxf(peak, c.r + c.g - 2.0 * c.b)
+	var total := 0
+	var sum_x := 0.0
+	for y in image.get_height():
+		for x in image.get_width():
+			var c := image.get_pixel(x, y)
+			if c.a >= 0.5 and c.r + c.g - 2.0 * c.b > peak * 0.5:
+				total += 1
+				sum_x += float(x)
+	return sum_x / float(maxi(total, 1))
