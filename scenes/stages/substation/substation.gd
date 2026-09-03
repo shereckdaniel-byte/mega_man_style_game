@@ -46,18 +46,25 @@ const CRAWLER := preload("res://scenes/actors/enemies/wall_crawler.gd")
 const BAND_YARD := 0
 const BAND_TRENCH := 1
 
-## **Stage 2 wears stage 1's enemy skins, and that is a known gap, not a choice.**
-## The roster (docs/PLAN.md section 4) says the six archetypes are reskinned per
-## stage -- the behaviour is the archetype, the art is the theme -- and the
-## substation's six have not been drawn. Naming them here as the boardwalk's is
-## honest about it and keeps the stage playable and testable meanwhile; the swap
-## is one column of this table when the art lands.
-const SKIN_WALKER := "dockrat"
-const SKIN_HOPPER := "bollard"
-const SKIN_TURRET := "lampjack"
-const SKIN_FLYER := "gullbot"
-const SKIN_SPAWNER := "barnacle_hive"
-const SKIN_CRAWLER := "limpet"
+## The substation's six, one per archetype.
+##
+## The roster's rule (docs/PLAN.md section 4) is that **the behaviour is the
+## archetype and the art is the theme** -- the same six behaviours are reskinned
+## per stage rather than redesigned. So this is a column of names, and the
+## behaviour each wears is whatever `scenes/actors/enemies/` already does.
+##
+## Named off the switchyard rather than invented: a breaker is a switchgear
+## cabinet, an isolator is a knife switch on a ceramic stack, an arrester
+## discharges a surge, corona is the glow that creeps around a live conductor, a
+## splice box is where cables are joined, and creepage is the tracking current
+## that crawls across wet insulation. Each is a thing that is actually in a
+## substation and does roughly what its archetype does.
+const SKIN_WALKER := "breaker"
+const SKIN_HOPPER := "isolator"
+const SKIN_TURRET := "arrester"
+const SKIN_FLYER := "corona"
+const SKIN_SPAWNER := "splicebox"
+const SKIN_CRAWLER := "creeper"
 
 ## One row per room, in the order the player meets them. The key reference is in
 ## AuthoredStage's docstring; `dark` is this stage's own.

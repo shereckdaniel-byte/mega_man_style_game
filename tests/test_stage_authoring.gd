@@ -179,6 +179,43 @@ func test_a_slide_fits_under_the_teeth_and_standing_does_not() -> void:
 		"only %.0f px of slide clearance" % [sliding_head - teeth_bottom])
 
 
+## **Every skin a stage names has to exist.**
+##
+## A missing one is silent by construction: `AuthoredStage._add_marker` skips a
+## marker whose `SpriteFrames` are not on disk, which is right at runtime -- a
+## stage mid-regeneration should still open -- and means a typo in the skin
+## column deletes an enemy rather than erroring. Stage 1 has had this rule since
+## M4 and stage 2 was never held to it, because it lived in a file named after
+## stage 1.
+func test_every_enemy_a_stage_names_has_art() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for entry in spec.get("enemies", []):
+				var path := "res://resources/sprite_frames/%s.tres" % entry[1]
+				assert_true(ResourceLoader.exists(path),
+					"%s/%s: no art for %s -- the marker would be skipped in silence"
+						% [name, spec["name"], entry[1]])
+
+
+## And the art must carry the animation the table asks it to play. `Enemy` falls
+## back to the first animation in the resource, so a wrong name here is a walker
+## playing its death clip on a loop rather than an error.
+func test_every_enemy_has_the_animation_its_table_names() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for entry in spec.get("enemies", []):
+				var path := "res://resources/sprite_frames/%s.tres" % entry[1]
+				if not ResourceLoader.exists(path):
+					continue
+				var frames := load(path) as SpriteFrames
+				assert_true(frames.has_animation(entry[2]),
+					"%s: %s has no '%s' animation (it has %s)"
+						% [name, entry[1], entry[2],
+							", ".join(frames.get_animation_names())])
+
+
 ## A checkpoint over a gap respawns the player into the pit, forever.
 func test_every_checkpoint_stands_on_solid_deck() -> void:
 	for name in STAGES:

@@ -679,6 +679,51 @@ the plate's origin. Both are set in `parallax_background.gd`.
 Vertical scroll is 0 on every plate. A plate is sized to the viewport height
 exactly, so any vertical drift walks its edge into frame.
 
+#### Stage 2's enemy roster — the six skins, and what the M5 lesson saved
+
+The roster's rule is that the six archetypes are **reskinned** per stage: the
+behaviour is the archetype, the art is the theme. Substation's six, generated
+2026-09-03 in one batch so the style holds against the boardwalk's:
+
+| Archetype | Skin | What it is |
+| --- | --- | --- |
+| walker | **Breaker** | a switchgear cabinet walking on four insulated legs |
+| hopper | **Isolator** | a ceramic insulator stack on a spring, knife switch on top |
+| turret | **Arrester** | a fixed surge arrester whose discharge horn pivots and sparks |
+| flyer-sine | **Corona** | a caged ball of discharge drifting on a conductor ring |
+| spawner | **Splicebox** | a legless junction box spilling sparking cables |
+| wall-crawler | **Creeper** | a flat many-legged clamp unit, blue tracking arcs on its back |
+
+**One animation each, not six.** `Enemy` plays exactly one clip — `anim_name`,
+falling back to the first in the resource — and nothing in the game ever switches
+it. Stage 1's Lampjack has a `fire` clip and its Barnacle Hive a `spawn` clip;
+neither has ever been played. So the substation set is six bases and six
+animations rather than the roster batch's four-to-six apiece.
+
+**Cost: 48 of 74 credits.** Six `pro` bases (18), two regenerated (6), six
+animations (30). Which brings up the thing §6a said and this batch proved:
+
+> *Do the base images first, all of them, and look at them together.*
+
+Two of the six came back wrong, and both would have been invisible in a
+spritesheet listing:
+
+- **Creeper had a pipe baked into the sprite** — the exact failure §6a records
+  from the first roster, where a character arrived with a wooden piling attached.
+  A wall-crawler carrying its own scenery will never match the wall it clings to.
+- **Splicebox had legs.** The spawner is a fixed emplacement; a legged one reads
+  as a walker that happens not to walk.
+
+Catching both at the base cost 6 credits. Catching them after animating would
+have cost 16, and catching them in-engine would have cost a session. The
+regenerated characters are named `Creeper2` and `Splicebox2` in AutoSprite — the
+repo directories are `creeper/` and `splicebox/`, since the version number is an
+artefact of the retry and not part of the design.
+
+The prompt that fixed both was the same in each case: **name the absence.** "No
+pipe, no cable, no wall, no floor, no scenery of any kind" and "no legs, no feet"
+worked where describing only what was wanted did not.
+
 #### A landmark belongs to one plate, and both stages got that wrong
 
 Parallax plates move at different rates -- that is what makes them parallax --
