@@ -25,6 +25,10 @@ godot --headless --script res://tools/playthrough.gd -- stage=substation
 # Play a stage directly (a plain run drops into stage 1):
 godot scenes/stages/substation/substation.tscn
 
+# A shot of every room, for looking at a whole stage at once. Paste them onto the
+# (col, band) grid the room table declares and the sheet is the stage's shape.
+xvfb-run -a godot --script res://tools/stage_map.gd -- /tmp/out stage=substation
+
 # The full suite is about three and a half minutes, nearly all of it spent waiting on
 # real physics frames. While working on one thing, narrow it — arguments after `--` are
 # substrings matched against file and method names, and this takes a second or two:
