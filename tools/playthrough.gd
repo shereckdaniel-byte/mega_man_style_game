@@ -141,7 +141,9 @@ func _run() -> void:
 
 	_stage = current_scene
 	_player = _stage.get_node("Player")
-	_deck = _stage.get_node("Boardwalk")
+	# "Terrain" in every stage: AuthoredStage names it for what it is, so the
+	# bot is not stage-specific for the sake of one node name.
+	_deck = _stage.get_node("Terrain")
 	var autoload := root.get_node_or_null(^"/root/Tuning")
 	if autoload != null:
 		_tile = autoload.player.tile_size()
@@ -196,7 +198,7 @@ func _run() -> void:
 		# The room matters as well as the x. Stage 1 is a U, and the Tide room
 		# sits *underneath* the boss door in the same column -- an x-only check
 		# reports success while the player is still under the deck.
-		if _room_index >= _stage.BOSS_DOOR_ROOM and x >= goal:
+		if _room_index >= _stage.boss_door_room_index() and x >= goal:
 			reached = true
 			print("REACHED the boss door at frame %d" % frame)
 			break
@@ -377,7 +379,7 @@ func _phase_name(phase: int) -> String:
 
 ## Which way the exit from the current room lies: 0 across, +1 down, -1 up.
 func _exit_direction() -> int:
-	var rooms: Array = _stage.ROOMS
+	var rooms: Array = _stage.room_table()
 	if _room_index + 1 >= rooms.size():
 		return 0
 	var here: int = int(rooms[_room_index]["band"])
@@ -387,7 +389,7 @@ func _exit_direction() -> int:
 
 ## The world x of the shaft the current room exits through, or -1 across.
 func _shaft_x() -> float:
-	var rooms: Array = _stage.ROOMS
+	var rooms: Array = _stage.room_table()
 	var spec: Dictionary = rooms[_room_index]
 	var shaft: Array = spec.get("shaft", spec.get("shaft_up", []))
 	if shaft.is_empty():

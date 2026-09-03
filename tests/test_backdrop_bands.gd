@@ -39,7 +39,7 @@ func after_each_async() -> void:
 
 func test_the_backdrop_has_plates_for_every_band_the_stage_uses() -> void:
 	for index in STAGE.ROOMS.size():
-		var band: int = STAGE.room_band(index)
+		var band: int = int(STAGE.ROOMS[index]["band"])
 		var node: Node2D = backdrop.band_node(band)
 		assert_not_null(node, "%s sits in band %d, and the backdrop has plates for it"
 			% [STAGE.ROOMS[index]["name"], band])
@@ -52,7 +52,7 @@ func test_the_backdrop_has_plates_for_every_band_the_stage_uses() -> void:
 func test_the_stage_uses_both_bands() -> void:
 	var bands: Array[int] = []
 	for index in STAGE.ROOMS.size():
-		var band: int = STAGE.room_band(index)
+		var band: int = int(STAGE.ROOMS[index]["band"])
 		if not bands.has(band):
 			bands.append(band)
 	assert_true(bands.has(STAGE.BAND_DECK), "some rooms are on the deck")
