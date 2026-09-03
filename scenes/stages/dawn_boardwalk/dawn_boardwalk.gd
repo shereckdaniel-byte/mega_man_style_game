@@ -31,6 +31,7 @@ const PLAYER_SCENE := preload("res://scenes/actors/player/player.tscn")
 const TILESET := preload("res://resources/tilesets/dawn_boardwalk.tres")
 const HUD_SCRIPT := preload("res://scenes/ui/hud.gd")
 const PAUSE_MENU := preload("res://scenes/ui/pause_menu.gd")
+const DEBUG_OVERLAY := preload("res://scenes/ui/debug_overlay.gd")
 const TIDE := preload("res://scenes/actors/bosses/tide.gd")
 ## Tide's art, for the award screen. Loaded by path rather than preloaded so the
 ## stage still opens if the sprite frames are mid-regeneration.
@@ -272,6 +273,7 @@ var _deck: TileMapLayer
 var _rooms: Array[Room] = []
 var _backdrop: Node2D
 var _tide: RisingTide = null
+var _log: PlaytestLog = null
 
 
 func _ready() -> void:
@@ -299,7 +301,10 @@ func _ready() -> void:
 	room_changed.connect(_on_room_changed_backdrop)
 	_add_hud()
 	_add_pause_menu()
+	_add_playtest_log()
+	_add_overlay()
 	_player.game_over.connect(_on_game_over)
+	stage_cleared.connect(_print_ledger.bind("stage cleared"))
 	begin(_player, _rooms[0])
 
 
@@ -728,6 +733,51 @@ func _add_pause_menu() -> void:
 	menu.restart_requested.connect(_restart_run)
 
 
+## The playtest ledger, on for every run of this stage.
+##
+## **This is here so that a person playing produces the same artefact the bot
+## does.** Stage 1's difficulty is the open question in docs/PLAN.md, and the one
+## thing that will settle it is somebody playing it -- but a session that ends in
+## "that felt hard" settles nothing either. Ending it with a table of which rooms
+## cost what, in the same layout tools/playthrough.gd prints, means the two can
+## be laid side by side: a cost only the bot pays is the bot's, and a cost they
+## both pay is the stage's.
+##
+## Always recording rather than behind a flag. It is a handful of signal
+## connections and an array, the game has no title screen to enable it from yet,
+## and a playtest instrument that has to be remembered before the session is one
+## that produces nothing after it. Revisit at M8.
+func _add_playtest_log() -> void:
+	_log = PlaytestLog.new()
+	_log.name = "PlaytestLog"
+	add_child(_log)
+	_log.watch(_player, self)
+
+
+## F3, the same overlay the M1 tuning room uses, plus the running ledger.
+##
+## Stage 1 had none: every readout in the project pointed at the test room, so
+## the one place anybody would actually play was the one place showing nothing.
+func _add_overlay() -> void:
+	var overlay := CanvasLayer.new()
+	overlay.set_script(DEBUG_OVERLAY)
+	# Both set before it enters the tree: _ready resolves them, so assigning
+	# afterwards leaves the overlay looking at nothing.
+	overlay.player_path = _player.get_path()
+	overlay.playtest_log_path = _log.get_path()
+	overlay.visible = false
+	add_child(overlay)
+
+
+## Prints the run's ledger to the console. Called when a run ends, either way.
+func _print_ledger(reason: String) -> void:
+	if _log == null:
+		return
+	print("playtest ledger -- %s" % reason)
+	for line in _log.report():
+		print(line)
+
+
 ## Held as a reference rather than looked up by name, and called without a
 ## `has_method` guard: both of those turn a backdrop that stopped answering into
 ## a silent no-op, and a silent no-op here looks exactly like art nobody made.
@@ -744,6 +794,7 @@ func _on_room_changed_backdrop(room_entered: Room) -> void:
 ## checkpoint is cleared, because a game over that dropped the player back at
 ## the last checkpoint with no lives left would be a game over in name only.
 func _on_game_over() -> void:
+	_print_ledger("game over")
 	if _player != null and is_instance_valid(_player):
 		_player.set_frozen(true)
 	var screen := GameOver.show_over(self)

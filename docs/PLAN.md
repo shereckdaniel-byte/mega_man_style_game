@@ -409,6 +409,94 @@ two vertical transitions where before it had gaps and blocks. Length is the chea
 those to add later and the least useful on its own. But the criterion was missed and is
 recorded as missed rather than quietly rewritten to fit.
 
+### M5b — The open question, and why it could not be asked ✅ done
+
+M5a closed with "the difficulty moved twice today and nobody has played it": the stage
+cost 4 HP in the morning and 12 by the evening, and the bot went from no deaths to eight.
+The conclusion drawn was that no further measurement would settle it and a person had to
+play. **That conclusion was right and the reasoning under it was wrong.** None of those
+three figures measured the stage.
+
+**The bot was measuring the machine.** `tools/playthrough.gd` advanced on
+`process_frame` — a *rendered* frame — while every constant in it counts physics ticks,
+and Godot runs as many physics ticks per rendered frame as it needs to keep up with the
+wall clock. Alone on a quiet box that is one and the two agree. Under load it is two or
+three, and the bot then decides once per three ticks: it holds a jump for 48 ticks instead
+of 16 and walks blindly past the lip of every gap it is watching for. Four runs of the
+same commit, no code change between them:
+
+| | deaths to the boss door | outcome |
+| --- | --- | --- |
+| alone on the box | **0** | reached, 22 HP |
+| four in parallel | **34** | reached, 20 HP |
+| four in parallel | **36** | reached, 20 HP |
+| four in parallel | **32** | never left room 1 |
+
+Eight is a sample from that spread, and so is zero. Awaiting `physics_frame` instead locks
+one decision to one tick whatever else the box is doing. The same four-in-parallel run now
+returns the same ledger four times, to the HP.
+
+Two more things fell out of fixing it, both invisible until the frames lined up:
+
+- **`JUMP_HOLD` was 16 where the rise takes 19.75** (`jump_velocity_pf / gravity_pf`), so
+  the bot cut every jump to four-fifths and landed a third of a tile short. It never
+  showed, because 16 rendered frames used to be 28 physics ticks and the release landed
+  past the apex anyway. A constant that only works when the loop is broken.
+- **Falling in a pit cost two lives.** `KillPlane` re-checks `get_overlapping_bodies()`
+  every frame, and that list is the physics server's answer from the *previous* step. A
+  respawn moves the player out in one assignment, so for one frame the list still holds
+  them — and a pit is the one thing in the game that ignores i-frames by design, so the
+  respawn's grace period could not stop it. The player reappeared at the checkpoint and
+  died again immediately, at coordinates a hundred rows above the nearest water. Nothing
+  in the game reads *why* something died, which is why it survived M4 and M5a; it surfaced
+  the hour a ledger started printing the cause and the place.
+
+**What stage 1 actually costs**, now that the number is reproducible — same result on four
+concurrent runs:
+
+| Room | HP | Deaths |
+| --- | --- | --- |
+| Arrival, Under West, Tide, Boss Door | 0 | 0 |
+| Pilings | 2 | 0 |
+| Descent | 2 | 0 |
+| Under East | 2 | 0 |
+| **Traversal total** | **6 of 28** | **0** |
+| Arena (Tide) | 22 | 1 |
+
+So the stage is not the expensive half and never was: **6 HP across eight rooms, and the
+boss takes everything else.** Both earlier readings — "4 HP, possibly too comfortable" and
+"12 HP and eight deaths" — pointed at the wrong half of the level.
+
+**The open question is still open, and it is now a smaller one.** Nobody has played this.
+Six HP over eight rooms is the bot's cost, and the bot knows where every gap is and never
+panics; a person meeting the crumbling planks over spiked water for the first time will
+pay more, and how much more is exactly what no bot run can say. What has changed is that
+the question is now *askable*: it is about the arena and the three rooms that cost
+anything, rather than about a number that moved twice for reasons nobody had found.
+
+**How to ask it.** Run the game — a windowed run drops straight into stage 1 — and play it
+through. **F3** shows the run so far: health lost per room, deaths, and re-entries. The
+same ledger prints to the console on a game over and on a stage clear, in the same layout
+`tools/playthrough.gd` prints, so a session and a bot run can be laid side by side. That
+comparison is the instrument: **a cost only the person pays is the stage asking for
+something, and a cost they both pay is the stage's arithmetic.**
+
+Three things worth an opinion, in the order they will come up:
+
+1. **Under East** — the ferry or the crumbling planks over spiked water. It is the only
+   real choice in the stage and it costs the bot 2 HP. Does the choice read as a choice?
+2. **The Tide room** — costs nothing at all, which for the stage's one gimmick is either
+   a well-judged introduction or a wasted room.
+3. **Tide**, the fight, which costs 22 of the 28. The bot lost it on every run recorded
+   here where M5 recorded six wins in six — but the bot's dodging counters were on the
+   same broken clock as everything else, so read that as "look at the fight", not as
+   evidence about it. That is the docstring's own instruction and it still holds.
+
+**No difficulty number was changed here, deliberately.** Every knob was left where M5a put
+it. Tuning against a bot that was measuring the machine is what produced two of the three
+figures in the first place, and tuning against a fixed bot before a person has played
+would just be the same mistake with better instruments.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
