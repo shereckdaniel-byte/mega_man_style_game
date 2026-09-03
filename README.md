@@ -59,9 +59,32 @@ godot --headless --script res://tests/run_tests.gd -- rising_tide crest_wave
 
 ## Controls
 
-Arrows/WASD move, **Z or Space** jump, **X** shoot, **Q/E** cycle weapons, **F3** debug
-overlay and playtest ledger. **Slide is down + jump**, as in Mega Man 3 — not its own
-binding.
+| | Keyboard | Gamepad |
+| --- | --- | --- |
+| Move | ← → , A D | D-pad, left stick |
+| Aim up / climb | ↑ ↓ , W S | D-pad, left stick |
+| Jump | **Z** or **Space** | A (bottom face) |
+| Shoot | **X** | X (west face) |
+| Sword | **C** | Y (north face) |
+| Cycle weapon | **Q** / **E** | LB / RB |
+| Pause / weapon menu | **Enter** or **Esc** | Start |
+| Debug overlay + playtest ledger | **F3** | — |
+
+**Slide is down + jump**, as in Mega Man 3 — not its own binding.
+
+**Three attacks, and two of them are not discoverable**, so they are written down here
+rather than left to be found:
+
+- **Tap X** — the buster pellet. 1 damage, 3 live shots at once. Tap-firing is still the
+  best damage per second in the game.
+- **Hold X** — charges. 40 frames (~0.7 s) for a mid blast at 2 damage, 85 (~1.4 s) for a
+  full one at 3. Deliberately *worse* per frame than tapping: it trades rate for a single
+  big hit. Taking a hit cancels it.
+- **C** — the sword. 3 damage and no ammo, in exchange for standing still inside an
+  enemy's reach for the whole 20-frame swing with no cancel.
+
+In the pause menu, ↑/↓ moves and **Z or X** confirms; the rows are the weapons, then
+E-Tank, then Restart. On the game-over screen, **Z or X** continues.
 
 ## Ground rules
 

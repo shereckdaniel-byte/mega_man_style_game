@@ -11,6 +11,14 @@ extends SceneTree
 
 const DEADZONE := 0.5
 
+## **Re-running this drops any project setting that equals its engine default.**
+## `ProjectSettings.save()` writes only what differs, so the explicit
+## `rendering/textures/canvas_textures/default_texture_filter=1` line disappears
+## -- Linear *is* the Godot 4 default, so nothing changes behaviourally and the
+## settings tests still pass. What is lost is the declaration that Linear was a
+## decision (SPRITES section 7 reversed it from Nearest), which is worth knowing
+## before wondering where the line went.
+
 # action -> { keys, buttons, axes: [[axis, direction], ...] }
 const BINDINGS := {
 	&"move_left":   {"keys": [KEY_LEFT, KEY_A],  "buttons": [JOY_BUTTON_DPAD_LEFT],  "axes": [[JOY_AXIS_LEFT_X, -1.0]]},
@@ -20,6 +28,11 @@ const BINDINGS := {
 	# Slide is deliberately not an action: it is move_down + jump, as in Mega Man 3.
 	&"jump":        {"keys": [KEY_Z, KEY_SPACE], "buttons": [JOY_BUTTON_A]},
 	&"shoot":       {"keys": [KEY_X],            "buttons": [JOY_BUTTON_X]},
+	# The sword. It was bound directly in project.godot when it was added and
+	# never entered here, so for two milestones it existed in the generated file
+	# and in no generator -- working, and owned by nothing. Re-running this tool
+	# left it alone rather than deleting it, which is why nothing noticed.
+	&"melee":       {"keys": [KEY_C],            "buttons": [JOY_BUTTON_Y]},
 	&"weapon_prev": {"keys": [KEY_Q],            "buttons": [JOY_BUTTON_LEFT_SHOULDER]},
 	&"weapon_next": {"keys": [KEY_E],            "buttons": [JOY_BUTTON_RIGHT_SHOULDER]},
 	&"pause":       {"keys": [KEY_ENTER, KEY_ESCAPE], "buttons": [JOY_BUTTON_START]},
