@@ -319,6 +319,55 @@ passed and the playthrough won. And **Tide jumped out of the arena**: apex goes 
 an 11.6-tile leap into an 11-tile room; it left through the ceiling and kept fighting from
 above it.
 
+### M5a — Level-element library and stage 1 extended (prerequisite for M6)
+
+**Why this exists.** Stage 1 is built from exactly two things: gaps in the deck, and
+raised blocks. Everything else in `scenes/level/` is structural — rooms, doors,
+checkpoints, spawn markers. `Ladder` and `Hazard` are built and used by nothing; layer 2
+(`one_way`) and layer 13 (`platform`) are reserved in the collision table with no
+implementation behind them.
+
+M6 promises eight stages that each have their own gimmick, and that promise is real — but
+**a gimmick is seasoning, not the meal.** Eight stages built from "the same two elements
+plus one twist" are eight versions of stage 1 with a filter over each. MM3's stages feel
+distinct because the *base* vocabulary is rich — moving platforms and ladders are in
+nearly every stage, arranged differently — and the gimmick sits on top of that.
+
+So the base vocabulary gets built once, before seven stages are authored against a kit of
+two:
+
+| Element | Why |
+| --- | --- |
+| **Moving platforms** — horizontal, vertical, cyclic | The most-used element in the genre after solid ground |
+| **One-way platforms** | Jump up through, drop down with Down+Jump; layer 2 already reserved |
+| **Vertical room transitions** | The M4 ⬜ item. Turns ladders from decoration into structure |
+| **Crumbling blocks** | Timed geometry — and the basis for Mirror Field's disappearing blocks |
+| **Spikes** (`Hazard`, already built) | Stage 1 has none; the class has never been placed |
+
+This also makes four of the eight gimmicks nearly free. Dark room, conveyor, wind and ice
+are a shader or a physics tweak on top of ordinary rooms; crusher and disappearing blocks
+are timed geometry, which is the crumbling block generalised. Only **rising tide** and
+**swim** need new movement states.
+
+**Stage 1 is then extended to eight rooms**, from four. At ~19 s of traversal it is a
+quarter of an MM3 stage (90–150 s), and it has no gimmick at all — the one stage that
+exists is the one missing the thing every stage is supposed to have.
+
+| Rooms | Content |
+| --- | --- |
+| 1–2 | Boardwalk as now: walking, gaps, the archetypes |
+| 3 | **Descend** — ladders down under the deck |
+| 4–5 | Under-deck: tight, crawlers on the pilings, low ceilings that want the slide |
+| 6 | **The tide rises** — water climbs, you climb ahead of it |
+| 7 | Back on the deck, the hardest run in the stage |
+| 8 | Boss door → arena |
+
+Doing this **before** stage 2 is the point, not a detour: stage 2 copies whatever stage 1
+is. Copying four flat rooms sets the ceiling for the whole game.
+
+**Accept:** stage 1 runs 60–90 s of traversal, uses at least five distinct level elements,
+and the rising tide cannot soft-lock a player anywhere in it.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
