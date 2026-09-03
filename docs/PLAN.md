@@ -571,6 +571,34 @@ back inside the span at the end of every frame, whatever a pattern did with its
 velocity. A pattern is now free to be wrong about its own arithmetic without
 taking the fight off the screen.
 
+### M6b — A landmark belongs to one plate ✅ done
+
+Shooting every room of both stages onto their room grids (`tools/stage_map.gd`)
+showed stage 1's sun with a second sun below it, drifting further right with each
+room. The reflection had been drawn into `water.png`, which scrolls at 0.4
+against the sky's 0.05, so it slid out from under the sun as the camera moved.
+
+The same fault was in stage 2, one milestone old and not yet far enough apart to
+notice: the pylon plate was generated with its own sky, and the keying pass that
+removed that sky left the moon and the stars behind as islands — so the moon
+existed twice, at 0.05 and at 0.2.
+
+Fixed in both by moving pixels rather than redrawing them: stage 1's reflection
+now has its own plate at the sky's scroll rate, and stage 2's pylons have had the
+sky's leftovers cleared. SPRITES.md §8c has the mechanics.
+
+**The rule is now a test** (`tests/test_backdrops.gd`), across every stage, and
+what makes it work is measuring the **largest connected bright region** rather
+than counting bright pixels. The duplicated sun was one blob of 500 px and the
+duplicated moon one of 71; the substation's transformer lamps are 268 bright
+pixels in thirty blobs of five. A pixel count ranks the lamps above the moon and
+catches the wrong thing. Verified against the pre-fix art, where it names both
+faults and fails.
+
+Worth stating plainly because it is the second time in two milestones: **both of
+these were found by looking at the game, not by running it.** The suite was green
+and the bot was winning through the whole of stage 1's two-sun period.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the

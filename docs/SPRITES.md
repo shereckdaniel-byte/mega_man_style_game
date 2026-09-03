@@ -679,6 +679,48 @@ the plate's origin. Both are set in `parallax_background.gd`.
 Vertical scroll is 0 on every plate. A plate is sized to the viewport height
 exactly, so any vertical drift walks its edge into frame.
 
+#### A landmark belongs to one plate, and both stages got that wrong
+
+Parallax plates move at different rates -- that is what makes them parallax --
+so anything the player reads as a single object has to live on exactly one of
+them. Both stages shipped a version of the same fault, and neither is visible in
+a still:
+
+| Stage | What was duplicated | The two rates |
+| --- | --- | --- |
+| Dawn Boardwalk | the sun's reflection, drawn into `water.png` | sky 0.05 vs water 0.4 |
+| Substation | the moon and stars, left in `pylons.png` by the keying pass | sky 0.05 vs pylons 0.2 |
+
+Stage 1's was the obvious one once the camera moved: the reflection slid out from
+under the sun and two rooms along they were most of a screen apart -- two suns,
+one of them in the sea. Stage 2's had not yet separated far enough to notice.
+
+**Stage 1's fix moves the pixels, it does not redraw them.** The disc was lifted
+out of `water.png` onto `sun_glint.png` -- same art, transparent everywhere else,
+same 400 px width so it tiles on the sky's cadence -- and given the sky's scroll
+factor. The hole it left was cloned from the same rows 90 px along rather than
+filled with a flat colour: the plate is streaked bands, and a flat fill leaves a
+visibly calm patch in the shape of the disc. Two details worth knowing if this is
+ever redone:
+
+- the footprint has to be the **whole disc**, not its bright pixels. The water's
+  own dark bands are drawn across the reflection, so a mask of "what is yellow"
+  lifts the top half and leaves the bottom half behind as a dark crescent;
+- and the silhouette is a **circle**, derived from the horizontal extent and the
+  top edge. Following the bright pixels row by row stops halfway down for the
+  same reason.
+
+Stage 2's fix is one threshold: the silhouette tops out at min-channel 111 and
+the moon and stars start at 192, so clearing everything above 150 takes the sky
+out and leaves the pylons untouched.
+
+`tests/test_backdrops.gd` holds the rule for every stage, keyed on the **largest
+connected bright region** rather than on a count of bright pixels. That
+distinction is the whole test: the duplicated sun was one blob of 500 px and the
+duplicated moon one of 71, while the substation's transformer lamps are 268
+bright pixels in thirty blobs of five. Counting pixels ranks the lamps above the
+moon and catches the wrong thing.
+
 #### Stage 2's art, and one thing `no_background` does not do
 
 Substation's terrain is `assets/tilesets/substation/`, generated the same way

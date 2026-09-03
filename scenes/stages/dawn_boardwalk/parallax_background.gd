@@ -49,12 +49,35 @@ const HORIZON := 130.0
 ## Vertical scroll is 0 on every plate. A plate is placed against the viewport
 ## rather than the world, so it must not drift when the camera rises or the
 ## horizon would walk off the top of the screen.
+## **`SunGlint` scrolls with `Sky`, and that is the whole point of it existing.**
+##
+## The sun's reflection was drawn into `water.png`, which is a perfectly sensible
+## thing for an artist to hand over and exactly wrong once the plates move at
+## different rates: the water is nearer than the sky, so it scrolls eight times
+## faster, and the reflection slid out from under the sun as the camera moved.
+## Two screens along they were most of a room apart -- two suns, one of them in
+## the sea, and nothing in the level to explain either.
+##
+## **A reflection belongs to the thing it reflects.** So the disc was lifted out
+## of the water plate onto its own, given the sky's scroll factor, and drawn in
+## front of the water. It is the same pixels; only the layer changed. Both plates
+## are 400 art px wide and scroll at 0.05, so they tile on the same cadence and
+## the glint stays under the sun at every camera position rather than at the one
+## the numbers happened to agree on. `tests/test_backdrop_bands.gd` pins the two
+## together, since a later change to either scroll factor would pull them apart
+## again with nothing on screen to say why.
 const PLATES := [
 	{"name": "Sky", "file": "sky.png", "scroll": 0.05, "top": 0.0, "z": -100},
 	{"name": "Skyline", "file": "skyline.png", "scroll": 0.2, "top": HORIZON - 40.0, "z": -90},
 	{"name": "Water", "file": "water.png", "scroll": 0.4, "top": HORIZON, "z": -80},
+	{"name": "SunGlint", "file": "sun_glint.png", "scroll": 0.05, "top": HORIZON, "z": -70},
 	{"name": "Pilings", "file": "pilings.png", "scroll": 1.2, "top": 156.0, "z": 100},
 ]
+
+## The two plates that have to move together: the sun is drawn into the first and
+## its reflection into the second.
+const SUN_PLATE := "Sky"
+const GLINT_PLATE := "SunGlint"
 
 ## Plate size for the drawn under-deck set, in art pixels. One viewport tall and
 ## a little over one wide, matching the surface plates so both bands tile at the
