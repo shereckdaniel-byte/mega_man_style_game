@@ -33,6 +33,7 @@ var _airborne := false
 func enter(_msg: Dictionary = {}) -> void:
 	var player: Player = host
 	_airborne = not player.is_on_floor()
+	_fit_clip_to_swing(player)
 	# Planted: no drifting through the swing, and the direction is whatever the
 	# player was facing when they committed. In the air the existing horizontal
 	# momentum is kept, because stopping it dead mid-jump would drop the player
@@ -44,7 +45,40 @@ func enter(_msg: Dictionary = {}) -> void:
 
 
 func exit() -> void:
-	(host as Player).end_melee()
+	var player: Player = host
+	player.end_melee()
+	if player.sprite != null:
+		player.sprite.speed_scale = 1.0
+
+
+## Plays the swing clip at whatever rate makes it finish in `SWING_FRAMES`.
+##
+## **Without this the sword shows about three frames of its animation.** The
+## importer sets a clip's fps from its source frame count, deliberately, so that
+## trimming a wind-up does not speed the motion up (SPRITES section 4a) -- which
+## is right for a clip that runs on its own clock, and wrong for one whose length
+## is decided by a game state. `attack` imports at 10.7 fps and the swing lasts
+## 20 physics frames, a third of a second: four frames of a twenty-odd frame
+## clip. A playtester's report of it was "there seems to be only one animation",
+## which is exactly what four frames of a slow clip looks like.
+##
+## Computed from the resource rather than written down, so regenerating the art
+## at a different length keeps the swing the same length.
+func _fit_clip_to_swing(player: Player) -> void:
+	if player.sprite == null or player.sprite.sprite_frames == null:
+		return
+	var frames: SpriteFrames = player.sprite.sprite_frames
+	if not frames.has_animation(anim_name):
+		return
+	var count := frames.get_frame_count(anim_name)
+	var fps := frames.get_animation_speed(anim_name)
+	if count <= 0 or fps <= 0.0:
+		return
+	var clip_seconds := float(count) / fps
+	var swing_seconds := float(SWING_FRAMES) / PlayerTuning.FPS
+	if swing_seconds <= 0.0:
+		return
+	player.sprite.speed_scale = clip_seconds / swing_seconds
 
 
 func physics_update(delta: float) -> StringName:

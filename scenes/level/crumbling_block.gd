@@ -158,8 +158,21 @@ func _draw() -> void:
 	var face := WARN_FACE if phase == Phase.WARNING else SOLID_FACE
 	draw_rect(Rect2(Vector2.ZERO, size), face)
 	draw_rect(Rect2(Vector2.ZERO, size), EDGE, false, maxf(size.y * 0.08, 2.0))
-	# A crack down the middle, so a crumbler is distinguishable from solid
-	# terrain before it is stood on.
+	# A hairline fracture, so a crumbler is distinguishable from solid terrain
+	# *before* it is stood on.
+	#
+	# Thin and jagged rather than bold. These are a tile across, so a crack drawn
+	# at any weight that reads on a small block becomes a painted symbol on a big
+	# one -- the first attempt put a fat V on every plank of Under East's walkway
+	# and the run of them read as tick marks rather than as damage.
+	var hair := maxf(size.y * 0.025, 1.0)
 	var mid := size.x * 0.5
-	draw_line(Vector2(mid, size.y * 0.15), Vector2(mid - size.x * 0.08, size.y * 0.85),
-		EDGE, maxf(size.y * 0.05, 1.5))
+	draw_polyline(PackedVector2Array([
+		Vector2(mid + size.x * 0.06, size.y * 0.08),
+		Vector2(mid - size.x * 0.02, size.y * 0.34),
+		Vector2(mid + size.x * 0.05, size.y * 0.58),
+		Vector2(mid - size.x * 0.04, size.y * 0.92),
+	]), EDGE, hair)
+	# One short branch. Two cracks say "damaged"; three start to say "pattern".
+	draw_line(Vector2(mid - size.x * 0.02, size.y * 0.34),
+		Vector2(mid - size.x * 0.22, size.y * 0.52), EDGE, hair)

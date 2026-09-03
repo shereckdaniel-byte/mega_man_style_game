@@ -630,6 +630,50 @@ in `test_stage_authoring.gd` now, which loops over the roster.
 **Accepted:** the bot runs Substation end to end with the new roster — 0 deaths,
 26 of 28 HP, unchanged from M6a, which is the point: a reskin is not a rebalance.
 
+### M6e — The first playtest ✅ done
+
+Somebody played stage 1 and came back with seven things. Six were real, one was
+a feature that does not exist yet, and **three of the six were invisible art on
+working mechanics** — which is the theme of this whole entry.
+
+| # | Reported | What it was |
+| --- | --- | --- |
+| 1 | the turret is floating | it was. Elevated fixed enemies had nothing under them since M4 |
+| 2 | cannot reach rooms 4–5, there is a gap I cannot jump | **`Ladder` had no `_draw`.** Every ladder in the game was an invisible Area2D over a hole in the deck |
+| 3 | the falling blocks look odd, need more of them | four crumbling blocks spaced two apart; each gap was a jump taken while the block you left was collapsing |
+| 4 | the sword shows one frame | the clip is 25 frames over 2.33 s and the swing is 0.33 s, so about three frames played |
+| 5 | menu items do nothing | two of the three rows correctly do nothing on a fresh run, and said nothing about it |
+| 6 | the platform does not look like the floor | the one-way and moving platforms were flat coloured bars, the only surfaces not from the tileset |
+| 7 | no stage select | correct — it is not built. M6 scope |
+
+**The one that matters is #2, and the one nobody reported is worse.** Chasing the
+invisible ladder turned up that **`Hazard` had no `_draw` either**: every spike in
+the game was an unmarked instant-kill box. The room tables spend paragraphs
+refusing to author exactly that — stage 1 turns down three spike placements for
+being "a kill on a flat run with nothing but the sprite to warn you" — and then
+there was no sprite. The geometry was fair and the presentation was not, which
+from where the player stands is the same thing.
+
+Both were invisible to everything that guards this project. The suite was green,
+the playthrough bot was winning, and the ledger recorded honest numbers, because
+**a bot reads the tile map and the player reads the screen.** That is the third
+time in three milestones a fault has been found by looking rather than running,
+and it is now a pattern worth naming rather than a coincidence.
+
+Also fixed here, from the same pass: fixed enemies placed above the deck get a
+drawn mounting post (`EnemyMount` — scenery, not collision, so traversal the
+tests and the bot have signed off on does not move); the crumbling blocks form a
+continuous walkway across Under East's water; the one-way and moving platforms
+are drawn as cut deck rather than as bars; and every confirm in the pause menu
+now reports what it did or why it refused.
+
+**One regression caught on the way**, worth recording because the fix for it is a
+fact about the room rather than a rule: filling the walkway from cell 9 put a
+solid block in the moving platform's parking cell, and the bot stood at the lip
+waiting for a ferry that could not arrive. The walkway starts at 10. Stage 1's
+ledger is back to 0 deaths and 22 HP, unchanged, which is the check that it is
+the same stage.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
