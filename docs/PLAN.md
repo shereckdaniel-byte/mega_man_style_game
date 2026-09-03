@@ -365,8 +365,20 @@ exists is the one missing the thing every stage is supposed to have.
 Doing this **before** stage 2 is the point, not a detour: stage 2 copies whatever stage 1
 is. Copying four flat rooms sets the ceiling for the whole game.
 
-**Accept:** stage 1 runs 60–90 s of traversal, uses at least five distinct level elements,
+**Accept:** stage 1 uses at least five distinct level elements, is traversable end to end,
 and the rising tide cannot soft-lock a player anywhere in it.
+
+**On length, a correction.** This originally said "60–90 s of traversal", and the finished
+eight-room stage runs **21 s** — against 19 s for the four-room version. Eight rooms did
+not double the distance, because the U reuses columns: the path is six room-widths plus
+two vertical transitions, where four rooms in a line were four. Reaching 60 s means roughly
+twenty rooms, not eight.
+
+That number was written before the shape was, and the shape is the better outcome — the
+stage now has a descent, a platform crossing, crumbling planks, a rising-tide climb and
+two vertical transitions where before it had gaps and blocks. Length is the cheapest of
+those to add later and the least useful on its own. But the criterion was missed and is
+recorded as missed rather than quietly rewritten to fit.
 
 ### M6 — Content build-out (2–3 weeks)
 

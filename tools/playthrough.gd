@@ -10,7 +10,10 @@
 ## and a three-tile step in a corridor with no way round.
 ##
 ## It reads the deck ahead of the player and jumps for gaps and steps, rather
-## than hopping on a fixed cadence. That matters: a fixed cadence walks into
+## than hopping on a fixed cadence, and it climbs: stage 1 is a U now, so a bot
+## that only walks right stops at the first shaft and reports a stage that
+## cannot be finished. It does not pathfind -- it asks the stage which way the
+## next room lies, walks to the shaft, and holds up or down. That matters: a fixed cadence walks into
 ## gaps a player would clear, so it reports failures the stage does not have. A
 ## bot that jumps when there is something to jump means a failure is the stage's.
 ##
@@ -37,6 +40,11 @@ const LOOKAHEAD := 1
 ## Frames to hold jump. The player's cut-jump means a short hold is a short hop;
 ## this is long enough for a full arc.
 const JUMP_HOLD := 16
+## How close to the shaft's centre, in tiles, before the bot commits to climbing.
+const SHAFT_TOLERANCE := 0.6
+## Frames to keep climbing after the room changes, so the bot steps clear of the
+## shaft instead of dropping straight back down it.
+const CLIMB_CLEAR_FRAMES := 40
 ## Frames without horizontal progress before we call it stuck.
 const STUCK_FRAMES := 900
 
@@ -50,6 +58,9 @@ const SHOOT_PERIOD := 8
 const FIGHT_RANGE_TILES := 5.0
 ## Closer than this and the bot backs off.
 const RETREAT_RANGE_TILES := 3.0
+## How far ahead, in tiles, the bot looks for spikes. Further than the gap
+## lookahead: a jump has to *start* before the spikes, not on them.
+const SPIKE_LOOKAHEAD_TILES := 2.2
 ## An incoming shot nearer than this, in tiles, is worth dodging.
 const DODGE_RANGE_TILES := 2.6
 ## Frames to hold the slide input.
@@ -61,6 +72,9 @@ var _deck: TileMapLayer
 var _tile := 72.0
 var _jump_left := 0
 var _slide_left := 0
+var _climb_left := 0
+var _room_index := 0
+var _climbing_up := false
 
 
 func _initialize() -> void:
@@ -87,10 +101,19 @@ func _run() -> void:
 	var goal: float = _stage.boss_door_position().x
 	var deaths := [0]
 	_player.died.connect(func() -> void: deaths[0] += 1)
-	_stage.room_changed.connect(func(r: Room) -> void: print("  entered %s" % r.name))
+	_stage.room_changed.connect(func(r: Room) -> void:
+		print("  entered %s" % r.name)
+		for i in _stage.rooms().size():
+			if _stage.rooms()[i] == r:
+				_room_index = i
+				break
+		# Keep holding the climb briefly so the bot steps off the shaft rather
+		# than turning round and dropping straight back down it.
+		_climb_left = CLIMB_CLEAR_FRAMES)
 	print("goal_x=%.0f  rooms=%d" % [goal, _stage.rooms().size()])
 
 	var best: float = _player.global_position.x
+	var last_room := 0
 	var stuck := 0
 	var reached := false
 	for frame in 9000:
@@ -100,12 +123,22 @@ func _run() -> void:
 			continue
 		_drive(frame)
 		var x: float = _player.global_position.x
-		if x > best + 4.0:
+		# Progress is a room change *or* ground gained. Climbing a shaft makes
+		# no horizontal progress at all, so an x-only stuck detector calls a
+		# working ladder a soft lock.
+		if _room_index != last_room:
+			last_room = _room_index
+			best = x
+			stuck = 0
+		elif x > best + 4.0:
 			best = x
 			stuck = 0
 		else:
 			stuck += 1
-		if x >= goal:
+		# The room matters as well as the x. Stage 1 is a U, and the Tide room
+		# sits *underneath* the boss door in the same column -- an x-only check
+		# reports success while the player is still under the deck.
+		if _room_index >= _stage.BOSS_DOOR_ROOM and x >= goal:
 			reached = true
 			print("REACHED the boss door at frame %d" % frame)
 			break
@@ -274,6 +307,27 @@ func _phase_name(phase: int) -> String:
 	return names[phase] if phase >= 0 and phase < names.size() else "?"
 
 
+## Which way the exit from the current room lies: 0 across, +1 down, -1 up.
+func _exit_direction() -> int:
+	var rooms: Array = _stage.ROOMS
+	if _room_index + 1 >= rooms.size():
+		return 0
+	var here: int = int(rooms[_room_index]["band"])
+	var there: int = int(rooms[_room_index + 1]["band"])
+	return signi(there - here)
+
+
+## The world x of the shaft the current room exits through, or -1 across.
+func _shaft_x() -> float:
+	var rooms: Array = _stage.ROOMS
+	var spec: Dictionary = rooms[_room_index]
+	var shaft: Array = spec.get("shaft", spec.get("shaft_up", []))
+	if shaft.is_empty():
+		return -1.0
+	var origin: int = _stage.room_origin(_room_index)
+	return (float(origin) + float(shaft[0]) + float(shaft[1]) * 0.5) * _tile
+
+
 ## One frame of input: walk right, shoot, and jump when the deck ahead demands it.
 ##
 ## It shoots the whole way for a reason. The traversal bot used to only walk and
@@ -282,21 +336,59 @@ func _phase_name(phase: int) -> String:
 ## ship unkillable for two milestones. A run that never fires cannot notice that
 ## firing does nothing.
 func _drive(frame: int = 0) -> void:
-	Input.action_press(&"move_right")
 	if frame % SHOOT_PERIOD == 0:
 		Input.action_press(&"shoot")
 	elif frame % SHOOT_PERIOD == 1:
 		Input.action_release(&"shoot")
 
+	# Still stepping clear of a shaft after a vertical transition.
+	if _climb_left > 0:
+		_climb_left -= 1
+		_release_move()
+		Input.action_press(&"move_up" if _climbing_up else &"move_down")
+		return
+	Input.action_release(&"move_up")
+	Input.action_release(&"move_down")
+
+	# Off the ladder before anything else. Climb zeroes horizontal velocity, so
+	# a bot that has finished climbing and starts walking simply hangs there --
+	# which is what "stuck 36 px from the boss door" turned out to be. Jumping
+	# off is the game's own way down from a ladder (states/climb.gd).
+	if _player.state_machine.current_name() == &"Climb" and _exit_direction() == 0:
+		Input.action_press(&"jump")
+		_jump_left = 4
+		return
+
+	var heading := 1
+	var vertical := _exit_direction()
+	if vertical != 0:
+		var shaft := _shaft_x()
+		if shaft >= 0.0:
+			var dx := shaft - _player.global_position.x
+			if absf(dx) <= SHAFT_TOLERANCE * _tile:
+				# On the shaft: climb, and stop walking into its wall.
+				_release_move()
+				_climbing_up = vertical < 0
+				Input.action_press(&"move_up" if _climbing_up else &"move_down")
+				return
+			heading = 1 if dx > 0.0 else -1
+
+	_release_move()
+	Input.action_press(&"move_right" if heading > 0 else &"move_left")
+
+	# Jumping is applied whichever way the bot is walking. The first version
+	# returned early while heading for a shaft, so the bot walked into the
+	# two-tile block in the Descent room and stood there for 900 frames --
+	# reported as a stuck stage, caused entirely by the bot forgetting it could
+	# jump when it had somewhere to be.
 	if _jump_left > 0:
 		_jump_left -= 1
 		if _jump_left == 0:
 			Input.action_release(&"jump")
-
-	if not _player.is_on_floor() or _jump_left > 0:
 		return
-
-	if _hole_ahead() or _step_ahead():
+	if not _player.is_on_floor():
+		return
+	if _hole_ahead(heading) or _step_ahead(heading) or _spikes_ahead(heading):
 		Input.action_press(&"jump")
 		_jump_left = JUMP_HOLD
 
@@ -309,12 +401,23 @@ func _solid(cell: Vector2i) -> bool:
 	return _deck.get_cell_source_id(cell) != -1
 
 
+## The deck row of the room the player is in.
+##
+## Not the constant it used to be. Stage 1 has two bands now, and a bot that
+## always looks at row 11 is looking at the boardwalk while standing on the
+## pilings fifteen rows below it -- every cell reads as a hole and it jumps
+## continuously.
+func _deck_row() -> int:
+	return _stage.room_deck_row(_room_index)
+
+
 ## No deck under the next couple of cells: jump the gap.
-func _hole_ahead() -> bool:
+func _hole_ahead(heading: int) -> bool:
+	var deck := _deck_row()
 	for step in range(1, LOOKAHEAD + 1):
-		var x := _cell_x() + step
+		var x := _cell_x() + step * heading
 		var floored := false
-		for y in range(DECK_ROW, DECK_ROW + DECK_DEPTH):
+		for y in range(deck, deck + DECK_DEPTH):
 			if _solid(Vector2i(x, y)):
 				floored = true
 		if not floored:
@@ -322,13 +425,43 @@ func _hole_ahead() -> bool:
 	return false
 
 
+## Spikes on the deck ahead: jump them.
+##
+## The bot has to know every verb the level speaks. Stage 1 gained spikes and
+## this did not, so the bot walked into them at a steady pace and reported the
+## stage as unfinishable -- twenty-eight deaths against geometry a player clears
+## by tapping jump. A checker whose vocabulary is narrower than the level's does
+## not measure the level, it measures the checker.
+##
+## Looked up in the scene rather than in the tile map: spikes are Hazard nodes,
+## not deck cells, so `_solid()` cannot see them.
+func _spikes_ahead(heading: int) -> bool:
+	var reach := SPIKE_LOOKAHEAD_TILES * _tile
+	var feet := _player.global_position
+	for child in _stage.get_children():
+		if not (child is Hazard) or child is KillPlane:
+			continue
+		var spike := child as Node2D
+		var dx := (spike.global_position.x - feet.x) * float(heading)
+		if dx < 0.0 or dx > reach:
+			continue
+		# Only what is on the ground the player is walking along; a hazard a
+		# band away is not in the way.
+		if absf(spike.global_position.y - feet.y) > 1.5 * _tile:
+			continue
+		return true
+	return false
+
+
 ## Deck at head height ahead: jump the step.
-func _step_ahead() -> bool:
-	var x := _cell_x() + 1
-	return _solid(Vector2i(x, DECK_ROW - 1)) or _solid(Vector2i(x, DECK_ROW - 2))
+func _step_ahead(heading: int) -> bool:
+	var deck := _deck_row()
+	var x := _cell_x() + heading
+	return _solid(Vector2i(x, deck - 1)) or _solid(Vector2i(x, deck - 2))
 
 
 func _release() -> void:
-	for action in [&"move_right", &"move_left", &"move_down", &"jump", &"shoot"]:
+	for action in [&"move_right", &"move_left", &"move_up", &"move_down",
+			&"jump", &"shoot"]:
 		if Input.is_action_pressed(action):
 			Input.action_release(action)

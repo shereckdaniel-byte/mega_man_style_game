@@ -55,6 +55,8 @@ func begin(p_player: Player, p_room: Room) -> void:
 	add_child(camera)
 	camera.follow(player)
 	camera.enter_room(room)
+	if not player.respawned.is_connected(_on_player_respawned):
+		player.respawned.connect(_on_player_respawned)
 	room_changed.emit(room)
 
 
@@ -72,6 +74,37 @@ func _physics_process(_delta: float) -> void:
 
 func is_transitioning() -> bool:
 	return _transitioning
+
+
+## The room containing a world point, or null.
+func room_at(point: Vector2) -> Room:
+	for child in get_children():
+		if child is Room and (child as Room).contains_point(point):
+			return child as Room
+	return null
+
+
+## Puts the camera back where the player actually is.
+##
+## A checkpoint does not have to be in the room the player died in -- dying
+## before reaching a room's own checkpoint sends them back to the previous
+## one's, which in a stage that goes up and down can be a different room in a
+## different band entirely. Without this the player respawns in one room with
+## the camera still locked to another: they are somewhere off screen, the view
+## shows a room they are not in, and walking does not bring them back because
+## the camera cannot leave its limits. That is a soft lock, and it only appears
+## once a stage has more than one row of rooms.
+func _on_player_respawned() -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var here := room_at(player.global_position)
+	if here == null or here == room:
+		return
+	room = here
+	if camera != null:
+		camera.enter_room(here)
+	refresh_markers()
+	room_changed.emit(here)
 
 
 ## Runs the screen transition: freeze, slide, walk through, unfreeze.

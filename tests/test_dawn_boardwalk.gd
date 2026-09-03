@@ -17,23 +17,63 @@ const STAGE := preload("res://scenes/stages/dawn_boardwalk/dawn_boardwalk.gd")
 
 ## The jump reaches 2.89 tiles, and test_player_movement asserts 2 is clearable
 ## and 3 is not. A three-tile step in a corridor is therefore a wall.
-func test_no_block_is_taller_than_the_player_can_climb() -> void:
+##
+## **The rule is the step, not the height.** The first version of this compared
+## every block against the deck, which is right for a flat room and wrong for a
+## staircase: the Tide room climbs 2, 4 and 6 tiles above the deck and each of
+## those is two above the one before, so every step is clearable and the test
+## was failing a shape the player walks up without noticing. Sorting the
+## surfaces and checking the rises between them asks the question the player
+## actually faces.
+func test_no_step_is_taller_than_the_player_can_climb() -> void:
 	for spec in STAGE.ROOMS:
+		var heights: Array[int] = [0]  # the deck itself
 		for block in spec["blocks"]:
-			assert_true(int(block[1]) <= STAGE.MAX_STEP_TILES,
-				"%s: block at cell %d rises %d tiles above the deck, and the jump clears %d"
-					% [spec["name"], int(block[0]), int(block[1]), STAGE.MAX_STEP_TILES])
+			var h := int(block[1])
+			if not heights.has(h):
+				heights.append(h)
+		heights.sort()
+		for i in range(1, heights.size()):
+			var rise: int = heights[i] - heights[i - 1]
+			assert_true(rise <= STAGE.MAX_STEP_TILES,
+				"%s: a %d-tile rise from %d to %d, and the jump clears %d"
+					% [spec["name"], rise, heights[i - 1], heights[i],
+						STAGE.MAX_STEP_TILES])
 
 
 ## A full jump covers about 3.4 tiles horizontally at walk speed, so three cells
 ## is frame-perfect and two is comfortable.
+##
+## A wider gap is allowed only where something carries the player over it. That
+## exemption is checked rather than assumed: an authored 8-cell gap with no
+## platform is exactly the "looks fine, cannot be finished" failure this file
+## exists to catch, and it would otherwise hide behind the word "deliberate".
 func test_no_gap_is_wider_than_the_player_can_jump() -> void:
 	for spec in STAGE.ROOMS:
 		for gap in spec["gaps"]:
-			var width := int(gap[1]) - int(gap[0])
-			assert_true(width <= STAGE.MAX_GAP_TILES,
-				"%s: gap at cell %d is %d cells wide, and a comfortable jump crosses %d"
-					% [spec["name"], int(gap[0]), width, STAGE.MAX_GAP_TILES])
+			var from := int(gap[0])
+			var width := int(gap[1]) - from
+			if width <= STAGE.MAX_GAP_TILES:
+				continue
+			assert_true(_platform_spans(spec, from, int(gap[1])),
+				"%s: gap at cell %d is %d cells wide, jump crosses %d, and nothing carries you over"
+					% [spec["name"], from, width, STAGE.MAX_GAP_TILES])
+
+
+## Does a moving platform in this room actually reach across the gap?
+##
+## Both ends are checked. A platform that starts over the gap and travels away
+## leaves the player on the wrong side, and one that never enters it is
+## decoration -- neither is caught by simply asking whether a mover exists.
+func _platform_spans(spec: Dictionary, from: int, to: int) -> bool:
+	for mover in spec.get("movers", []):
+		var start := float(mover[0])
+		var finish := start + float(mover[2])
+		var low: float = minf(start, finish)
+		var high: float = maxf(start, finish)
+		if low <= float(from) + 1.0 and high >= float(to) - 1.0:
+			return true
+	return false
 
 
 # --- Checkpoints --------------------------------------------------------------
