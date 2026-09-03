@@ -270,6 +270,7 @@ const BOSS_DOOR_ROOM := 6
 var _player: Player
 var _deck: TileMapLayer
 var _rooms: Array[Room] = []
+var _backdrop: Node2D
 var _tide: RisingTide = null
 
 
@@ -278,10 +279,10 @@ func _ready() -> void:
 	var tuning: PlayerTuning = autoload.player if autoload != null else PlayerTuning.new()
 	var tile := tuning.tile_size()
 
-	var background := Node2D.new()
-	background.name = "Backdrop"
-	background.set_script(BACKGROUND)
-	add_child(background)
+	_backdrop = Node2D.new()
+	_backdrop.name = "Backdrop"
+	_backdrop.set_script(BACKGROUND)
+	add_child(_backdrop)
 
 	_build_deck(tuning.world_scale)
 	_build_rooms(tile)
@@ -292,6 +293,10 @@ func _ready() -> void:
 	add_child(_player)
 
 	_add_arena(tile)
+	# The backdrop follows the band, so the rooms under the boardwalk stop
+	# showing the sunrise. Driven from here because which band a room is in is
+	# the stage's fact, not the backdrop's.
+	room_changed.connect(_on_room_changed_backdrop)
 	_add_hud()
 	_add_pause_menu()
 	_player.game_over.connect(_on_game_over)
@@ -721,6 +726,16 @@ func _add_pause_menu() -> void:
 	add_child(menu)
 	menu.bind(_player)
 	menu.restart_requested.connect(_restart_run)
+
+
+## Held as a reference rather than looked up by name, and called without a
+## `has_method` guard: both of those turn a backdrop that stopped answering into
+## a silent no-op, and a silent no-op here looks exactly like art nobody made.
+func _on_room_changed_backdrop(room_entered: Room) -> void:
+	for index in _rooms.size():
+		if _rooms[index] == room_entered:
+			_backdrop.call(&"show_band", room_band(index))
+			return
 
 
 ## Out of lives. Show the screen, then start the run over.

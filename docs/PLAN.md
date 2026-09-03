@@ -384,6 +384,19 @@ it took none. Some of that is the bot choosing the crumbling planks over the fer
 some of it is real. That is the open question, and it is not one more measurement will
 answer.
 
+**Under the deck now looks like it.** The backdrop's plates are hung against the
+viewport with no vertical scroll -- they have to be, or the horizon walks off the top of
+the screen when the camera rises -- so the rooms under the boardwalk were showing the same
+sunrise as the deck above them, and the stage read as one long boardwalk at two heights.
+The backdrop now carries two sets of plates and the stage swaps them on the room change,
+because which band a room is in is the stage's fact rather than the backdrop's. The
+under-deck set is **drawn, not generated**: a depth gradient, silhouetted pilings with
+cross-bracing, and shafts of light coming down between the planks -- shapes that describe
+themselves in code and want tuning against the tileset rather than a new art pass. Its
+palette is sampled from the surface plates so the two bands read as one world at two
+depths; the first attempt sampled the water at mid-height, which is where the sunset
+reflects, and came out mauve.
+
 **On length, a correction.** This originally said "60–90 s of traversal", and the finished
 eight-room stage runs **21 s** — against 19 s for the four-room version. Eight rooms did
 not double the distance, because the U reuses columns: the path is six room-widths plus
