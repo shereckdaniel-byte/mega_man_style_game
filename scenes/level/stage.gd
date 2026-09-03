@@ -23,6 +23,18 @@ signal transition_finished(room: Room)
 const SLIDE_FRAMES := 32
 const WALK_THROUGH_NES := 24.0
 
+## How far the player is carried through a *vertical* doorway, in NES px.
+##
+## Much further than the horizontal step, and not for feel -- for geometry. A
+## trigger fires when a body first overlaps it, and a climbing player overlaps a
+## door on the boundary line with their **head**, which puts their feet a full
+## body-height below it. Carrying them the horizontal 24 px leaves them still
+## below the line they just crossed, straddling the boundary with the room
+## already changed underneath them.
+##
+## 40 is the character's own 24 px, plus half a door, plus a margin.
+const CLIMB_THROUGH_NES := 40.0
+
 var camera: StageCamera
 var room: Room
 var player: Player
@@ -91,7 +103,8 @@ func _run_transition(door: Door, next: Room) -> void:
 	var autoload := get_node_or_null(^"/root/Tuning")
 	if autoload != null:
 		scale_factor = autoload.player.world_scale
-	var step := door.direction.normalized() * WALK_THROUGH_NES * scale_factor
+	var through := CLIMB_THROUGH_NES if door.is_vertical() else WALK_THROUGH_NES
+	var step := door.direction.normalized() * through * scale_factor
 
 	var from := camera.global_position
 	var player_from := player.global_position
