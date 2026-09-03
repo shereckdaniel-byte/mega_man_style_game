@@ -262,6 +262,28 @@ Weakness multipliers live in `resources/damage_tables/*.tres` as explicit *absol
 values, not multipliers — NES games used flat damage tables, and flat values are easier
 to balance and to read in a diff.
 
+**Built at M3.** `scripts/core/` holds `damage_info.gd`, `damage_table.gd`, `health.gd`,
+`hitbox.gd` and `hurtbox.gd`; layer bits are named in `collision_layers.gd` rather than
+written as literal shifts at each use site (the table is 1-based, the shift is 0-based,
+and that off-by-one has cost a bug already).
+
+The attacker does the looking: a `Hurtbox` monitors nothing and is only ever called by a
+`Hitbox` that found it, so a resting enemy costs no overlap checks.
+
+Two Godot behaviours worth knowing before writing another Area2D:
+
+- **`Area2D.monitorable = false` also disables that area's body detection** on 4.7. The
+  name reads as "can other areas see this one", so switching it off looks like the right
+  way to keep a hitbox from being detected — and it silently makes buster pellets fly
+  through walls. Verified by toggling it on a live area: `get_overlapping_bodies()` goes
+  1 → 0 → 1 in step with the flag. Leave it alone and let the masks isolate, which is
+  what the layer conventions above already do.
+- **Autoload identifiers do not resolve in a `--script` entry point**, which is compiled
+  before the project's autoloads are registered. Reach them by path —
+  `get_node_or_null(^"/root/GameState")` — as the codebase already does for `Tuning`.
+  Scripts loaded later at runtime are fine either way, so this only bites tools and
+  probes, and it bites them at parse time with a confusing "identifier not found".
+
 ### 5.3 Health scale
 
 Player and every boss have **28 HP**, matching the original's 28-tick energy bar, so one
@@ -291,6 +313,29 @@ Reproduce the original rule exactly, because level design depends on it:
   the intended behaviour, and it is what makes farming health drops possible.
 - Bosses, mini-bosses, and gimmick platforms opt out via `persistent = true`.
 
+**Built at M4.** `Room` owns the bounds, `StageCamera` applies them as limits,
+`SpawnMarker` owns the spawn/despawn decision, and `Stage` ticks every marker
+against one view rectangle per frame — markers must not each poll the camera,
+or two on the same boundary can read it at different points in the frame and
+one of a pair flickers.
+
+Three things that are easy to get wrong here, all of which still *look* like a
+working game:
+
+- **The two margins must differ.** Spawning at 16 px beyond the view and
+  despawning at 32 px is hysteresis: with one margin, an enemy sitting on the
+  boundary spawns and despawns every frame as the camera moves by a pixel.
+- **A killed enemy must not re-arm its marker.** If it does, the player can farm
+  one enemy by standing still. Only leaving the despawn range re-arms it, which
+  is exactly the "scroll it off screen and back" the rule is about.
+- **A marker cannot detect a kill by looking at its reference.** The obvious
+  version — "non-null but `is_instance_valid()` false means a corpse" — cannot
+  work: **on Godot 4.7 a freed object reference compares EQUAL to null**, so a
+  corpse and a cleared slot are indistinguishable from outside. Verified
+  directly: after `queue_free()` and two frames, both `n != null` and
+  `is_instance_valid(n)` are false. The enemy therefore *tells* the marker
+  (`mark_spent()`) on death, and despawning clears the slot itself.
+
 ### 5.6 Weapons
 
 ```gdscript
@@ -298,18 +343,58 @@ Reproduce the original rule exactly, because level design depends on it:
 class_name WeaponData extends Resource
 @export var id: StringName
 @export var display_name: String
-@export var projectile_scene: PackedScene
+@export var projectile_script: Script   # a WeaponShot subclass, instantiated with .new()
 @export var ammo_max: int = 28
 @export var ammo_cost: int = 1
 @export var max_on_screen: int = 3
 @export var fire_cooldown_frames: int = 0
-@export var palette: Array[Color]     # 2-colour swap for the player sprite
+@export var damage: int = 1
+@export var flags: int = DamageInfo.NONE
+@export var palette: Array[Color]       # 2-colour swap for the player sprite
 @export var icon: Texture2D
+@export var tuning: Dictionary          # per-weapon numbers, read by its projectile
 ```
 
-`WeaponManager` (autoload) holds the unlocked set, current selection, and ammo. Palette
-swap is a `ShaderMaterial` on the player's `AnimatedSprite2D` that remaps two index
-colours — generate the sprite in a fixed 2-tone scheme so this works (SPRITES §3).
+**A `Script`, not the `PackedScene` this section first specified.** Every projectile
+here is a bare script built with `.new()` — a pellet is one Area2D with a rectangle,
+and building that in code is shorter than a scene file. A `PackedScene` field would
+mean authoring eight scenes whose only content is a node the script creates anyway.
+
+`WeaponManager` (autoload) holds the unlocked set, current selection, and ammo, and
+loads the catalogue by scanning `res://resources/weapons/`. Adding a weapon is a
+`.tres` plus a projectile script; no existing file changes. Palette swap is a
+`ShaderMaterial` on the player's `AnimatedSprite2D` that remaps two index colours —
+generate the sprite in a fixed 2-tone scheme so this works (SPRITES §3).
+
+Projectiles share `WeaponShot`, which settles damage, the weapon id, the collision
+layers and the off-screen cleanup. A subclass overrides three things: `shot_size()`,
+`_configure()`, and `_advance(delta)`. Getting the layers right is not left to each
+weapon, because a weapon that masks nothing simply does no damage and never errors.
+
+The buster costs 0 and is never removed. It is the floor the player cannot fall
+through: run every weapon dry and there is still an attack.
+
+**Charge** is a second block on the same resource, opt-in per weapon
+(`chargeable`, two stage thresholds, a charged projectile script, per-stage damage,
+its own ammo cost and on-screen cap). Only the buster sets it today; the mechanism
+is built for all eight.
+
+One field earns its own warning. `charged_weapon_id` is the id a blast carries into
+the damage tables, and it is **not** the weapon's own id. A charged shot tagged
+`buster` looks up the 1 that tap fire is meant to do and quietly does 1 damage
+however long the button was held — no error, no visible difference except a boss
+that will not die. Empty falls back to `<id>_charged`.
+
+Damage and the charged id are set in `ChargedShot._configure()`, not by the shooter.
+`WeaponShot._ready()` fills them from the WeaponData on entering the tree, so
+assigning them before `add_child` is silently overwritten and assigning them after
+leaves two places deciding the same thing. `_configure` is the hook that runs at the
+right moment.
+
+The **sword** is not a weapon in this sense — no resource, no ammo, no selection. It
+is a Hitbox on the player switched on for a window inside the `Attack` state, tagged
+`sword` so damage tables can answer it. Its box starts at the ground line rather
+than at the arm, for the reason in §5.2's note on `Enemy.MIN_HURTBOX_NES`.
 
 ### 5.7 Autoloads
 

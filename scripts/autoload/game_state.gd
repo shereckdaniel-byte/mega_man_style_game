@@ -23,8 +23,12 @@ var lives: int = STARTING_LIVES
 
 ## Stage currently being played, or -1 on the stage select / title.
 var current_stage: int = -1
-## Respawn point within the current stage, in global coordinates.
+## Respawn point within the current stage, in global coordinates. Only meaningful
+## when `checkpoint_set` is true -- Vector2.ZERO is a legitimate world position,
+## so it cannot double as "no checkpoint yet" and a stage that forgot to set one
+## would silently respawn the player at the world origin.
 var checkpoint: Vector2 = Vector2.ZERO
+var checkpoint_set: bool = false
 
 
 func reset() -> void:
@@ -33,9 +37,25 @@ func reset() -> void:
 	etanks = 0
 	lives = STARTING_LIVES
 	current_stage = -1
-	checkpoint = Vector2.ZERO
+	clear_checkpoint()
 	lives_changed.emit(lives)
 	etanks_changed.emit(etanks)
+
+
+func set_checkpoint(position: Vector2) -> void:
+	checkpoint = position
+	checkpoint_set = true
+
+
+func clear_checkpoint() -> void:
+	checkpoint = Vector2.ZERO
+	checkpoint_set = false
+
+
+## The checkpoint if one has been reached, otherwise the fallback -- normally
+## the stage's own entry point.
+func respawn_position(fallback: Vector2) -> Vector2:
+	return checkpoint if checkpoint_set else fallback
 
 
 func is_boss_defeated(index: int) -> bool:

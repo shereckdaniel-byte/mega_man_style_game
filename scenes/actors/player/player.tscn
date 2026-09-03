@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/player/player.gd" id="1_player"]
 [ext_resource type="SpriteFrames" path="res://resources/sprite_frames/player.tres" id="2_frames"]
@@ -12,6 +12,11 @@
 [ext_resource type="Script" path="res://scenes/actors/player/states/hurt.gd" id="10_hurt"]
 [ext_resource type="Script" path="res://scenes/actors/player/states/dead.gd" id="11_dead"]
 [ext_resource type="Script" path="res://scenes/actors/player/states/teleport.gd" id="12_tele"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/attack.gd" id="15_attack"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/victory.gd" id="16_victory"]
+[ext_resource type="Script" path="res://scenes/actors/player/states/teleport_out.gd" id="17_telout"]
+[ext_resource type="Script" path="res://scripts/core/health.gd" id="13_health"]
+[ext_resource type="Script" path="res://scripts/core/hurtbox.gd" id="14_hurtbox"]
 
 [node name="Player" type="CharacterBody2D"]
 collision_layer = 8
@@ -26,6 +31,14 @@ animation = &"idle"
 
 [node name="HeadroomCast" type="RayCast2D" parent="."]
 collision_mask = 1
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("13_health")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 16
+collision_mask = 0
+script = ExtResource("14_hurtbox")
 
 [node name="StateMachine" type="Node" parent="."]
 script = ExtResource("3_machine")
@@ -49,7 +62,23 @@ anim_name = &"jump"
 
 [node name="Slide" type="Node" parent="StateMachine"]
 script = ExtResource("8_slide")
+can_shoot = false
 anim_name = &"slide"
+
+[node name="Attack" type="Node" parent="StateMachine"]
+script = ExtResource("15_attack")
+can_shoot = false
+anim_name = &"attack"
+
+[node name="Victory" type="Node" parent="StateMachine"]
+script = ExtResource("16_victory")
+can_shoot = false
+anim_name = &"victory"
+
+[node name="TeleportOut" type="Node" parent="StateMachine"]
+script = ExtResource("17_telout")
+can_shoot = false
+anim_name = &"teleport_out"
 
 [node name="Climb" type="Node" parent="StateMachine"]
 script = ExtResource("9_climb")
@@ -57,12 +86,15 @@ anim_name = &"climb"
 
 [node name="Hurt" type="Node" parent="StateMachine"]
 script = ExtResource("10_hurt")
+can_shoot = false
 anim_name = &"hurt"
 
 [node name="Dead" type="Node" parent="StateMachine"]
 script = ExtResource("11_dead")
+can_shoot = false
 anim_name = &"death"
 
 [node name="Teleport" type="Node" parent="StateMachine"]
 script = ExtResource("12_tele")
+can_shoot = false
 anim_name = &"teleport_in"

@@ -67,7 +67,13 @@ const NES_SLIDE_HITBOX := Vector2(16.0, 14.0)
 @export_group("Weapons")
 @export var shot_speed_pf := 5.0
 @export var shoot_pose_frames := 16
-## Mega Man 3 has no charge shot; the cap on live pellets is what limits DPS.
+## The cap on live pellets is what limits tap-fire DPS.
+##
+## This used to read "Mega Man 3 has no charge shot", which was true of the
+## template and is no longer true of this game -- there is one, and it is
+## deliberately *worse* damage per frame than tapping (docs/PLAN.md 2a). So this
+## cap is still what bounds the buster's output; the charge trades rate for a
+## single big hit rather than raising the ceiling.
 @export var max_buster_shots := 3
 
 

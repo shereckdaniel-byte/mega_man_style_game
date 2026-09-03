@@ -83,9 +83,27 @@ const TRIM := {
 ## only ever compensate for one of them; the others float or sink by the
 ## difference. Normalising here fixes it once for every actor.
 ##
-## Must equal `Player.SOURCE_ART_BASELINE`, which is what the scene compensates
-## for. `tests/test_sprite_frames.gd` asserts they agree.
+## Must equal `Player.SOURCE_ART_BASELINE`, which is what the player scene
+## compensates for. `tests/test_sprite_frames.gd` asserts they agree.
+##
+## **This row is the player's, not everyone's.** The 2026-09 roster arrived
+## framed lower in its 256 px cell -- Arc's feet sit around row 247, with only a
+## few pixels of padding underneath -- so asking for a 24 px lift produced a
+## clamped shift and a warning on every single animation. Normalising a boss
+## onto the *player's* row is not even the goal: each actor's scene applies its
+## own sprite offset, so what matters is that one character's animations agree
+## with each other, not that every character agrees with the player.
+##
+## So the target is per character (see `_character_baseline`), and this constant
+## is the one pinned value: the player's, because a scene constant depends on it.
 const BASELINE_ROW := 223
+
+## The character whose baseline is pinned to BASELINE_ROW.
+const PINNED_CHARACTER := "player"
+
+## Animation names whose baseline shift ran out of cell during the character
+## currently being imported. Reset per character by _import_character.
+var _clamped: Array[String] = []
 
 ## Alpha above which a pixel counts as part of the character rather than as
 ## anti-aliased edge fringe.
@@ -141,6 +159,19 @@ func _import_character(char_dir: String) -> bool:
 	frames.remove_animation(&"default")
 	var imported := 0
 
+	# Decided once for the whole character, before anything is added: every
+	# animation is then lifted onto the same row, and which row that is depends
+	# on how this character's art happens to sit in its cell.
+	var target := _character_baseline(char_dir, character)
+	frames.set_meta(&"baseline_row", target)
+	# animation name -> head-to-feet height in source px, so a scene can draw
+	# every clip of a character at the same world size. See _body_height.
+	var body_heights: Dictionary = {}
+	# Animations the art physically could not be shifted onto that row, recorded
+	# rather than merely warned about: a warning scrolls past, and the tests need
+	# to tell "this one had no padding left" from "this one silently drifted".
+	_clamped.clear()
+
 	for anim_dir in anim_dirs:
 		var dir := char_dir.path_join(anim_dir)
 		var json_path := dir.path_join("atlas.json")
@@ -156,8 +187,11 @@ func _import_character(char_dir: String) -> bool:
 
 		var sheet: Texture2D = load(sheet_path)
 		var anim_name := _animation_name(anim_dir)
-		if _add_animation(frames, anim_name, sheet, parsed as Dictionary):
+		if _add_animation(frames, anim_name, sheet, parsed as Dictionary, target):
 			imported += 1
+			var height := _body_height(sheet, _atlas_regions(parsed as Dictionary))
+			if height > 0:
+				body_heights[anim_name] = height
 
 	if imported == 0:
 		push_warning("%s: nothing imported" % character)
@@ -168,12 +202,58 @@ func _import_character(char_dir: String) -> bool:
 	if err != OK:
 		push_error("%s: save failed (%d)" % [out_path, err])
 		return false
-	print("%s -> %s (%d animations)" % [character, out_path, imported])
+	frames.set_meta(&"baseline_clamped", PackedStringArray(_clamped))
+	frames.set_meta(&"body_heights", body_heights)
+	ResourceSaver.save(frames, out_path)
+	print("%s -> %s (%d animations%s)" % [character, out_path, imported,
+		"" if _clamped.is_empty() else ", %d clamped" % _clamped.size()])
 	return true
 
 
+## The cell row this character's animations are all normalised onto.
+##
+## The player is pinned to BASELINE_ROW because `Player.SOURCE_ART_BASELINE`
+## depends on it. Everyone else gets the median of their own animations' feet,
+## which is by construction a row they can actually reach: normalising to the
+## median means half the animations shift up, half shift down, and none of them
+## needs more padding than the art already has.
+##
+## The alternative -- one row for every character in the game -- is what the
+## first version did, and it fails the moment a batch is framed differently in
+## its cell. Aligning bosses to the *player's* row was never the requirement
+## anyway; each actor's scene applies its own sprite offset.
+func _character_baseline(char_dir: String, character: String) -> int:
+	if _snake_case(character) == PINNED_CHARACTER:
+		return BASELINE_ROW
+
+	var baselines: Array[int] = []
+	for anim_dir in _subdirs(char_dir):
+		var dir := char_dir.path_join(anim_dir)
+		var json_path := dir.path_join("atlas.json")
+		var sheet_path := dir.path_join("spritesheet.png")
+		if not FileAccess.file_exists(json_path) or not ResourceLoader.exists(sheet_path):
+			continue
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(json_path))
+		if not (parsed is Dictionary):
+			continue
+		var rects: Dictionary = (parsed as Dictionary).get("frames", {})
+		if rects.is_empty():
+			continue
+		var image := _sheet_image(load(sheet_path))
+		if image == null:
+			continue
+		var baseline := _animation_baseline(image, _atlas_regions(parsed as Dictionary))
+		if baseline >= 0:
+			baselines.append(baseline)
+
+	if baselines.is_empty():
+		return BASELINE_ROW
+	baselines.sort()
+	return baselines[baselines.size() / 2]
+
+
 func _add_animation(frames: SpriteFrames, anim_name: String, sheet: Texture2D,
-		atlas: Dictionary) -> bool:
+		atlas: Dictionary, target_baseline: int) -> bool:
 	var rects: Dictionary = atlas.get("frames", {})
 	if rects.is_empty():
 		return false
@@ -204,7 +284,7 @@ func _add_animation(frames: SpriteFrames, anim_name: String, sheet: Texture2D,
 			float(r.get("x", 0)), float(r.get("y", 0)),
 			float(r.get("w", 0)), float(r.get("h", 0))))
 
-	var shift := _baseline_shift(sheet, regions, anim_name)
+	var shift := _baseline_shift(sheet, regions, anim_name, target_baseline)
 	for region in regions:
 		var tex := AtlasTexture.new()
 		tex.atlas = sheet
@@ -227,35 +307,28 @@ func _add_animation(frames: SpriteFrames, anim_name: String, sheet: Texture2D,
 ## the frames actually have, because a drawn region is clipped to its own box:
 ## shifting further than the padding would slice pixels off the character. A
 ## clamp means an animation stays slightly off rather than losing its feet.
-func _baseline_shift(sheet: Texture2D, regions: Array[Rect2], anim_name: String) -> float:
-	var image := sheet.get_image()
+func _baseline_shift(sheet: Texture2D, regions: Array[Rect2], anim_name: String,
+		target_baseline: int) -> float:
+	var image := _sheet_image(sheet)
 	if image == null:
 		return 0.0
-	if image.is_compressed():
-		if image.decompress() != OK:
-			return 0.0
+	var baseline := _animation_baseline(image, regions)
+	if baseline < 0:
+		return 0.0
 
-	var bottoms: Array[int] = []
+	var shift: int = target_baseline - baseline
+	if shift == 0:
+		return 0.0
+
+	# How far the art can move before it runs out of cell to move into.
 	var lowest := -1
 	var highest := 1 << 30
 	for region in regions:
 		var used := image.get_region(Rect2i(region)).get_used_rect()
 		if used.size.y <= 0:
-			continue  # a fully transparent frame carries no baseline
-		var bottom: int = used.position.y + used.size.y - 1
-		bottoms.append(bottom)
-		lowest = maxi(lowest, bottom)
+			continue
+		lowest = maxi(lowest, used.position.y + used.size.y - 1)
 		highest = mini(highest, used.position.y)
-	if bottoms.is_empty():
-		return 0.0
-
-	# The median, not the mean: a clip where the character leaves the ground for
-	# part of it should be aligned by the frames that are standing on it.
-	bottoms.sort()
-	var baseline: int = bottoms[bottoms.size() / 2]
-	var shift: int = BASELINE_ROW - baseline
-	if shift == 0:
-		return 0.0
 
 	var cell_height: int = int(regions[0].size.y)
 	var room: int = (cell_height - 1 - lowest) if shift > 0 else highest
@@ -263,8 +336,114 @@ func _baseline_shift(sheet: Texture2D, regions: Array[Rect2], anim_name: String)
 		var clamped: int = room * signi(shift)
 		push_warning("%s: baseline %d wants a %d px shift but only %d px of padding; using %d"
 			% [anim_name, baseline, shift, room, clamped])
+		if not _clamped.has(anim_name):
+			_clamped.append(anim_name)
 		shift = clamped
 	return float(shift)
+
+
+## Median lowest opaque row across an animation's frames, or -1 when every frame
+## is transparent.
+##
+## Median rather than mean: a clip that leaves the ground for part of its length
+## -- a jump, a death that falls over -- should be aligned by the frames that are
+## standing on it, not dragged upward by the ones that are not.
+func _animation_baseline(image: Image, regions: Array[Rect2]) -> int:
+	var bottoms: Array[int] = []
+	for region in regions:
+		var used := image.get_region(Rect2i(region)).get_used_rect()
+		if used.size.y <= 0:
+			continue  # a fully transparent frame carries no baseline
+		bottoms.append(used.position.y + used.size.y - 1)
+	if bottoms.is_empty():
+		return -1
+	bottoms.sort()
+	return bottoms[bottoms.size() / 2]
+
+
+## Head-to-feet height of the character in an animation, in source pixels.
+##
+## **Not the bounding box.** AutoSprite frames every clip independently, so the
+## same character is drawn at different sizes from clip to clip -- measured on
+## the player, the upright poses alone ranged from 152 to 208 px, so the
+## character grew 13% when it started walking and shrank 14% when it stood still
+## and fired. A scene that applies one scale factor to all of them reproduces
+## that spread exactly.
+##
+## The bounding box is the wrong ruler for fixing it, because a pose with a
+## raised arm or a lifted weapon has a taller box and the same character: scaling
+## by the box would *shrink* the character for raising its arm. So the head is
+## found instead, as the topmost row carrying at least HEAD_WIDTH_FRACTION of
+## the frame's width in opaque pixels -- a thin raised sword or fist does not
+## reach that, a head does.
+##
+## Sampled rather than exhaustive: scanning every row of every frame is millions
+## of get_pixel calls per character. Rows are scanned from the top and stop at
+## the head, and only SAMPLE_FRAMES frames spread across the clip are measured,
+## which is plenty for a median.
+const HEAD_WIDTH_FRACTION := 0.15
+const SAMPLE_FRAMES := 5
+
+func _body_height(sheet: Texture2D, regions: Array[Rect2]) -> int:
+	var image := _sheet_image(sheet)
+	if image == null or regions.is_empty():
+		return 0
+
+	var heights: Array[int] = []
+	var step: int = maxi(1, regions.size() / SAMPLE_FRAMES)
+	var index := 0
+	while index < regions.size():
+		var frame := image.get_region(Rect2i(regions[index]))
+		index += step
+		var used := frame.get_used_rect()
+		if used.size.y <= 0 or used.size.x <= 0:
+			continue
+		var needed: int = maxi(1, int(ceil(float(used.size.x) * HEAD_WIDTH_FRACTION)))
+		var head := -1
+		for y in range(used.position.y, used.position.y + used.size.y):
+			var run := 0
+			for x in range(used.position.x, used.position.x + used.size.x):
+				if frame.get_pixel(x, y).a > 0.5:
+					run += 1
+					if run >= needed:
+						break
+			if run >= needed:
+				head = y
+				break
+		if head < 0:
+			continue
+		heights.append(used.position.y + used.size.y - head)
+
+	if heights.is_empty():
+		return 0
+	heights.sort()
+	return heights[heights.size() / 2]
+
+
+## A sheet's pixels, decompressed if the import settings compressed them.
+func _sheet_image(sheet: Texture2D) -> Image:
+	if sheet == null:
+		return null
+	var image := sheet.get_image()
+	if image == null:
+		return null
+	if image.is_compressed() and image.decompress() != OK:
+		return null
+	return image
+
+
+## Every frame's region in an atlas, in numeric frame order.
+func _atlas_regions(atlas: Dictionary) -> Array[Rect2]:
+	var rects: Dictionary = atlas.get("frames", {})
+	var keys: Array = rects.keys()
+	keys.sort_custom(func(a: Variant, b: Variant) -> bool:
+		return int(str(a)) < int(str(b)))
+	var out: Array[Rect2] = []
+	for key: Variant in keys:
+		var r: Dictionary = rects[key]
+		out.append(Rect2(float(r.get("x", 0)), float(r.get("y", 0)),
+			float(r.get("w", 0)), float(r.get("h", 0))))
+	return out
 
 
 ## Keeps only TRIM's slice of an animation's frames, in order.

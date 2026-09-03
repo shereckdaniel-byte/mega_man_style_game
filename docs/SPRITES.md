@@ -103,14 +103,13 @@ rest, so a newly generated animation shows up under a usable name instead of bei
 
 ---
 
-## 3. Palette swap — blocked
+## 3. Palette swap — resolved at M5: hue rotation
 
 The plan was a `ShaderMaterial` remapping two authored body tones to the equipped weapon's
 colours, the way the NES palette swap worked.
 
-**This does not work on the current art.** An exact-match shader needs flat tones; one
-frame has ~230 colours with anti-aliased edges and gradients. Options, in order of
-preference:
+**That does not work on this art.** An exact-match shader needs flat tones; one frame has
+~230 colours with anti-aliased edges and gradients. The options were:
 
 1. **Regenerate as flat-shaded pixel art** — restores the original plan intact.
 2. **Hue-rotate in the shader** instead of remapping exact colours. Works on any art, but
@@ -119,7 +118,27 @@ preference:
 3. **Generate a colour variant per weapon in AutoSprite.** Highest fidelity, but it is
    8 × the art for one character and every regeneration multiplies.
 
-Resolve alongside the art-direction decision in §7.
+**Option 2 shipped** (`scenes/actors/player/weapon_palette.gdshader`). Option 1 was
+rejected with the art direction in §7 — the smooth HD character is the decision, and
+regenerating it flat to enable a shader would be the tail wagging the dog. Option 3 is
+eight regenerations of a fourteen-animation character to change one colour.
+
+The outline problem named above is handled rather than lived with: **the shift is weighted
+by saturation, and luminance is untouched.** Near-grey pixels — the outline, the white
+highlights — barely move, so the character stays the same character between weapons while
+the coloured body tones carry the weapon. `grey_floor` is the dial: 0 freezes greys
+completely, and the player uses 0.12 so the outline warms very slightly rather than
+looking pasted on.
+
+The shift itself is measured from the buster's own palette to the equipped weapon's, both
+read from the `.tres` — so a weapon resource says what colour the weapon *is*, and nothing
+has to separately state what colour it is relative to. The buster is therefore exactly
+0, and the default sprite is the sprite the art was made as.
+
+**What was given up:** this is a tint, not the original's crisp two-colour swap, and two
+weapons authored close together on the colour wheel will look alike. `tests/test_combat.gd`
+asserts every weapon moves the hue by more than 0.05 turns, which catches that at the
+point a new weapon is added rather than in a screenshot later.
 
 ---
 
@@ -281,6 +300,47 @@ resolves to `spritesheetIds`. **Poll no faster than every 30 s.** Note that
 `list_spritesheets` does not return the animation `name` and `latestOnly` collapses every
 `custom` animation into one entry — map name → sheet through the `jobId` instead.
 
+### 6a. Generating a whole roster — what the batch of 2026-09-02 taught
+
+Thirteen characters (seven bosses, six enemies) and fifty animations, in one batch so the
+style holds. Five things that are not in the tool descriptions:
+
+**Costs, measured.** `create_character` is 1 credit at `turbo` and 3 at `pro`;
+`generate_spritesheet` is 5 per animation at the default `turbo` video tier. The roster
+cost 39 (13 base images at `pro`) + 3 (one redo) + 250 (fifty animations) = 292 of 366.
+`pro` base images are worth it: every animation is generated *from* the base, so a weak
+base is paid for once per animation afterwards.
+
+**Do the base images first, all of them, and look at them together.** A base is 3 credits
+and its six animations are 30. One character came back with a wooden piling baked into
+the sprite — scenery that would never match the wall it was supposed to cling to — and
+catching that before animating cost 3 credits instead of 33.
+
+**Bearer auth fetches files directly; the `sig=` tokens are optional.** The tool output
+warns that `baseImageUrl` and `sheetUrl` carry `?sig=` tokens that expire in minutes,
+which makes a long batch awkward. They are not required:
+
+```sh
+curl -fsSL -H "Authorization: Bearer $AUTOSPRITE_API_KEY" \
+  https://www.autosprite.io/api/files/characters/<id>/base
+curl -fsSL -H "Authorization: Bearer $AUTOSPRITE_API_KEY" \
+  https://www.autosprite.io/api/files/spritesheets/<id>/sheet   # and /atlas
+```
+
+**`get_job_status` rate-limits hard, and fails as non-JSON rather than as an error.** A
+tight loop over fifty jobs starts returning something that is not JSON at all, so a naive
+parser crashes mid-download. Pace the calls (6 s was enough), treat a parse failure as
+"not ready", and make the downloader resumable by skipping any animation whose
+`atlas.json` already exists.
+
+**`create_character` can time out at 60 s and still have created the character.** Check
+`list_characters` before retrying, or you will pay twice for the same design.
+
+**Custom animations come back in submission order.** The mapping still has to go through
+the `jobId` — the sheet listing reports `kind: "custom"` for all of them and never the
+`name` — but where the order was checked against the art (Arc's `attack` fires its
+weapon, `hurt` recoils, `death` collapses), submission order held.
+
 ---
 
 ## 7. Art direction — settled
@@ -303,8 +363,8 @@ Two knock-on effects, both already applied:
 
 - Nearest filtering, pixel snapping and integer scaling were all correct for the pixel-art
   plan and are wrong here. Reversed, with the settings tests rewritten to match.
-- The two-tone palette swap (§3) is not viable. Hue rotation is the fallback; decide at M5
-  when weapons land.
+- The two-tone palette swap (§3) is not viable. Hue rotation was the fallback and is what
+  shipped at M5 — see §3, which now records the decision and what it cost.
 
 **Closed 2026-09-02:** the six missing player animations now exist (§4) and were verified
 in-engine, not just in the atlas — `tools/screenshot.gd` drives the player into each state
@@ -343,6 +403,70 @@ clamps, warning which animation was clamped and by how much. Nothing needed clam
 the current 22 animations.
 
 Result: every animation on both characters lands within 1 px of the ground line.
+
+### Per-animation *size* drift — corrected in the scene
+
+The baseline fix above answers "do the feet line up". It does not answer "is the character
+the same size", which is a separate consequence of the same cause and was noticed by eye
+long before it was measured: **the character visibly grows when it starts walking.**
+
+**The problem.** Because each clip is framed independently, the character is *drawn* at a
+different scale in each one. Measured head-to-feet on the player:
+
+| | `idle_shoot` | `walk_shoot` | `climb` | `idle` | `hurt` | `walk` |
+| --- | --- | --- | --- | --- | --- | --- |
+| Source px | 149 | 164 | 152 | **172** | 187 | **197** |
+| vs. idle | −13% | −5% | −12% | — | +9% | **+15%** |
+
+One scale factor applied to all of them reproduces that spread exactly: the character
+grows 15% on the walk and shrinks 13% when it stands still and fires — the two most common
+transitions in the game.
+
+**Why the bounding box is the wrong ruler.** The obvious fix — scale each clip by its own
+bounding-box height — inverts the bug. A pose with a raised arm or a lifted weapon has a
+taller box and the *same* character, so scaling by the box shrinks the character for
+raising its arm. `teleport_out` measures 208 px by bounding box and 161 head-to-feet; the
+47 px difference is a raised arm.
+
+**The measurement.** `AutoSpriteImporter._body_height` finds the head instead: the topmost
+row carrying at least 15% of the frame's width in opaque pixels. A thin raised sword or
+fist does not reach that threshold; a head does. It is sampled (five frames per clip,
+scanning stops at the head) because scanning every row of every frame is millions of
+`get_pixel` calls per character. The median lands in `metadata/body_heights`.
+
+**The correction is in the scene, not the art.** `Player.UPRIGHT_ANIMS` lists the poses
+where the character stands at full height, and each of those is scaled to render at
+exactly `character_height()`. Everything else uses `idle`'s factor, so a tuck or a crouch
+stays shorter by however much the artist drew it shorter.
+
+That list is a judgement, and it is deliberately written down rather than derived.
+`jump` is shorter because it is tucked, `slide` because it is prone, `death` because it is
+collapsing — and **no measurement can tell "drawn smaller" from "crouching"**. Normalising
+those would be this same bug pointed the other way: the character would stand up mid-slide.
+
+**What this does not fix.** Head-to-feet normalisation equalises height, not bulk. A pose
+that leans slightly into its stance gets scaled up as though it were drawn smaller, so it
+reads a little heavier than `idle`. Visible on `idle_shoot` if you look for it; much
+smaller than the 13% it replaced.
+
+**Only the player is corrected, and that is a measurement, not laziness.** Tide's upright
+clips span 150–159 px — under 6%, which does not read. The player's 15% does.
+`tests/test_sprite_frames.gd` asserts idle-vs-walk within 8% for every *uncorrected*
+character, so a future boss that comes back badly framed fails CI; the honest answers then
+are to regenerate its art or extend this scaling to `Enemy`, not to raise the bound.
+
+### A note on the unused clips
+
+`attack` **is now used** — it is the sword swing (docs/PLAN.md §2a). It turned out to be a
+dual-wield low guard stance rather than the two-handed lunge it was first described as,
+which is why the swing reads as planted and committed. Its head-to-feet height is 21% under
+`idle`, and that is correct posture rather than framing drift: the character really is
+crouched in that stance. It is deliberately **not** in `Player.UPRIGHT_ANIMS` for that
+reason — normalising it would stand the character up mid-swing.
+
+`victory` and `teleport_out` are still never played. The player's states ask for `idle`,
+`walk`, `jump`, `slide`, `climb`, `hurt`, `death`, `attack`, `teleport_in` and the `_shoot`
+variants.
 
 **Why no existing test caught it.** `Player.sprite_feet_offset()` derives its answer from
 `SOURCE_ART_BASELINE` and from the `sprite.offset` that was *set* from
@@ -480,3 +604,241 @@ plate width so it tiles as the room scrolls.
 **Filtering, again:** every one of these is pixel art and needs
 `texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST` on the node. The project default is
 Linear and must stay Linear for the character — see §8.
+
+### 8b. Stage 1 — what was actually generated
+
+Both are in. The boardwalk tileset needed a network-policy change first — see
+"Tileset art comes from a different host" below, which is worth reading before
+generating stage 2.
+
+| # | Asset | State | Job / id |
+| --- | --- | --- | --- |
+| 1 | boardwalk planks + rail | **done** — `assets/tilesets/dawn_boardwalk/` | tileset `2e44791f-404c-4174-81fe-bc2f6a082215` |
+| 2 | dawn sky + low sun | **done** — `assets/backgrounds/dawn_boardwalk/sky.png` | image `ceaaa4c7-f3a3-46ef-a24c-bf9107204ad2`, seed 10511 |
+| 3 | ruined city skyline | **done** — `skyline.png` | image `356af9de-b93a-4f26-9d78-60ebd284be0e`, seed 10521 |
+| 4 | floodwater | **done** — `water.png` | derived from the sky, no generation |
+| 5 | foreground pilings | **done** — `pilings.png` | image `6702e1f9-b5f9-4f6a-8364-10b9a3ed3b97`, seed 10541 |
+
+Twelve of the 40 trial generations spent: 3 on the tileset, 4 on the sky, and 5
+across the other plates — of which two were thrown away, below.
+
+**The mixed-style question from §8 is settled: it works.** `art_preview.tscn`
+lays a boardwalk from the tileset, puts the backdrop behind it and stands the
+player on it. A smooth anti-aliased character against flat banded pixel terrain
+reads as a deliberate choice, not as two games spliced together. Generate the
+remaining plates.
+
+The one thing to know about that preview: it offsets the camera to frame the
+deck low. The tuning room centres the camera on the player, which puts the
+walking surface across the middle of the screen — and because the sky plate is
+locked vertically, that buries the sun behind the boardwalk. The backdrop is
+composed for a stage camera that keeps the ground in the lower third, which is
+what M4's camera limits will do.
+
+#### The sky took three attempts, and the fix was not a better prompt
+
+`create_image_pixflux` will not draw a sky. Asked for one it draws a *landscape*:
+attempt 1 returned mountains and a lake, attempt 2 a hill ridge, attempt 3 hills
+and a treeline. Negative phrasing ("no ground, no mountains, no horizon") did not
+help and `text_guidance_scale` 15 did not help — a bare sky is not a picture, and
+the model composes a picture.
+
+What worked was to stop fighting it. Ask for a 400x400 sunrise over water, which
+it draws happily and well, then take the sky out of it:
+
+- crop source rows 72–311 to a 400x240 window;
+- rows 72–241 are real generated sky and are untouched;
+- the generated sea below the horizon is replaced with flat bands continuing the
+  gradient, because **the horizon has to come from the water plate, not from the
+  sky plate** — they scroll at 0.4 and 0.05 and a horizon baked into the sky
+  would slide against the real one;
+- the sun sits exactly on the source's horizon, so only its top half exists. It
+  is a single flat colour (251, 234, 141) on a clean disc, so the bottom half is
+  its top half mirrored about row 241.5.
+
+The rebuilt band is the bottom 70 of 240 rows. All of it ends up behind the
+skyline, water and foreground plates, which is why a flat fill is good enough
+there and would not be anywhere higher up.
+
+`tools/`-style reproduction is deliberately not committed for this: the crop
+constants are specific to one seed, and re-running the prompt gives a different
+picture that needs different constants. The numbers above are the record.
+
+#### 400x240 is not an arbitrary size
+
+At `world_scale` 4.5 it is exactly 1800x1080 — a full viewport height with no
+resampling, the same reasoning as the 16 px tile in §8. A plate is scaled by
+`world_scale` like everything else, so changing that constant still moves the
+whole game together.
+
+`Parallax2D.repeat_size` alone is not enough to tile a plate: it only says how
+wide a copy is. Without `repeat_times` the layer draws a single copy and leaves
+bare viewport either side of it, which shows up the moment the camera moves off
+the plate's origin. Both are set in `parallax_background.gd`.
+
+Vertical scroll is 0 on every plate. A plate is sized to the viewport height
+exactly, so any vertical drift walks its edge into frame.
+
+#### Tileset art comes from a different host, and it has to be allowed
+
+Raw images and tilesets are delivered differently, and only one of the two
+survives a default web session's egress policy:
+
+| Endpoint | Behaviour |
+| --- | --- |
+| `api.pixellab.ai/mcp/images/{job}/download` | 200, `image/png`, bytes served directly |
+| `api.pixellab.ai/mcp/sidescroller-tilesets/{id}/image` | 302 to `backblaze.pixellab.ai` |
+
+`api.pixellab.ai` is allowed by default; `backblaze.pixellab.ai` is not, and the
+egress proxy answers 403 to the CONNECT. So `create_image_pixflux` output comes
+back fine and tileset output does not, which is exactly the wrong way round for
+a stage whose terrain is the part that needs collision.
+
+There is no proxied or base64 tileset endpoint — confirmed against PixelLab's
+own docs agent, and by probing `/v1/tilesets/{id}`, `?format=base64`,
+`/download` and `/spritesheet`, all of which 404 or redirect. The *metadata* is
+served from the allowed host and downloads fine; it is only the spritesheet PNG
+that moves.
+
+**Add `backblaze.pixellab.ai` to the environment's allowed domains before
+generating a tileset.** A tileset already generated stays on the server, so
+opening the host later costs nothing to recover it — this one was downloaded
+after the fact, not regenerated.
+
+Do not work around it by handing the storage URL back to the API as an
+`init_image_url` so the service fetches its own file. That routes around the
+policy rather than asking for it to be changed, costs a generation, and puts the
+sheet through a diffusion pass that can smear the very tile seams the Wang set
+depends on.
+
+`inpaint_image` is worth knowing about for a different reason: it costs **20–40
+generations**, billed by image size, against a trial of 40. It is not a cheap
+repair tool here.
+
+#### The tileset importer
+
+`tools/pixellab_tileset_import.gd` builds a `TileSet` with collision from an
+export, the same shape as the AutoSprite importer and for the same reason: the
+logic is a plain `RefCounted` because `EditorScript` cannot run headless.
+
+    assets/tilesets/<stage>/tileset.png    4x4 grid of 16 px tiles
+    assets/tilesets/<stage>/tileset.json   the /metadata response, verbatim
+      -> resources/tilesets/<stage>.tres
+
+The layout is `tileset15_4x4`, a Wang **corner** set. Each tile is named
+`wang_N`, and N's bits say which corners are *background*:
+
+    1 = SE   2 = SW   4 = NE   8 = NW      bit set == background
+
+`wang_0` is fully solid interior and `wang_15` is fully empty — which is why the
+layout is tileset15 and not tileset16. Fifteen tiles carry terrain; the
+sixteenth is the "no tile" case and is deliberately never created.
+
+**Corner terrain offsets the terrain grid half a tile from the visual grid.**
+`wang_12` (both north corners background) is a top-surface tile whose solid half
+is its *bottom* half, with the plank surface drawn across the middle. Collision
+therefore follows the art, not the tile bounds, and a deck painted from row R
+has its walking surface at R + 0.5. Get this backwards and the player stands
+half a tile above the planks.
+
+Before trusting any of that for collision, the corner metadata was checked
+against the art's own alpha channel across all sixteen tiles. It agreed exactly,
+which is what makes the mapping safe to rely on rather than merely plausible.
+`tests/test_tilesets.gd` keeps it honest: it re-derives every shipped tile's
+mask from its name, and asserts the generated collision polygons cover exactly
+the quadrants the metadata calls solid.
+
+Stages paint with `set_cells_terrain_connect` rather than naming tiles, which is
+also the check on the importer — wrong corner data shows up immediately as wrong
+edges.
+
+#### What the tileset actually looks like
+
+Prompted for "weathered grey driftwood planks", it returned mauve-purple
+blockwork with pale sun-bleached tops: closer to weathered concrete than to
+driftwood, and not grey. It is kept anyway, because the mauve happens to sit in
+the sky's own palette and the deck reads correctly at 4.5x. Worth knowing that
+`lower_description` steers material far less than it steers colour — if stage 2
+needs a specific material, expect to iterate, and remember a tileset is 2–3
+generations a try.
+
+### 8c. The rest of the backdrop, and where the plates go
+
+All five plates are in and `art_preview.tscn` shows them stacked. The parallax
+factors are §8a's; what §8a did not record, and what actually matters when
+assembling them, is **where each plate sits vertically**.
+
+`parallax_background.gd` hangs the whole backdrop off one constant, `HORIZON`,
+in plate pixels from the top of the viewport. The skyline stands on it, the
+water starts at it, the sun clears it. Change that number and the backdrop stays
+coherent; place the plates independently and it will not.
+
+| Plate | Size | Scroll | Top |
+| --- | --- | --- | --- |
+| sky | 400x240 | 0.05 | 0 |
+| skyline | 220x40 | 0.2 | `HORIZON` − 40 |
+| water | 400x120 | 0.4 | `HORIZON` |
+| pilings | 400x84 | 1.2 | 156, i.e. flush with the bottom |
+
+Vertical scroll is 0 on every plate: the backdrop is placed against the
+viewport, not the world, so it must not drift when the camera rises or the
+horizon walks off the top of the screen. The pilings are the only plate with a
+positive `z_index` — everything else is behind the player, they are in front.
+
+#### The sun had to move, and moving it cost the sky its band spacing
+
+§8b put the sun at plate row 169. That is 70% of the way down the viewport, and
+it left no room: the horizon has to sit below the sun, the water below that, and
+the deck below that, all inside the remaining 30%. The sun is 234 screen pixels
+across, which is simply large relative to the scene.
+
+It now sits at row 100. Getting it there could not be done by re-cropping,
+because the source has only 242 rows of sky *above* the sun and none below.
+Instead the banded sky above the disc is squashed 215 rows into 74 with NEAREST
+— flat bands stay flat under nearest-neighbour, they just get thinner — while
+the sun's own 27-row band is kept at native scale so the disc keeps its shape.
+The banding is tighter than the source's as a result. It reads as haze.
+
+**The sun cannot clear the city.** With the disc 26 plate px in radius and the
+horizon 30 px below its centre, a skyline that fits under it would be about
+three pixels tall. The draft prompt's "low sun just clear of it" is not
+achievable at this sun size, so the city crosses the disc instead — which is the
+more familiar image anyway, and looks deliberate.
+
+#### Two plates that had to be made rather than generated
+
+**Water.** Generated twice and discarded twice. Asked for a water surface,
+pixflux drew a lake — sky, hills, a far shore and a boat — in a pale blue
+nothing like the dawn palette. Forcing the sky's own palette with
+`color_image_url` (which does work: point it at any completed job's no-auth
+download URL) fixed the colour and left the composition: still a lake, now a
+warm one, with most of the frame collapsed onto the sun's yellow.
+
+The plate that shipped is derived instead: **still water is the sky mirrored
+about the waterline**, so it is exactly that, darkened and cooled with depth,
+with the mirrored sun broken into a glitter path and some debris added. It costs
+no generations and it cannot drift out of palette with the sky, because it *is*
+the sky. A separately generated plate can and did.
+
+**Pilings.** Asked for railing posts with gaps between them, pixflux returned a
+picket fence at 100% alpha coverage — no transparency anywhere, which as a
+foreground plate would have walled the player off completely. `no_background`
+does not create gaps in a subject that fills its frame. What shipped is a single
+generated piling composited into a plate at chosen positions, which is also the
+only way to control the spacing. It is darkened to 45% and pulled toward the
+water's blue: a foreground element that competes with the player for attention
+is worse than no foreground element.
+
+#### Making distance read
+
+Two adjustments did more for depth than any prompt:
+
+- **Scale both axes.** The skyline was generated 400x100 and is used at 220x40.
+  Squashing only the height would have given stubby towers at the same apparent
+  distance; scaling both makes them far away.
+- **Haze by brightness.** Every skyline pixel is blended toward the sky colour
+  behind it, by an amount that rises with its own luminance. The pale back rank
+  the generator drew recedes into the sky, the dark front rank stays solid, and
+  the speckled window detail stops reading as noise.
+
+Neither is a PixelLab feature. Both are a few lines over the returned PNG.

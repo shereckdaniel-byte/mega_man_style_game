@@ -3,11 +3,19 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M1 complete** — the player controller is playable, verified on Godot 4.7.stable,
-with 59 tests (1411 assertions) passing headless in CI. Next up is M3, combat.
+**Status: M5a complete** — the player controller, combat, enemies, a boss with a weapon
+get, and stage 1 built from eight rooms and eight level elements. Verified on Godot
+4.7.stable with 273 tests (7442 assertions) passing headless in CI. Next up is M6, the
+remaining seven stages.
 
 ```sh
 GODOT=/path/to/godot ./tools/check.sh     # import + boot check + tests, same as CI
+
+# The full suite is about three and a half minutes, nearly all of it spent waiting on
+# real physics frames. While working on one thing, narrow it — arguments after `--` are
+# substrings matched against file and method names, and this takes a second or two:
+godot --headless --script res://tests/run_tests.gd -- backdrop
+godot --headless --script res://tests/run_tests.gd -- rising_tide crest_wave
 ```
 
 | Document | What's in it |

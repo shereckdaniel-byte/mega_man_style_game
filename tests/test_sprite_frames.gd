@@ -167,17 +167,144 @@ func test_every_animation_stands_on_the_same_baseline() -> void:
 		var frames: SpriteFrames = load(path)
 		if frames == null:
 			continue
+		# The row is per character, recorded by the importer. Asking every
+		# character to share one row was the first version of this test, and the
+		# 2026-09 roster broke it: that art is framed lower in its cell and
+		# physically cannot reach the player's row. Aligning a boss to the
+		# player's baseline was never the requirement -- each actor's scene
+		# applies its own sprite offset. Animations of ONE character agreeing
+		# with each other is the requirement, and that is what this checks.
+		var target: int = frames.get_meta(&"baseline_row",
+			int(Player.SOURCE_ART_BASELINE))
+		var clamped: PackedStringArray = frames.get_meta(&"baseline_clamped",
+			PackedStringArray())
 		for name in frames.get_animation_names():
 			var baseline := _baseline_of(frames, name)
 			if baseline < 0:
 				continue  # fully transparent animation; nothing to stand on
-			assert_almost_eq(float(baseline), Player.SOURCE_ART_BASELINE, 2.0,
-				"%s/%s feet land on row %d, not %d (a clamped shift warns at import)"
-					% [path.get_file(), name, baseline, int(Player.SOURCE_ART_BASELINE)])
+			if clamped.has(String(name)):
+				continue  # the art ran out of cell; the importer said so
+			assert_almost_eq(float(baseline), float(target), 2.0,
+				"%s/%s feet land on row %d, not this character's row %d"
+					% [path.get_file(), name, baseline, target])
+
+		# Clamping is a fact of some poses -- a death that ends flat on the floor
+		# has nowhere left to move. A character where MOST animations clamp is a
+		# different thing: art framed wrong in its cell, which is worth failing.
+		assert_true(clamped.size() * 4 <= frames.get_animation_names().size() * 3,
+			"%s: %d of %d animations could not be normalised" % [path.get_file(),
+				clamped.size(), frames.get_animation_names().size()])
+
+
+## The player's row is the one that cannot move: Player.SOURCE_ART_BASELINE is a
+## scene constant compensating for exactly this number, so a drift here puts the
+## character in the floor and no other test would notice.
+func test_the_players_baseline_stays_pinned_to_the_scene_constant() -> void:
+	var frames: SpriteFrames = load("%s/player.tres" % SPRITE_FRAMES_DIR)
+	assert_not_null(frames)
+	assert_eq(int(frames.get_meta(&"baseline_row", -1)),
+		int(Player.SOURCE_ART_BASELINE),
+		"the player is pinned; everyone else is normalised to their own art")
+	assert_eq(AutoSpriteImporter.BASELINE_ROW, int(Player.SOURCE_ART_BASELINE))
 
 
 ## Median lowest opaque row across an animation's frames, in cell coordinates,
 ## including the margin the importer used to shift the art.
+# --- Drawn size ----------------------------------------------------------------
+#
+# The baseline tests above answer "do the feet line up". These answer "is the
+# character the same size", which is a different question with the same cause:
+# AutoSprite frames every clip independently, so the same character comes back
+# drawn at a different scale in each one. Noticed by eye first -- the character
+# visibly grew when it started walking -- then measured at 14%.
+
+## Every character carries the measurement, or the scene has nothing to scale
+## from and silently falls back to one factor for every pose.
+func test_every_character_records_its_body_heights() -> void:
+	for path in _generated():
+		var frames: SpriteFrames = load(path)
+		assert_true(frames.has_meta(&"body_heights"),
+			"%s has no body_heights; re-run tools/autosprite_import.gd" % path)
+		var heights: Dictionary = frames.get_meta(&"body_heights")
+		assert_true(heights.size() > 0, "%s recorded no heights" % path)
+
+
+## `idle` and `walk` are the two poses every character has and the two that are
+## unambiguously upright, so a gap between them is drawing scale rather than
+## posture. This catches a character whose art comes back framed inconsistently.
+##
+## **The player is excluded, and that is the interesting part.** Its art really
+## is 14.5% inconsistent between idle and walk, and it is not going to be
+## regenerated to fix that -- the scene corrects it instead, per animation, and
+## `test_the_players_upright_poses_render_at_one_height` is the check that the
+## correction works. Every other character is drawn at one scale and read at one
+## scale, so for them the art is the only place the problem could be.
+##
+## If a boss ever fails this, there are two honest answers: regenerate its art,
+## or give Enemy the per-animation scaling the player has. Not: raise the bound.
+const UNCORRECTED_TOLERANCE := 0.08
+const SCENE_CORRECTED := ["player.tres"]
+
+func test_idle_and_walk_are_drawn_at_the_same_size() -> void:
+	for path in _generated():
+		if SCENE_CORRECTED.has(path.get_file()):
+			continue
+		var frames: SpriteFrames = load(path)
+		if not frames.has_meta(&"body_heights"):
+			continue
+		var heights: Dictionary = frames.get_meta(&"body_heights")
+		if not heights.has("idle") or not heights.has("walk"):
+			continue
+		var idle := float(heights["idle"])
+		var walk := float(heights["walk"])
+		if idle <= 0.0:
+			continue
+		var drift: float = absf(walk / idle - 1.0)
+		assert_true(drift <= UNCORRECTED_TOLERANCE,
+			"%s: walk is drawn %.1f%% off idle (%d vs %d px head to feet)"
+				% [path.get_file(), drift * 100.0, int(walk), int(idle)])
+
+
+## What the player actually renders. Every upright pose has to reach the screen
+## at the same height, which is the whole point of the per-animation scale --
+## the art is still inconsistent, the scene is what makes it not show.
+func test_the_players_upright_poses_render_at_one_height() -> void:
+	var frames: SpriteFrames = load("res://resources/sprite_frames/player.tres")
+	if not frames.has_meta(&"body_heights"):
+		return
+	var heights: Dictionary = frames.get_meta(&"body_heights")
+	var tuning := PlayerTuning.new()
+	var target := tuning.character_height()
+
+	for anim in Player.UPRIGHT_ANIMS:
+		var key := String(anim)
+		if not heights.has(key):
+			continue
+		var source := float(heights[key])
+		# What Player.art_scale_for would pick, without needing a live player.
+		var drawn := source * tuning.sprite_scale(source)
+		var drift: float = absf(drawn / target - 1.0)
+		assert_true(drift <= Player.UPRIGHT_TOLERANCE,
+			"%s renders %.1f px against the character's %.1f (%.1f%% out)"
+				% [key, drawn, target, drift * 100.0])
+
+
+## The poses that are meant to be shorter must stay shorter. Guards the inverse
+## mistake: normalising everything would stand the character up mid-slide.
+func test_crouched_poses_are_not_stretched_to_standing() -> void:
+	var frames: SpriteFrames = load("res://resources/sprite_frames/player.tres")
+	if not frames.has_meta(&"body_heights"):
+		return
+	var heights: Dictionary = frames.get_meta(&"body_heights")
+	for key in ["slide", "jump", "death"]:
+		assert_false(Player.UPRIGHT_ANIMS.has(StringName(key)),
+			"%s is a lowered pose and must not be normalised to standing" % key)
+		if not heights.has(key):
+			continue
+		assert_true(float(heights[key]) < float(heights.get("idle", 0)),
+			"%s is not shorter than idle in the source art" % key)
+
+
 func _baseline_of(frames: SpriteFrames, name: StringName) -> int:
 	var count := frames.get_frame_count(name)
 	if count == 0:
