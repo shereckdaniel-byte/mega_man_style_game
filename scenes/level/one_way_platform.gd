@@ -25,8 +25,17 @@ extends StaticBody2D
 ## platform itself is enough without letting a body snap up from below it.
 @export var one_way_margin := 12.0
 
-const FACE := Color(0.72, 0.66, 0.52)
-const EDGE := Color(0.38, 0.32, 0.26)
+## Drawn to read as a cut piece of deck, like MovingPlatform.
+##
+## It was a flat tan bar, and a playtester pointed at one and said it "does not
+## look good, should look like the floor below or very close". It is the only
+## thing in the room the player stands on that does not come out of the tileset,
+## so it is the only thing that reads as unfinished.
+const FACE := Color(0.60, 0.55, 0.52)
+const PLANK := Color(0.52, 0.47, 0.45)
+const LIP := Color(0.88, 0.85, 0.72)
+const EDGE := Color(0.24, 0.22, 0.24)
+const UNDER := Color(0.30, 0.27, 0.28)
 
 var _shape: CollisionShape2D
 
@@ -66,7 +75,23 @@ func _rebuild() -> void:
 
 func _draw() -> void:
 	var size := world_size()
+	var tile := tile_size()
+	# A bright lip along the top edge and a *soft* underside: the visual has to
+	# say "solid from above, open from below" before the player finds out by
+	# jumping, so the top is the hard, bright edge and the bottom fades.
+	var lip := maxf(size.y * 0.34, 4.0)
+
 	draw_rect(Rect2(Vector2.ZERO, size), FACE)
-	# A lip along the top edge only: the visual has to say "solid from above,
-	# open from below" before the player finds out by jumping.
-	draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, maxf(size.y * 0.25, 3.0))), EDGE)
+	draw_rect(Rect2(Vector2(0.0, size.y - lip * 0.6), Vector2(size.x, lip * 0.6)),
+		Color(UNDER.r, UNDER.g, UNDER.b, 0.55))
+
+	var plank := tile * 0.5
+	var x := plank
+	while x < size.x - 1.0:
+		draw_rect(Rect2(Vector2(x - maxf(tile * 0.02, 1.0), lip),
+			Vector2(maxf(tile * 0.04, 2.0), size.y - lip)), PLANK)
+		x += plank
+
+	draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, lip)), LIP)
+	# Top edge only, so the silhouette from below stays open.
+	draw_line(Vector2.ZERO, Vector2(size.x, 0.0), EDGE, maxf(size.y * 0.12, 2.0))

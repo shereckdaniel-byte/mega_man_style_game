@@ -151,3 +151,45 @@ func test_an_etank_is_refused_when_there_are_none() -> void:
 	menu.open()
 	assert_false(menu.use_etank())
 	assert_eq(player.health.current, 4)
+
+
+# --- Saying what happened ------------------------------------------------------
+
+## On a fresh run the rows are the buster, an E-Tank the player does not have,
+## and Restart. Two of the three correctly do nothing -- and used to do it in
+## silence, which a playtester reported as the menu being broken. That is the
+## right conclusion from the evidence, so every confirm now reports.
+
+func test_a_refused_etank_says_why() -> void:
+	var said: Array[String] = []
+	menu.reported.connect(func(m: String) -> void: said.append(m))
+	menu.open()
+	menu.selected = menu.rows.find(menu.ETANK_ROW)
+	assert_false(menu.confirm(), "there are no E-tanks to spend")
+	assert_true(_last(said).contains("NO E-TANK"), "said %s" % str(said))
+
+
+func test_equipping_a_weapon_says_so() -> void:
+	var said: Array[String] = []
+	menu.reported.connect(func(m: String) -> void: said.append(m))
+	menu.open()
+	menu.selected = menu.rows.find(weapons.BUSTER)
+	assert_true(menu.confirm())
+	assert_true(_last(said).contains("EQUIPPED"), "said %s" % str(said))
+
+
+func test_restart_says_so() -> void:
+	var said: Array[String] = []
+	menu.reported.connect(func(m: String) -> void: said.append(m))
+	menu.open()
+	menu.selected = menu.rows.find(menu.RESTART_ROW)
+	assert_true(menu.confirm())
+	assert_true(_last(said).contains("RESTART"), "said %s" % str(said))
+
+
+## Opening clears the line, so the interesting message is the last non-empty one.
+func _last(said: Array[String]) -> String:
+	for i in range(said.size() - 1, -1, -1):
+		if not said[i].is_empty():
+			return said[i]
+	return ""

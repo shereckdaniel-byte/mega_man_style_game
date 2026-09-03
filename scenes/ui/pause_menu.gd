@@ -20,6 +20,8 @@ signal etank_used(remaining: int)
 ## The player asked to start the stage again. The stage decides what that means;
 ## the menu only reports it.
 signal restart_requested()
+## What the last confirm did, or refused to do. For the status line and tests.
+signal reported(message: String)
 
 const BACKDROP := Color(0.03, 0.05, 0.10, 0.90)
 const ROW_COLOUR := Color(0.78, 0.86, 0.96)
@@ -47,6 +49,7 @@ var _weapons: Node = null
 var _state: Node = null
 var _panel: ColorRect
 var _list: VBoxContainer
+var _status: Label
 var _labels: Array[Label] = []
 
 
@@ -79,6 +82,7 @@ func open() -> void:
 	_refresh_rows()
 	_panel.visible = true
 	get_tree().paused = true
+	_report("")
 	opened.emit()
 
 
@@ -107,24 +111,49 @@ func selected_row() -> StringName:
 
 
 ## Acts on the highlighted row: equip a weapon, or spend an E-tank.
+## Acts on the highlighted row and **says what happened**.
+##
+## The saying is the part that was missing. On a fresh run the rows are the
+## buster, an E-Tank the player does not have, and Restart -- so pressing confirm
+## on two of the three correctly does nothing, and did it in complete silence. A
+## playtester reported the menu as broken, which is the right conclusion from the
+## evidence: a refusal that looks identical to a dead button is a dead button.
 func confirm() -> bool:
 	var row := selected_row()
 	if row == &"":
 		return false
 	if row == ETANK_ROW:
-		return use_etank()
+		var before: int = _state.etanks if _state != null else 0
+		var used := use_etank()
+		if used:
+			_report("E-TANK USED")
+		elif before <= 0:
+			_report("NO E-TANKS")
+		else:
+			_report("ALREADY AT FULL HEALTH")
+		return used
 	if row == RESTART_ROW:
 		# Closed first: the stage is about to be rebuilt underneath this menu,
 		# and a menu left open would keep the tree paused with nothing to
 		# unpause it.
+		_report("RESTARTING")
 		close()
 		restart_requested.emit()
 		return true
 	if _weapons == null or not _weapons.select(row):
+		_report("UNAVAILABLE")
 		return false
 	weapon_selected.emit(row)
+	_report("%s EQUIPPED" % _row_text(row).strip_edges().to_upper())
 	_redraw_rows()
 	return true
+
+
+## Shows one line of feedback under the rows until the next confirm.
+func _report(message: String) -> void:
+	if _status != null:
+		_status.text = message
+	reported.emit(message)
 
 
 ## Spends one E-tank and refills the player to full.
@@ -190,6 +219,16 @@ func _build() -> void:
 	_list.alignment = BoxContainer.ALIGNMENT_CENTER
 	_list.add_theme_constant_override(&"separation", 10)
 	box.add_child(_list)
+
+	# The line that says what the last confirm did. Empty until something is
+	# pressed, so it is an answer rather than a label.
+	_status = Label.new()
+	_status.name = "Status"
+	_status.text = ""
+	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_status.add_theme_color_override(&"font_color", DIM_COLOUR)
+	_status.add_theme_font_size_override(&"font_size", 26)
+	box.add_child(_status)
 
 
 func _refresh_rows() -> void:

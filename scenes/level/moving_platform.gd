@@ -51,9 +51,25 @@ enum Mode {
 ## Set false to leave it parked, for a platform switched on by something else.
 @export var running: bool = true
 
-const FACE := Color(0.62, 0.68, 0.78)
-const EDGE := Color(0.28, 0.33, 0.42)
-const RIVET := Color(0.85, 0.90, 0.98)
+## Drawn to read as a cut piece of the deck rather than as a coloured bar.
+##
+## The first version was one flat rectangle with a lighter strip on top, and a
+## playtester's note on it was that it "does not look good, should look like the
+## floor below or very close" -- which is exactly right: it is the only thing in
+## the room the player stands on that does not come from the tileset, so it is
+## the only thing that reads as placeholder.
+##
+## Still drawn rather than tiled. A TileMapLayer that moves is a second source of
+## collision travelling through the level, and the platform's whole contract is
+## that it carries its rider (`MovingPlatform` moves the body it is under). What
+## closes the gap is the *shape* -- plank ends, a bright top lip, bolt heads and
+## a shadowed underside -- not the exact pixels.
+const FACE := Color(0.60, 0.55, 0.52)
+const PLANK := Color(0.52, 0.47, 0.45)
+const LIP := Color(0.88, 0.85, 0.72)
+const EDGE := Color(0.24, 0.22, 0.24)
+const BOLT := Color(0.36, 0.34, 0.34)
+const UNDER := Color(0.30, 0.27, 0.28)
 
 var _origin := Vector2.ZERO
 var _frames := 0
@@ -154,6 +170,29 @@ func _rebuild() -> void:
 
 func _draw() -> void:
 	var size := world_size()
+	var tile := tile_size()
+	var lip := maxf(size.y * 0.34, 4.0)
+
+	# Body, then a shadowed underside so it sits in the light like the deck does.
 	draw_rect(Rect2(Vector2.ZERO, size), FACE)
-	draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, maxf(size.y * 0.3, 3.0))), RIVET)
-	draw_rect(Rect2(Vector2.ZERO, size), EDGE, false, maxf(size.y * 0.12, 2.0))
+	draw_rect(Rect2(Vector2(0.0, size.y - lip * 0.7), Vector2(size.x, lip * 0.7)), UNDER)
+
+	# Plank ends across the span, on the tile grid, so the walking surface has
+	# the same rhythm as the boardwalk it was cut from.
+	var plank := tile * 0.5
+	var x := plank
+	while x < size.x - 1.0:
+		draw_rect(Rect2(Vector2(x - maxf(tile * 0.02, 1.0), lip),
+			Vector2(maxf(tile * 0.04, 2.0), size.y - lip)), PLANK)
+		x += plank
+
+	# The bright top lip: the part the player actually aims their feet at.
+	draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, lip)), LIP)
+
+	# Bolt heads at the ends, which is what says "this one is a fitting that
+	# moves" rather than "this one is a piece someone forgot to texture".
+	var bolt := maxf(tile * 0.07, 2.0)
+	for at in [tile * 0.22, size.x - tile * 0.22]:
+		draw_circle(Vector2(at, lip * 0.5), bolt, BOLT)
+
+	draw_rect(Rect2(Vector2.ZERO, size), EDGE, false, maxf(size.y * 0.1, 2.0))

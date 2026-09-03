@@ -630,6 +630,85 @@ in `test_stage_authoring.gd` now, which loops over the roster.
 **Accepted:** the bot runs Substation end to end with the new roster — 0 deaths,
 26 of 28 HP, unchanged from M6a, which is the point: a reskin is not a rebalance.
 
+### M6e — The first playtest ✅ done
+
+Somebody played stage 1 and came back with seven things. Six were real, one was
+a feature that does not exist yet, and **three of the six were invisible art on
+working mechanics** — which is the theme of this whole entry.
+
+| # | Reported | What it was |
+| --- | --- | --- |
+| 1 | the turret is floating | it was. Elevated fixed enemies had nothing under them since M4 |
+| 2 | cannot reach rooms 4–5, there is a gap I cannot jump | **`Ladder` had no `_draw`.** Every ladder in the game was an invisible Area2D over a hole in the deck |
+| 3 | the falling blocks look odd, need more of them | four crumbling blocks spaced two apart; each gap was a jump taken while the block you left was collapsing |
+| 4 | the sword shows one frame | the clip is 25 frames over 2.33 s and the swing is 0.33 s, so about three frames played |
+| 5 | menu items do nothing | two of the three rows correctly do nothing on a fresh run, and said nothing about it |
+| 6 | the platform does not look like the floor | the one-way and moving platforms were flat coloured bars, the only surfaces not from the tileset |
+| 7 | no stage select | correct — it is not built. M6 scope |
+
+**The one that matters is #2, and the one nobody reported is worse.** Chasing the
+invisible ladder turned up that **`Hazard` had no `_draw` either**: every spike in
+the game was an unmarked instant-kill box. The room tables spend paragraphs
+refusing to author exactly that — stage 1 turns down three spike placements for
+being "a kill on a flat run with nothing but the sprite to warn you" — and then
+there was no sprite. The geometry was fair and the presentation was not, which
+from where the player stands is the same thing.
+
+Both were invisible to everything that guards this project. The suite was green,
+the playthrough bot was winning, and the ledger recorded honest numbers, because
+**a bot reads the tile map and the player reads the screen.** That is the third
+time in three milestones a fault has been found by looking rather than running,
+and it is now a pattern worth naming rather than a coincidence.
+
+Also fixed here, from the same pass: fixed enemies placed above the deck get a
+drawn mounting post (`EnemyMount` — scenery, not collision, so traversal the
+tests and the bot have signed off on does not move); the crumbling blocks form a
+continuous walkway across Under East's water; the one-way and moving platforms
+are drawn as cut deck rather than as bars; and every confirm in the pause menu
+now reports what it did or why it refused.
+
+**One regression caught on the way**, worth recording because the fix for it is a
+fact about the room rather than a rule: filling the walkway from cell 9 put a
+solid block in the moving platform's parking cell, and the bot stood at the lip
+waiting for a ferry that could not arrive. The walkway starts at 10. Stage 1's
+ledger is back to 0 deaths and 22 HP, unchanged, which is the check that it is
+the same stage.
+
+### M6f — The stage select ✅ done
+
+The seventh item from the playtest, and the oldest promise in the plan: section 1
+opens with "8 Robot Master stages playable in any order" and the game booted
+straight into stage 1 because there was nothing to pick from. `SceneRouter` has
+had a `STAGE_SELECT` constant pointing at a scene that did not exist since M0.
+
+- ✅ **`StageRoster`** — the eight, in one place. Boss index, name, stage, weapon,
+  portrait and scene path. The roster previously existed in three partial copies
+  (the playthrough tool's stage list, each stage's own boss constants, and
+  section 4 of this document), which is a roster that disagrees in two of them
+  the first time a stage is renamed.
+- ✅ **A 3×3 grid**, eight bosses around a sealed fortress centre, cursor wrapping
+  in both axes, confirm on jump or shoot.
+- ✅ Boot lands here; beating a boss returns here. That last one is what makes
+  "any order" a loop rather than a one-way trip — `stage_cleared` was previously
+  emitted into nothing.
+
+**Unbuilt stages are shown, not hidden**, and that is the decision worth
+recording. Six of the eight have a boss, a portrait and a name and no level yet.
+Listing only what exists would make the grid change shape every time a stage
+lands — and a select screen's entire interface is the player's memory of *where*
+a stage is. So all nine cells exist from the start, the six without a level read
+as `NOT BUILT` and refuse by name, and `tests/test_stage_select.gd` asserts every
+cell is present so a later "only show what is built" cannot quietly reshape it.
+
+Two smaller things, both the same lesson as the pause menu: a refusal says which
+stage it refused and why, rather than doing nothing; and the cursor is a border
+rather than only a tint, because a tint has to compete with the cleared and
+unbuilt states, which are also colour.
+
+**Not done here:** no title screen (M8), no password or save (M6), and the
+fortress centre stays sealed until M7. The centre is drawn locked rather than
+left blank so the shape of the finished screen is visible now.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the

@@ -190,12 +190,26 @@ const ROOMS := [
 		# made before you can see where it lands. Level with the deck, you step
 		# on when it arrives and step off when it gets there.
 		"movers": [[9, 0, 8.0, 0.0, 150]],
-		# Stepping stones *inside* the ferry's gap, level with the deck: a second
-		# way across the same water. Ride the platform slowly and safely, or hop
-		# the planks quickly and hope. That is a choice; three crumbling blocks
-		# sitting on solid deck a row up -- which is where these started -- were
-		# waist-high obstacles that did nothing but get walked into.
-		"crumbles": [[10, 0], [12, 0], [14, 0], [16, 0]],
+		# A crumbling walkway *inside* the ferry's gap, level with the deck: a
+		# second way across the same water. Ride the platform slowly and safely,
+		# or run the planks quickly and hope. That is a choice; three crumbling
+		# blocks sitting on solid deck a row up -- which is where these started
+		# -- were waist-high obstacles that did nothing but get walked into.
+		#
+		# **Continuous, not every other cell.** They were spaced two apart, which
+		# made each one a separate one-tile jump onto a block that then falls --
+		# and read, in a playtester's words, as blocks that "look odd, there
+		# should be more of them to look like a proper platform". They were
+		# right about the look and the spacing was worse than it looked: a gap
+		# between two crumbling blocks is a jump you take *while the one you are
+		# leaving is already collapsing*. Filling the span makes it a walkway
+		# that fails behind you, which is the thing that was being aimed at.
+		# 10 to 16, not 9 to 16: **cell 9 is where the ferry parks.** Filling it
+		# put a solid crumbling block inside the moving platform's home position,
+		# and the bot stood at the lip waiting for a ferry that could not arrive.
+		# The walkway starts one cell in, which also leaves the player a lip to
+		# stand on while they choose between the two routes.
+		"crumbles": [[10, 0], [11, 0], [12, 0], [13, 0], [14, 0], [15, 0], [16, 0]],
 		# Spikes at the bottom of the things you were already going to fall
 		# into. Mechanically this changes nothing -- the pit plane was lethal
 		# already -- but it makes the stakes visible at the moment the player

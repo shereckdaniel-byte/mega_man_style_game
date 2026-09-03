@@ -44,6 +44,20 @@ const PLAYER_SCENE := preload("res://scenes/actors/player/player.tscn")
 const HUD_SCRIPT := preload("res://scenes/ui/hud.gd")
 const PAUSE_MENU := preload("res://scenes/ui/pause_menu.gd")
 const DEBUG_OVERLAY := preload("res://scenes/ui/debug_overlay.gd")
+const MOUNT := preload("res://scenes/level/enemy_mount.gd")
+
+## The archetypes that do not move, and therefore have to be attached to
+## something when they are placed above the deck.
+##
+## A walker or a hopper above the deck is standing on geometry that is there; a
+## turret above the deck is hanging in the air, and the first thing a playtester
+## said about stage 1 was that the lamp was floating. Stated here once rather
+## than remembered per placement, because it is the sort of thing that is
+## remembered for six of nine markers.
+const STATIONARY_ARCHETYPES := [
+	preload("res://scenes/actors/enemies/turret.gd"),
+	preload("res://scenes/actors/enemies/spawner.gd"),
+]
 
 ## Deck surface row within a band, and how deep the floor goes.
 const DECK_ROW := 11
@@ -453,6 +467,7 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		var spikes := Hazard.new()
 		spikes.name = "Spikes_%d_%d" % [origin + int(entry[0]), deck]
 		spikes.size_tiles = Vector2(float(entry[2]), 0.5)
+		spikes.points_up = true
 		# Sitting in the floor line, so a jump clears them and a walk does not.
 		spikes.position = Vector2(_element_centre(origin, entry),
 			float(deck) - float(entry[1])) * tile
@@ -464,6 +479,8 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		var teeth := Hazard.new()
 		teeth.name = "CeilingSpikes_%d_%d" % [origin + int(entry[0]), deck]
 		teeth.size_tiles = Vector2(float(entry[2]), CEILING_SPIKE_DEPTH)
+		# Hanging, so the teeth point down at the head that is about to meet them.
+		teeth.points_up = false
 		# Hanging flush under the ceiling's face, so a standing head meets them
 		# and a sliding one passes beneath. Derived from the depth rather than
 		# written as a fixed offset: the two have to move together, and the
@@ -477,6 +494,7 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		var floor_teeth := Hazard.new()
 		floor_teeth.name = "PitSpikes_%d_%d" % [origin + int(entry[0]), deck]
 		floor_teeth.size_tiles = Vector2(float(entry[2]), 0.5)
+		floor_teeth.points_up = true
 		floor_teeth.position = Vector2(_element_centre(origin, entry),
 			float(deck) + float(entry[1])) * tile
 		add_child(floor_teeth)
@@ -553,6 +571,27 @@ func _add_marker(entry: Array, origin: int, deck: int, tile: float) -> void:
 	marker.position = Vector2(float(origin) + float(entry[3]),
 		float(deck) - float(entry[4])) * tile
 	add_child(marker)
+	_add_mount(entry, origin, deck, tile)
+
+
+## The post a fixed enemy is bolted to, when it sits above the deck.
+##
+## **Scenery, not geometry.** It is drawn and has no collision, which is the
+## deliberate half of this: making it solid would put a one-tile pillar into
+## every room that has an elevated turret, change what the player can stand on
+## and jump over, and quietly invalidate the traversal the authoring tests and
+## the playthrough bot have signed off on. What was wrong was that the turret
+## looked unattached, and what fixes that is something to be attached to.
+func _add_mount(entry: Array, origin: int, deck: int, tile: float) -> void:
+	var rows := float(entry[4])
+	if rows <= 0.0 or not STATIONARY_ARCHETYPES.has(entry[0]):
+		return
+	var mount := MOUNT.new()
+	mount.name = "Mount_%d_%d" % [origin + int(entry[3]), deck]
+	mount.height_tiles = rows
+	mount.position = Vector2(float(origin) + float(entry[3]),
+		float(deck) - rows) * tile
+	add_child(mount)
 
 
 ## Wraps an archetype script and its art into a PackedScene, because markers
@@ -770,8 +809,14 @@ func _begin_stage_exit() -> void:
 	_player.begin_victory()
 
 
+## The beam-up finished. Back to the stage select, with the boss now marked.
+##
+## `stage_cleared` is still emitted -- the ledger prints on it and a test reads
+## it -- but it is no longer emitted into nothing: the run returns to the grid
+## the player chose from, which is what makes "playable in any order" a loop
+## rather than a one-way trip.
 func _on_stage_exited() -> void:
-	# Nothing consumes this yet; the stage select is M6. It is emitted now so
-	# the sequence has an end rather than trailing off with the player somewhere
-	# above the room.
 	stage_cleared.emit()
+	var router := get_node_or_null(^"/root/SceneRouter")
+	if router != null:
+		router.goto_stage_select()
