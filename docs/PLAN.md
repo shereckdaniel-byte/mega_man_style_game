@@ -221,8 +221,10 @@ and autoload identifiers do not resolve in a `--script` entry point — reach th
   and the fixed camera offset is the camera's vertical anchor.
 - ✅ Stage 1 built end-to-end: four rooms authored from a table, with gaps, raised spans,
   per-room checkpoints, nine enemy markers across five archetypes, and a boss door.
-- ⬜ Vertical scroll rooms and ladder-driven vertical transitions. Not needed by stage 1,
-  which is horizontal; the first stage that needs a shaft will want them.
+- ✅ Vertical scroll rooms and ladder-driven vertical transitions. Deferred here as "not
+  needed by stage 1, which is horizontal" — and then stage 1 stopped being horizontal.
+  Built in M5a; the camera turned out to have been axis-agnostic all along, and what was
+  missing was a door that knew which way round it was.
 
 **Accepted:** `tools/playthrough.gd` drives the stage from spawn to the boss door —
 four rooms, three transitions, **0 deaths, 14 of 28 HP left**. Enemies respawn identically
@@ -319,7 +321,7 @@ passed and the playthrough won. And **Tide jumped out of the arena**: apex goes 
 an 11.6-tile leap into an 11-tile room; it left through the ceiling and kept fighting from
 above it.
 
-### M5a — Level-element library and stage 1 extended (prerequisite for M6)
+### M5a — Level-element library and stage 1 extended ✅ done
 
 **Why this exists.** Stage 1 is built from exactly two things: gaps in the deck, and
 raised blocks. Everything else in `scenes/level/` is structural — rooms, doors,
@@ -340,7 +342,7 @@ two:
 | --- | --- |
 | **Moving platforms** — horizontal, vertical, cyclic | The most-used element in the genre after solid ground |
 | **One-way platforms** | Jump up through, drop down with Down+Jump; layer 2 already reserved |
-| **Vertical room transitions** | The M4 ⬜ item. Turns ladders from decoration into structure |
+| **Vertical room transitions** | The M4 deferred item. Turns ladders from decoration into structure |
 | **Crumbling blocks** | Timed geometry — and the basis for Mirror Field's disappearing blocks |
 | **Spikes** (`Hazard`, already built) | Stage 1 has none; the class has never been placed |
 
@@ -365,8 +367,22 @@ exists is the one missing the thing every stage is supposed to have.
 Doing this **before** stage 2 is the point, not a detour: stage 2 copies whatever stage 1
 is. Copying four flat rooms sets the ceiling for the whole game.
 
-**Accept:** stage 1 uses at least five distinct level elements, is traversable end to end,
-and the rising tide cannot soft-lock a player anywhere in it.
+**Accepted:** stage 1 uses ladders, one-way platforms, a moving platform, crumbling
+planks, a slide tunnel, ceiling spikes, pit spikes and the rising tide — eight elements
+against the two it had. `tools/playthrough.gd` runs it end to end: eight rooms, boss door
+reached, 22 of 28 HP.
+
+Also closed here, because the extension exposed them: `Player.game_over` was emitted into
+nothing, so running out of lives stopped the game dead; a hit landing *while sliding*
+swapped the collision shape from inside a physics callback, which Godot refuses; and the
+pause menu gained a restart row, since with no title screen the only way to try again was
+to close the game.
+
+**The difficulty moved twice today and nobody has played it.** The stage cost 4 HP this
+morning, 12 after the extension, and the bot now takes eight deaths getting through where
+it took none. Some of that is the bot choosing the crumbling planks over the ferry, and
+some of it is real. That is the open question, and it is not one more measurement will
+answer.
 
 **On length, a correction.** This originally said "60–90 s of traversal", and the finished
 eight-room stage runs **21 s** — against 19 s for the four-room version. Eight rooms did
