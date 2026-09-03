@@ -1,7 +1,36 @@
 ## Drives stage 1 from spawn to the boss door, then fights Tide, and reports how
 ## far it got.
 ##
-##   xvfb-run -a godot --script res://tools/playthrough.gd -- <out_dir>
+##   godot --headless --script res://tools/playthrough.gd
+##   xvfb-run -a godot --script res://tools/playthrough.gd -- <out_dir>   # + a png
+##
+## **It advances on `physics_frame`, and that is not a detail.** It used to await
+## `process_frame` -- a *rendered* frame -- while every constant in it (JUMP_HOLD,
+## SLIDE_HOLD, SHOOT_PERIOD, the 9000-frame budget) is a count of physics ticks,
+## and the engine runs as many physics ticks per rendered frame as it needs to
+## keep up with the wall clock. On a quiet machine that is one, and the two agree.
+## Under load it is two or three: the bot then decides once per three ticks,
+## holds a jump for 48 ticks instead of 16, and walks blindly past the lip of
+## every gap it was watching for.
+##
+## The numbers that came out of it were therefore a measurement of the machine.
+## Four runs of the same commit, same seed, no code change between them:
+##
+##   alone on the box        0 deaths, reached the door on 22 HP
+##   four in parallel       34 deaths, reached the door on 20 HP
+##   four in parallel       36 deaths, reached the door on 20 HP
+##   four in parallel       32 deaths, never got out of room 1
+##
+## docs/PLAN.md M5a reads "the bot now takes eight deaths getting through where
+## it took none" and calls the difficulty an open question. Eight is a sample
+## from that spread. Awaiting `physics_frame` locks one decision to one tick
+## whatever else the box is doing, which is what makes any of these figures
+## comparable to any other.
+##
+## It also loads the stage directly rather than the configured main scene. The
+## main scene is boot.tscn, which only forwards to stage 1 when a display exists
+## -- so run headless, the bot used to spend 9000 frames driving the boot screen
+## and report a stage that could not be finished.
 ##
 ## A traversal check, not a difficulty check. It answers one question — is the
 ## stage finishable at all — which is the question authored geometry gets wrong
@@ -26,6 +55,10 @@
 ## Development tool: not referenced by the game or by CI.
 extends SceneTree
 
+## The stage under test, loaded directly. See the note above on why this is not
+## `application/run/main_scene`.
+const STAGE_SCENE := "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn"
+
 const DECK_ROW := 11
 const DECK_DEPTH := 2
 ## Cells ahead to look for a hole or a step.
@@ -37,9 +70,21 @@ const DECK_DEPTH := 2
 ## stage looked unfinishable when the bot was simply jumping too soon.
 const LOOKAHEAD := 1
 
-## Frames to hold jump. The player's cut-jump means a short hold is a short hop;
-## this is long enough for a full arc.
-const JUMP_HOLD := 16
+## Frames to hold jump, for a full arc.
+##
+## Derived, not chosen: the rise lasts `jump_velocity_pf / gravity_pf` =
+## 4.9375 / 0.25 = 19.75 physics frames, and releasing before that cuts the jump
+## by design (states/jump.gd). Anything past 20 is the same jump, so 24 is 20
+## with margin.
+##
+## It was 16, which is a jump cut at four-fifths of its rise -- 198 px instead of
+## 208, and about a third of a tile short across. That was invisible while the
+## bot advanced on rendered frames, because 16 of those were 28 physics ticks and
+## the release landed past the apex anyway. Locking the loop to physics made the
+## constant mean what it says, and the bot promptly fell into the Pilings gap
+## five times running: a two-cell gap it clears with 47 px to spare on a full
+## jump and misses by a few on a cut one.
+const JUMP_HOLD := 24
 ## How close to the shaft's centre, in tiles, before the bot commits to climbing.
 const SHAFT_TOLERANCE := 0.6
 ## Frames to keep climbing after the room changes, so the bot steps clear of the
@@ -81,6 +126,7 @@ var _slide_left := 0
 var _climb_left := 0
 var _room_index := 0
 var _climbing_up := false
+var _log: PlaytestLog
 
 
 func _initialize() -> void:
@@ -88,10 +134,10 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	await process_frame
-	change_scene_to_file(ProjectSettings.get_setting("application/run/main_scene"))
+	await physics_frame
+	change_scene_to_file(STAGE_SCENE)
 	for i in 60:
-		await process_frame
+		await physics_frame
 
 	_stage = current_scene
 	_player = _stage.get_node("Player")
@@ -104,9 +150,15 @@ func _run() -> void:
 	if state != null:
 		state.lives = 99
 
+	# The ledger, so a run says *where* it lost health and to what rather than
+	# handing back one number. Same class the stage attaches for a human run, so
+	# a bot report and a playtester's report can be read side by side.
+	_log = PlaytestLog.new()
+	_log.name = "PlaytestLog"
+	_stage.add_child(_log)
+	_log.watch(_player, _stage)
+
 	var goal: float = _stage.boss_door_position().x
-	var deaths := [0]
-	_player.died.connect(func() -> void: deaths[0] += 1)
 	_stage.room_changed.connect(func(r: Room) -> void:
 		print("  entered %s" % r.name)
 		for i in _stage.rooms().size():
@@ -123,7 +175,7 @@ func _run() -> void:
 	var stuck := 0
 	var reached := false
 	for frame in 9000:
-		await process_frame
+		await physics_frame
 		if _stage.is_transitioning():
 			_release()
 			continue
@@ -160,16 +212,26 @@ func _run() -> void:
 
 	print("result: reached=%s  x=%.0f/%.0f  room=%s  deaths=%d  hp=%d"
 		% [reached, _player.global_position.x, goal, _stage.room.name,
-			deaths[0], _player.health.current])
+			_log.deaths, _player.health.current])
 
 	var won := false
 	if reached:
 		won = await _fight()
 
 	_release()
+	for line in _log.report():
+		print(line)
+	print(_log.summary_line())
+	# The screenshot needs something to have been drawn, so it is only offered
+	# when there is a display: `xvfb-run -a godot --script ... -- <out_dir>`.
+	# Headless it is skipped rather than saving a blank, which is what asking the
+	# root viewport for its texture with nothing rendered into it produces.
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
-		root.get_texture().get_image().save_png("%s/playthrough.png" % args[0])
+		if DisplayServer.get_name() == "headless":
+			print("no display: skipping the screenshot (run under xvfb-run for one)")
+		else:
+			root.get_texture().get_image().save_png("%s/playthrough.png" % args[0])
 	quit(0 if reached and won else 1)
 
 
@@ -186,7 +248,7 @@ func _fight() -> bool:
 
 	var last_phase := -1
 	for frame in FIGHT_FRAMES:
-		await process_frame
+		await physics_frame
 		if arena.phase != last_phase:
 			last_phase = arena.phase
 			print("  arena phase -> %s at fight frame %d" % [_phase_name(last_phase), frame])
@@ -194,7 +256,7 @@ func _fight() -> bool:
 			print("TIDE DOWN at fight frame %d, player hp=%d" % [frame, _player.health.current])
 			# Let the weapon-get screen come and go.
 			for i in 360:
-				await process_frame
+				await physics_frame
 				if weapons != null and weapons.is_unlocked(&"tide_crawler"):
 					break
 			var got: bool = weapons != null and weapons.is_unlocked(&"tide_crawler")

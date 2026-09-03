@@ -173,7 +173,10 @@ func _on_body_entered(body: Node2D) -> void:
 	# inferred -- this project treats inference from Variant as an error.
 	var health: Variant = body.get("health")
 	if health is Health and not (health as Health).is_dead():
-		(health as Health).kill()
+		# Named for the same reason KillPlane's is: an unnamed kill reports as a
+		# buster kill, and a drowning that reads as self-inflicted is worse than
+		# no record at all.
+		(health as Health).kill(DamageInfo.new(9999, body.global_position, &"tide"))
 
 
 func _draw() -> void:
