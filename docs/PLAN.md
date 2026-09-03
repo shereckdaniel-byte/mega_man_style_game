@@ -497,6 +497,80 @@ it. Tuning against a bot that was measuring the machine is what produced two of 
 figures in the first place, and tuning against a fixed bot before a person has played
 would just be the same mistake with better instruments.
 
+### M6a — Substation, Arc, and the dark ✅ done
+
+Stage 2 of the eight, and the first one built against a shared base rather than
+by copying stage 1.
+
+- ✅ **`AuthoredStage`**, the machinery every stage shares: deck, rooms, doors,
+  the M5a element kit, ladders, spawn markers, per-band pit sensors, arena, HUD,
+  pause menu, playtest ledger, F3 overlay, game over, restart, weapon-get. A
+  stage is now its table plus its differences — `DawnBoardwalk` went from 850
+  lines to 269, most of which is the table.
+- ✅ **Substation**, eight rooms as a **J**: a short lit run across the yard, down
+  into the cable trench in room 2, four dark rooms along the bottom, and one
+  climb into the arena. Deliberately not stage 1's U — copying that shape would
+  have made stage 2 the same walk with different tiles.
+- ✅ **`DarkRoom`**, the gimmick: the lights are out and the switchgear arcs every
+  2.5 seconds. Three rules keep it the fair kind of dark room — never fully
+  black (`MAX_DARKNESS` caps it well short of opaque), a fixed period rather than
+  a random one, and purely visual, so nothing in a dark room can be killed *by*
+  the dark.
+- ✅ **Arc**, the second Robot Master, with three patterns whose answers are three
+  different kinds of thing: **Lash** (a slow seeker — the answer is movement),
+  **Rail** (a floor dash — timing), **Curtain** (falling columns with one left
+  open — position). Tide asks for jump, move-under and slide, which are three
+  timing answers; repeating those with new sprites would have been boss one in a
+  different colour.
+- ✅ Art: a cold blue-grey concrete tileset and four backdrop plates, generated
+  through the PixelLab pipeline (SPRITES.md §8).
+- ⛔ **Stage 2 wears stage 1's enemy skins.** The roster says the six archetypes
+  are reskinned per stage; the substation's six have not been drawn. The stage is
+  playable and tested meanwhile, and the swap is one column of its table.
+
+**Accepted:** `tools/playthrough.gd -- stage=substation` runs it end to end —
+eight rooms, boss door reached, **0 deaths, 26 of 28 HP**. Stage 1 is unchanged
+at 0 deaths and 22 HP.
+
+**Three bugs, and all three were in code stage 1 had been shipping for two
+milestones.** Building a second instance is what found them:
+
+- **Every spike in the game sat half its own width to the left of its cell.**
+  `OneWayPlatform`, `MovingPlatform` and `CrumblingBlock` each offset their shape
+  so the table's x means "left edge"; `Hazard` is a plain `Hitbox` and centres on
+  its origin. Stage 1's ceiling teeth hung a tile and a half back from the tunnel
+  they belong to, over deck a player walks upright along, and its pit spikes lay
+  mostly under solid boardwalk rather than under the gap they were meant to make
+  visible. Nothing caught it because a spike is lethal wherever it is: the stage
+  played, and killed you somewhere slightly wrong.
+- **A spiked tunnel with one row of clearance is impassable.** One row is 16 NES
+  px against a 24 px standing box, so the tiles already forbid walking; hanging
+  12 px of teeth in it leaves 4 px for a 14 px slide. Stage 1 has had one since
+  M5a. It went unnoticed because that room is entered from a ladder *beyond* the
+  tunnel, so nothing ever had to slide under it — and the ladder was the second
+  half of the fault, because the tunnel had been authored in the shaft's own
+  column. Spiked tunnels now use `SPIKED_CLEARANCE` (two rows: standing fits, and
+  the teeth are what forbid it), and stage 1's moved to where the player walks.
+- **A gap cut over another room is not a pit.** In a column that carries a band
+  beneath it, a hole drops the player into the room below without passing through
+  its door — the camera, the enemies and everything hung off `room_changed` stay
+  behind, and the player is standing in a room the stage does not think they are
+  in. Stage 2's first draft did this and read as a soft lock at the far wall.
+
+Those three now live in **`tests/test_stage_authoring.gd`**, which loops over
+every stage in the roster. That file exists because of a fourth realisation:
+`test_dawn_boardwalk.gd` has caught real faults since M4, and every rule in it is
+about the *player* rather than about the boardwalk — but they lived in a file
+named after stage 1, so stage 2 was authored against none of them. Rules about
+the player belong where every stage is held to them.
+
+**A fifth thing, from Arc's own tests.** Curtain's hop walked Arc 900 px out of
+the arena, which is Tide's M5 ceiling escape again in a different axis. The M5
+fix was a smaller number; this one is a bound — `_hold_inside_arena()` puts Arc
+back inside the span at the end of every frame, whatever a pattern did with its
+velocity. A pattern is now free to be wrong about its own arithmetic without
+taking the fight off the screen.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the

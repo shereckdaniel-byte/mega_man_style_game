@@ -86,6 +86,38 @@ const CEILING_THICKNESS := 2
 ## at all. Two rows would be 32 and let the player walk straight through.
 const SLIDE_CLEARANCE := 1
 
+## Clearance for a tunnel that is **hung with spikes**, which is a different
+## number and has to be.
+##
+## A one-row tunnel is closed by its own geometry -- a standing player does not
+## fit, so the tiles already say "slide". Hanging spikes in the two-pixel gap
+## that is left does not add a warning to that; it fills the only space the slide
+## was going to pass through, and the tunnel stops being passable at all. Stage 1
+## shipped one of these from M5a and nothing noticed, because the bot enters that
+## room from a ladder beyond the tunnel and never had to use it. Stage 2's bot
+## slid correctly into one and died on its teeth.
+##
+## Two rows is 32 NES px: a standing player (24) fits, so the *tiles* no longer
+## forbid anything and the spikes are what does -- which is the arrangement the
+## room was always described as having. The arithmetic that has to hold is in
+## `CEILING_SPIKE_DEPTH`.
+const SPIKED_CLEARANCE := 2
+
+## How far ceiling spikes hang below the ceiling's face, in tiles.
+##
+## Sized so that in a `SPIKED_CLEARANCE` tunnel the teeth catch a standing head
+## and miss a sliding one, with margin at both ends rather than to the pixel:
+##
+##   opening      2 rows           = 32 NES px
+##   teeth        0.75 rows        = 12 NES px, hanging from the top
+##   standing     24 NES px tall   -> head is 8 px into the teeth. Caught.
+##   sliding      14 NES px tall   -> head is 6 px clear of them. Through.
+##
+## `tests/test_stage_authoring.gd` asserts both halves against the real boxes, so
+## a later change to either hitbox or to this number cannot quietly close the
+## tunnel again.
+const CEILING_SPIKE_DEPTH := 0.75
+
 var _player: Player
 var _deck: TileMapLayer
 var _rooms: Array[Room] = []
@@ -398,12 +430,31 @@ func _add_door(index: int, tile: float) -> void:
 ## the interesting per-element decisions are all in the element's own class.
 func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		tile: float) -> void:
+	# **Every element's x in the table is its left edge**, in cells, the same as
+	# a gap's or a block's. `OneWayPlatform`, `MovingPlatform` and
+	# `CrumblingBlock` each offset their own shape by half its size to make that
+	# true; `Hazard` is a plain `Hitbox` and centres its box on its origin, like
+	# every other Area2D in the project. So spikes -- and only spikes -- have to
+	# be handed a centre.
+	#
+	# They were not, from M5a until stage 2 was authored, and the effect was that
+	# every spike in the game sat **half its own width to the left of the cell it
+	# was declared at**. Stage 1's ceiling teeth hung a tile and a half back from
+	# the tunnel they belong to, over open deck a player walks upright along --
+	# which is precisely the ambush that room's comment refuses to build -- and
+	# its pit spikes lay mostly under solid boardwalk instead of under the gap
+	# they were meant to make visible.
+	#
+	# Nothing caught it because a spike is lethal wherever it is: the stage still
+	# played, and it killed you somewhere slightly wrong. The playthrough bot
+	# found it on stage 2 by dying two cells before a tunnel it had correctly
+	# decided to slide through.
 	for entry in spec.get("spikes", []):
 		var spikes := Hazard.new()
 		spikes.name = "Spikes_%d_%d" % [origin + int(entry[0]), deck]
 		spikes.size_tiles = Vector2(float(entry[2]), 0.5)
 		# Sitting in the floor line, so a jump clears them and a walk does not.
-		spikes.position = Vector2(float(origin + int(entry[0])),
+		spikes.position = Vector2(_element_centre(origin, entry),
 			float(deck) - float(entry[1])) * tile
 		add_child(spikes)
 
@@ -412,11 +463,13 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 	for entry in spec.get("ceiling_spikes", []):
 		var teeth := Hazard.new()
 		teeth.name = "CeilingSpikes_%d_%d" % [origin + int(entry[0]), deck]
-		teeth.size_tiles = Vector2(float(entry[2]), 0.5)
-		# Hanging just below the ceiling's face, so a standing head meets them
-		# and a sliding one passes beneath.
-		teeth.position = Vector2(float(origin + int(entry[0])),
-			float(deck) - float(entry[1]) + 0.25) * tile
+		teeth.size_tiles = Vector2(float(entry[2]), CEILING_SPIKE_DEPTH)
+		# Hanging flush under the ceiling's face, so a standing head meets them
+		# and a sliding one passes beneath. Derived from the depth rather than
+		# written as a fixed offset: the two have to move together, and the
+		# version that did not is what made the tunnel impassable.
+		teeth.position = Vector2(_element_centre(origin, entry),
+			float(deck) - float(entry[1]) + CEILING_SPIKE_DEPTH * 0.5) * tile
 		add_child(teeth)
 
 	# Spikes on the floor of a pit the player is already crossing.
@@ -424,7 +477,7 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		var floor_teeth := Hazard.new()
 		floor_teeth.name = "PitSpikes_%d_%d" % [origin + int(entry[0]), deck]
 		floor_teeth.size_tiles = Vector2(float(entry[2]), 0.5)
-		floor_teeth.position = Vector2(float(origin + int(entry[0])),
+		floor_teeth.position = Vector2(_element_centre(origin, entry),
 			float(deck) + float(entry[1])) * tile
 		add_child(floor_teeth)
 
@@ -462,6 +515,12 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		_add_ladder(origin + int(spec["shaft"][0]), deck, room_band(index) + 1, tile)
 	if spec.has("shaft_up"):
 		_add_ladder(origin + int(spec["shaft_up"][0]), deck, room_band(index) - 1, tile)
+
+
+## The world-cell centre of a `[x, rows, width]` element, for the classes that
+## want a centre rather than a corner. See the note in `_add_elements`.
+func _element_centre(origin: int, entry: Array) -> float:
+	return float(origin) + float(entry[0]) + float(entry[2]) * 0.5
 
 
 ## A ladder joining this room's deck to the neighbouring band's.

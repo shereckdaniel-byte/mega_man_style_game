@@ -25,22 +25,46 @@ const STAGE := preload("res://scenes/stages/dawn_boardwalk/dawn_boardwalk.gd")
 ## was failing a shape the player walks up without noticing. Sorting the
 ## surfaces and checking the rises between them asks the question the player
 ## actually faces.
-## A ceiling is exempt from the step rule, and needs its own: it has to be low
-## enough that walking into it is impossible. Two rows of clearance is 32 px
-## against a 24 px standing box -- the player strolls through and the slide the
-## tunnel exists to demand never happens.
+## A ceiling is exempt from the step rule and needs its own: something has to
+## make walking through it impossible, or the slide the tunnel exists to demand
+## never happens.
+##
+## **There are two ways to be that something, and the original version of this
+## test only knew one.** A one-row tunnel is closed by its own tiles -- 16 px
+## against a 24 px standing box. A two-row tunnel is 32 px, so the tiles let the
+## player stroll through, and it is the *teeth* that forbid it.
+##
+## The distinction is not a nicety. A one-row tunnel hung with spikes is closed
+## to everybody, because the teeth fill the two pixels the slide was going to use
+## -- which is exactly what stage 1 shipped from M5a and nothing caught, since
+## this test asked about the tiles and never about what was hanging off them.
+## `tests/test_stage_authoring.gd` owns the spiked arithmetic; this asks the
+## simpler question of whether each ceiling is closed at all, and by what.
 func test_every_ceiling_forces_a_slide() -> void:
 	var t := PlayerTuning.new()
 	for spec in STAGE.ROOMS:
 		for ceiling in spec.get("ceilings", []):
 			var clearance_px: float = float(ceiling[1]) * PlayerTuning.NES_TILE
-			assert_true(clearance_px < t.NES_HITBOX.y,
-				"%s: ceiling at cell %d leaves %.0f px, and standing needs %.0f"
-					% [spec["name"], int(ceiling[0]), clearance_px, t.NES_HITBOX.y])
+			var toothed := _has_teeth(spec, int(ceiling[0]))
+			if toothed:
+				assert_eq(int(ceiling[1]), AuthoredStage.SPIKED_CLEARANCE,
+					"%s: a spiked tunnel at cell %d must use the spiked clearance"
+						% [spec["name"], int(ceiling[0])])
+			else:
+				assert_true(clearance_px < t.NES_HITBOX.y,
+					"%s: ceiling at cell %d leaves %.0f px with nothing hanging in it, and standing needs %.0f"
+						% [spec["name"], int(ceiling[0]), clearance_px, t.NES_HITBOX.y])
 			assert_true(clearance_px >= t.NES_SLIDE_HITBOX.y,
 				"%s: ceiling at cell %d leaves %.0f px, and a slide needs %.0f"
 					% [spec["name"], int(ceiling[0]), clearance_px,
 						t.NES_SLIDE_HITBOX.y])
+
+
+func _has_teeth(spec: Dictionary, cell: int) -> bool:
+	for teeth in spec.get("ceiling_spikes", []):
+		if int(teeth[0]) == cell:
+			return true
+	return false
 
 
 ## A tunnel longer than a slide traps the player inside it: they run out of

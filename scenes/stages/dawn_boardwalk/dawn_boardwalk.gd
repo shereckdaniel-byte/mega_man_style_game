@@ -123,16 +123,35 @@ const ROOMS := [
 		"gaps": [[8, 10], [18, 20]], "blocks": [],
 		"enemies": [
 			[CRAWLER, "limpet", &"crawl", 6.0, 0.0],
-			[CRAWLER, "limpet", &"crawl", 22.0, 0.0],
+			[CRAWLER, "limpet", &"crawl", 25.0, 0.0],
 			[SPAWNER, "barnacle_hive", &"idle", 14.0, 4.0],
 		],
 		"checkpoint": 2.0,
 		"one_ways": [[11, 3, 4]],
-		# The tunnel the room was always described as having. One row of
-		# clearance: a slide fits, standing does not, and the spikes on its
-		# underside are what say so before you try.
-		"ceilings": [[13, SLIDE_CLEARANCE, 3]],
-		"ceiling_spikes": [[13, SLIDE_CLEARANCE, 3]],
+		# **At cell 21, not 13.** It was authored at 13, which is the shaft's own
+		# column -- the ladder from Descent comes down at 14 -- so the tunnel and
+		# its teeth were hanging in the space the player arrives in, and the
+		# room's only route through them was the two cells of luck between the
+		# ladder's edge and the spikes'. Correcting where a Hazard sits and how
+		# deep it hangs turned that luck into eighteen deaths on the ladder,
+		# which is the honest reading of a tunnel built on top of its own
+		# entrance.
+		#
+		# At 21 it is past both gaps and on the walk the player actually makes,
+		# left to right, from the foot of the ladder to the door. Which is what
+		# makes it a tunnel rather than scenery -- the first version could be
+		# neither used nor avoided.
+		# SPIKED_CLEARANCE, not SLIDE_CLEARANCE. This tunnel was authored at one
+		# row with teeth hung in it, which reads right and is impassable: the
+		# spikes filled the gap the slide had to go through. It went unnoticed
+		# for two milestones because the room is entered from the ladder beyond
+		# the tunnel, so nothing ever had to slide under it. See
+		# AuthoredStage.SPIKED_CLEARANCE.
+		# SPIKED_CLEARANCE, not SLIDE_CLEARANCE. This was authored at one row with
+		# teeth hung in it, which reads right and is impassable: the spikes fill
+		# the gap the slide has to pass through. See AuthoredStage.SPIKED_CLEARANCE.
+		"ceilings": [[21, SPIKED_CLEARANCE, 2]],
+		"ceiling_spikes": [[21, SPIKED_CLEARANCE, 2]],
 		# Clear of both landings. The gaps end at 10 and 20 and a jump carries
 		# about two cells past that, so anything at 11 or 21 is where the player
 		# comes down -- and these kill outright. 15 and 24 are open deck the

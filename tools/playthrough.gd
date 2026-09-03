@@ -2,6 +2,7 @@
 ## far it got.
 ##
 ##   godot --headless --script res://tools/playthrough.gd
+##   godot --headless --script res://tools/playthrough.gd -- stage=substation
 ##   xvfb-run -a godot --script res://tools/playthrough.gd -- <out_dir>   # + a png
 ##
 ## **It advances on `physics_frame`, and that is not a detail.** It used to await
@@ -55,9 +56,16 @@
 ## Development tool: not referenced by the game or by CI.
 extends SceneTree
 
-## The stage under test, loaded directly. See the note above on why this is not
-## `application/run/main_scene`.
-const STAGE_SCENE := "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn"
+## The stages it knows how to drive, by the name passed after `--`.
+##
+## Loaded directly rather than through `application/run/main_scene`: see the note
+## above on why. Stage 1 is the default because it is the one with a difficulty
+## question open against it.
+const STAGES := {
+	"dawn_boardwalk": "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn",
+	"substation": "res://scenes/stages/substation/substation.tscn",
+}
+const DEFAULT_STAGE := "dawn_boardwalk"
 
 const DECK_ROW := 11
 const DECK_DEPTH := 2
@@ -133,9 +141,27 @@ func _initialize() -> void:
 	_run()
 
 
+## `stage=<name>` from the arguments after `--`, or the default.
+##
+## Keyed rather than positional because the tool already takes a positional
+## out_dir, and "the first argument is the stage unless it looks like a path" is
+## the kind of rule that silently drives the wrong stage.
+func _requested_stage() -> String:
+	for argument in OS.get_cmdline_user_args():
+		if not argument.begins_with("stage="):
+			continue
+		var name := argument.substr(6).strip_edges()
+		if STAGES.has(name):
+			return name
+		push_error("unknown stage %s; known: %s" % [name, ", ".join(STAGES.keys())])
+	return DEFAULT_STAGE
+
+
 func _run() -> void:
 	await physics_frame
-	change_scene_to_file(STAGE_SCENE)
+	var stage_name := _requested_stage()
+	print("stage: %s" % stage_name)
+	change_scene_to_file(STAGES[stage_name])
 	for i in 60:
 		await physics_frame
 
@@ -228,7 +254,11 @@ func _run() -> void:
 	# when there is a display: `xvfb-run -a godot --script ... -- <out_dir>`.
 	# Headless it is skipped rather than saving a blank, which is what asking the
 	# root viewport for its texture with nothing rendered into it produces.
-	var args := OS.get_cmdline_user_args()
+	# PackedStringArray has no filter(), so this is a loop rather than a one-liner.
+	var args: Array[String] = []
+	for argument in OS.get_cmdline_user_args():
+		if not argument.begins_with("stage="):
+			args.append(argument)
 	if args.size() > 0:
 		if DisplayServer.get_name() == "headless":
 			print("no display: skipping the screenshot (run under xvfb-run for one)")

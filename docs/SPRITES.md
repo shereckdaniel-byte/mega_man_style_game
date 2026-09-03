@@ -679,6 +679,43 @@ the plate's origin. Both are set in `parallax_background.gd`.
 Vertical scroll is 0 on every plate. A plate is sized to the viewport height
 exactly, so any vertical drift walks its edge into frame.
 
+#### Stage 2's art, and one thing `no_background` does not do
+
+Substation's terrain is `assets/tilesets/substation/`, generated the same way
+stage 1's was and imported by the same tool. Two attempts: the first, prompted
+for "wet concrete, oil stains, seeping water", came back olive-green and blobby —
+readable as mossy stone, wrong for a switchyard, and worse under a dark overlay.
+Naming the palette explicitly ("cold pale grey, grey and blue-grey only, no
+plants, no moss") with `detail: low detail` and a higher `text_guidance_scale`
+gave the cold concrete-and-steel set that shipped. Cost: 2 tilesets, ~5
+generations.
+
+The four backdrop plates are `create_image_pixflux`, and one of them is worth
+knowing about:
+
+| Plate | Notes |
+| --- | --- |
+| `sky.png` | Night sky, moon, distant lit shoreline. As generated. |
+| `pylons.png` | Pylon silhouettes. **Keyed** — see below. |
+| `yard.png` | Transformer row. **Keyed**. |
+| `trench.png` | Cable-trench wall for the under band. As generated. |
+
+**`no_background: true` does not reliably produce transparency for a
+scene-shaped prompt.** Both plates that needed an alpha channel came back fully
+opaque, twice each, including one attempt whose description said "fully
+transparent background: no sky, no clouds, no hills, no ground, nothing behind
+the towers" in as many words. Stage 1 hit the same thing without noticing —
+`water.png` is 0% transparent and works only because it is placed as an opaque
+band across the lower screen, while `skyline.png` (39%) and `pilings.png` (95%)
+did come back keyed.
+
+So the two that needed it were keyed after the fact, by flood-filling from the
+top edge with a colour tolerance. That is recorded here rather than hidden
+because it means those two PNGs are **not** reproducible from their prompt alone:
+regenerating them needs the keying pass as well. It is cheaper and far more
+predictable than spending generations hoping for an alpha channel, and it does
+not touch the pixels it keeps.
+
 #### Tileset art comes from a different host, and it has to be allowed
 
 Raw images and tilesets are delivered differently, and only one of the two
