@@ -2,9 +2,13 @@
 ## generated result, so a hand-edit in the editor that drops a binding is caught.
 extends TestCase
 
+## Every action the player can press. `melee` is here because it was *not*:
+## the sword was bound straight into project.godot, so nothing generated it and
+## nothing asserted it, and the only thing standing between the game having a
+## sword and not having one was a line in a file no tool owned.
 const REQUIRED := [
 	&"move_left", &"move_right", &"move_up", &"move_down",
-	&"jump", &"shoot", &"weapon_prev", &"weapon_next", &"pause",
+	&"jump", &"shoot", &"melee", &"weapon_prev", &"weapon_next", &"pause",
 ]
 
 
@@ -33,6 +37,17 @@ func test_actions_have_both_keyboard_and_gamepad_bindings() -> void:
 				has_pad = true
 		assert_true(has_key, "%s has no keyboard binding" % action)
 		assert_true(has_pad, "%s has no gamepad binding" % action)
+
+
+## The generator is meant to be the source of truth for the map (ARCHITECTURE
+## section 6 says to re-run it after editing the binding table), so an action
+## the game reads and the generator does not know about is an action one
+## regeneration away from being someone's puzzle.
+func test_the_generator_knows_every_action_the_game_uses() -> void:
+	var bindings: Dictionary = load("res://tools/bootstrap_input_map.gd").BINDINGS
+	for action in REQUIRED:
+		assert_true(bindings.has(action),
+			"%s is in the input map but not in bootstrap_input_map.gd" % action)
 
 
 ## Diagonal stick drift on an analogue pad would otherwise trigger slides.

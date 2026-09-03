@@ -418,6 +418,7 @@ Keep autoloads free of node references into the active scene — they outlive it
 | `move_up` / `move_down` | ↑ / ↓ , W / S | D-pad, left stick Y |
 | `jump` | Z / Space | A (bottom face) |
 | `shoot` | X | X (west face) |
+| `melee` | C | Y (north face) |
 | `weapon_prev` / `weapon_next` | Q / E | LB / RB |
 | `pause` | Enter / Escape | Start |
 | `debug_overlay` | F3 | — |
@@ -440,6 +441,19 @@ godot --headless --script res://tools/bootstrap_input_map.gd
 
 `tests/test_input_map.gd` asserts the generated result, so a stray edit in the editor that
 drops a gamepad binding fails CI.
+
+**And it asserts that the generator knows every action the game reads**, which it did not.
+`melee` was bound straight into `project.godot` when the sword landed and never entered
+`BINDINGS`, so for two milestones the sword existed in the generated file and in no
+generator — working, owned by nothing, and asserted by nothing. Re-running the tool left
+it alone rather than deleting it, which is exactly why nobody noticed.
+
+One thing the tool does do on every run: **it drops any project setting that equals its
+engine default**, because `ProjectSettings.save()` writes only what differs. The explicit
+`rendering/textures/canvas_textures/default_texture_filter=1` line goes with it. Linear is
+the Godot 4 default so nothing changes behaviourally and the settings tests still pass —
+what is lost is the record that Linear was a *decision* (SPRITES §7 reversed it from
+Nearest), which is worth knowing before hunting for the missing line.
 
 ---
 
