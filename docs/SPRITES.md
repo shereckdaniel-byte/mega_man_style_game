@@ -679,6 +679,39 @@ the plate's origin. Both are set in `parallax_background.gd`.
 Vertical scroll is 0 on every plate. A plate is sized to the viewport height
 exactly, so any vertical drift walks its edge into frame.
 
+#### Tide is framed smaller than the roster, and that is a portrait problem
+
+Tide's art was generated on 2026-09-02, on its own, before the roster batch. It
+is framed differently inside its 256 px cell as a result:
+
+| | opaque art within the cell |
+| --- | --- |
+| **Tide** (`wave_man/`) | **58–70%** |
+| Arc, Rust, Prism, Gale, Cinder, Frost, Quarry | **90–97%** |
+
+**This does not affect gameplay and never did.** `Enemy._build_sprite` measures
+each actor's own art height and scales it to that actor's `body_size()`, so a
+character drawn small in its cell comes out the right size in the fight — the
+same normalisation the importer does for baselines (§7).
+
+It surfaced the moment something drew a **raw frame**: the stage select and the
+weapon-get screen, where the whole cell goes on screen and Tide stood visibly
+smaller than the bosses beside it. `BossPortrait` crops to the opaque bounds
+before drawing, which is the same compensation everything else already applies,
+and after it Tide fills its cell to the same height as the rest.
+
+**So: do not regenerate Tide for this.** It would cost 48 credits (a `pro` base
+plus nine animations), and it would change the character the whole of stage 1 —
+the Crest wave's ride height, Volley's 18.5 px shot line, Spout's arc — was
+measured against. The art is not wrong; it is framed differently, and everything
+that consumes it now compensates.
+
+The test that keeps this closed asks about **what is drawn, not about the
+pixels**: a cropped portrait is fitted into its cell with `KEEP_ASPECT_CENTERED`,
+so what matters is that no boss is proportionally wider than its box, which is
+what would make one draw short again. Tide's cropped art really is 69% the pixel
+height of the tallest and that is fine.
+
 #### Stage 2's enemy roster — the six skins, and what the M5 lesson saved
 
 The roster's rule is that the six archetypes are **reskinned** per stage: the

@@ -89,15 +89,10 @@ func setup(weapon_name: String, boss_name: String,
 func _add_portrait(parent: Node, frames: SpriteFrames) -> void:
 	if frames == null:
 		return
-	var anim := &"idle"
-	if not frames.has_animation(anim):
-		var names := frames.get_animation_names()
-		if names.is_empty():
-			return
-		anim = StringName(names[0])
-	if frames.get_frame_count(anim) <= 0:
-		return
-	var texture := frames.get_frame_texture(anim, 0)
+	# Cropped to the character, not to its cell. The roster is framed
+	# inconsistently inside its 256 px cells and every other consumer already
+	# compensates -- see BossPortrait, which has the measurements.
+	var texture := BossPortrait.of(frames)
 	if texture == null:
 		return
 
