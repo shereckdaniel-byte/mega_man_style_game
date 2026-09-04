@@ -265,3 +265,39 @@ func _add_floor(top_left: Vector2, size: Vector2) -> void:
 func _frames(count: int) -> void:
 	for i in count:
 		await tree.physics_frame
+
+
+## Every animation draws at the actor's own height, not at whatever size the
+## clip happened to be generated at.
+##
+## AutoSprite frames each clip independently, so a boss's opaque height varies
+## from clip to clip -- Rust's by 1.28x across six animations. `_build_sprite`
+## used to measure only the starting animation and keep that scale forever, and
+## a playtester's note was that "the stage 3 boss size changes depending on what
+## he is doing". Arc's 1.07x spread is why they only noticed it on one of them.
+func test_every_animation_draws_at_the_same_height() -> void:
+	for path in ["res://scenes/actors/bosses/tide.gd",
+			"res://scenes/actors/bosses/arc.gd",
+			"res://scenes/actors/bosses/rust.gd"]:
+		var boss := (load(path) as GDScript).new() as Boss
+		root.add_child(boss)
+		await tree.physics_frame
+		assert_not_null(boss.sprite, "%s built no sprite" % path)
+
+		var drawn: Array[float] = []
+		for anim in boss.sprite.sprite_frames.get_animation_names():
+			if boss.sprite.sprite_frames.get_frame_count(anim) <= 0:
+				continue
+			boss.sprite.animation = StringName(anim)
+			boss.fit_art()
+			var height: float = boss.sprite.scale.y * boss._measure_art_height(
+				StringName(anim))
+			drawn.append(height)
+		assert_true(drawn.size() >= 2, "%s: nothing to compare" % path)
+		var lo: float = drawn.min()
+		var hi: float = drawn.max()
+		assert_almost_eq(hi, lo, 1.0,
+			"%s draws between %.1f and %.1f px depending on the animation"
+				% [path, lo, hi])
+		boss.queue_free()
+		await tree.physics_frame

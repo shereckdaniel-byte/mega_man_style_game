@@ -38,7 +38,11 @@ func test_every_ladder_stands_on_solid_floor() -> void:
 		var stage: AuthoredStage = await _build(name)
 		for ladder in _ladders(stage):
 			var cell := _cell_of(stage, ladder)
-			var foot := int(round(ladder.position.y / stage.tile_size()))
+			# Floor, not round: a ladder's foot sits on the deck *surface*, half
+			# a tile below its tile row (AuthoredStage.deck_surface_offset), so
+			# rounding 26.5 lands on 27 and the scan then treats the deck the
+			# ladder stands on as a ceiling blocking it.
+			var foot := int(floor(ladder.position.y / stage.tile_size()))
 			assert_true(_solid(stage, Vector2i(cell, foot)),
 				"%s/%s: the deck under the ladder's foot is a hole"
 					% [name, ladder.name])
@@ -50,7 +54,11 @@ func test_no_ladder_climbs_into_a_ceiling() -> void:
 		var stage: AuthoredStage = await _build(name)
 		for ladder in _ladders(stage):
 			var cell := _cell_of(stage, ladder)
-			var foot := int(round(ladder.position.y / stage.tile_size()))
+			# Floor, not round: a ladder's foot sits on the deck *surface*, half
+			# a tile below its tile row (AuthoredStage.deck_surface_offset), so
+			# rounding 26.5 lands on 27 and the scan then treats the deck the
+			# ladder stands on as a ceiling blocking it.
+			var foot := int(floor(ladder.position.y / stage.tile_size()))
 			var head := foot - ladder.height_tiles
 			var blocked: Array[int] = []
 			for y in range(head, foot):
@@ -190,3 +198,33 @@ func _solid(stage: Node, cell: Vector2i) -> bool:
 	if deck == null:
 		return false
 	return deck.get_cell_source_id(cell) != -1
+
+
+## The deck's walkable surface is half a tile below its tile row, because the
+## tilesets are Wang corner sets. Pinned because everything the stage places is
+## measured from it, and the number is read out of the tile rather than written
+## down -- a tileset that changed shape would move it silently otherwise.
+func test_the_deck_surface_is_measured_from_the_tiles() -> void:
+	for name in STAGES:
+		var stage: AuthoredStage = await _build(name)
+		var offset := stage.deck_surface_offset()
+		assert_between(offset, 0.0, 0.9,
+			"%s: a surface offset of %.2f tiles is not a surface" % [name, offset])
+		assert_almost_eq(offset, 0.5, 0.001,
+			"%s: corner terrain should put the surface half a tile down" % name)
+		await _drop(stage)
+
+
+func test_a_boss_lands_on_the_floor_it_was_given() -> void:
+	# The arena used to hand the boss `band_deck_row * tile`, which is half a
+	# tile above the collision surface: the boss finished its entrance in the
+	# air and dropped 36 px the moment gravity started at the bar fill.
+	for name in STAGES:
+		var stage: AuthoredStage = await _build(name)
+		var arena := stage.arena()
+		assert_not_null(arena, "%s has no arena" % name)
+		var row := stage.band_surface_row(
+			stage.room_band(stage.arena_room_index()))
+		assert_almost_eq(arena.global_position.y, row * stage.tile_size(), 0.5,
+			"%s: the arena is not on the deck surface" % name)
+		await _drop(stage)

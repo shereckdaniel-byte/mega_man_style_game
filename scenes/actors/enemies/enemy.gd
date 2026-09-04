@@ -39,6 +39,9 @@ var health: Health
 var hurtbox: Hurtbox
 var contact: Hitbox
 var sprite: AnimatedSprite2D
+## Measured opaque height per animation, so `fit_art` costs nothing after the
+## first time each clip is played.
+var _art_heights: Dictionary = {}
 var tuning: PlayerTuning
 ## Set by the SpawnMarker that created this enemy, so the marker can be re-armed
 ## when the enemy is freed rather than leaving a hole in the room.
@@ -140,16 +143,48 @@ func _build_sprite() -> void:
 	sprite.animation = playing
 	sprite.play(playing)
 
-	var art_height := _measure_art_height(playing)
-	if art_height > 0.0:
-		var factor := body_size().y * art_height_scale / art_height
-		sprite.scale = Vector2(factor, factor)
 	sprite.centered = true
 	# The actor's origin is at its feet, so the art is lifted by half of what it
 	# is drawn at rather than centred on the origin.
 	sprite.offset = Vector2.ZERO
 	sprite.position = Vector2(0.0, -body_size().y * art_height_scale * 0.5)
+	# **Re-fitted on every animation change, not once at build.** See fit_art.
+	sprite.animation_changed.connect(fit_art)
 	add_child(sprite)
+	fit_art()
+
+
+## Scales the current animation so it draws at the actor's own height.
+##
+## **Every animation is normalised, not just the first one.** AutoSprite frames
+## each clip independently, so a character's opaque height varies from clip to
+## clip -- and this used to measure the *starting* animation and keep that one
+## scale forever, which meant every other animation drew at whatever size it
+## happened to be. Measured across the roster:
+##
+##     Arc    233-249 px   1.07x  -- invisible
+##     Tide   133-180 px   1.35x
+##     Rust   186-238 px   1.28x  -- "the boss changes size depending on what
+##                                   he is doing", reported from a playtest
+##
+## The importer already normalises each clip's *baseline* (SPRITES.md section 7)
+## so the feet line up; this is the other half of the same job, and it belongs
+## here rather than at import because the target height is the actor's body size
+## and only the actor knows that.
+##
+## Heights are cached per animation: `get_image()` on a 256 px frame is not
+## something to do on an animation change.
+func fit_art() -> void:
+	if sprite == null or sprite_frames == null:
+		return
+	var playing := sprite.animation
+	if not _art_heights.has(playing):
+		_art_heights[playing] = _measure_art_height(playing)
+	var art_height: float = _art_heights[playing]
+	if art_height <= 0.0:
+		return
+	var factor := body_size().y * art_height_scale / art_height
+	sprite.scale = Vector2(factor, factor)
 
 
 ## Points the sprite the way the enemy is going.

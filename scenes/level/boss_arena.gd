@@ -52,6 +52,7 @@ var _player: Player = null
 var _frames := 0
 var _hud: Hud = null
 var _tile := 72.0
+var _walls: Array[StaticBody2D] = []
 
 
 func _ready() -> void:
@@ -118,6 +119,7 @@ func _on_body_entered(body: Node2D) -> void:
 	# Frozen, not disabled: gravity keeps running so a player who walked in
 	# mid-stride lands rather than hanging in the air (see Player.set_frozen).
 	_player.set_frozen(true)
+	_raise_walls()
 	sealed.emit()
 
 
@@ -166,6 +168,9 @@ func _start_fight() -> void:
 func _on_boss_defeated(defeated_boss: Boss) -> void:
 	phase = Phase.CLEARED
 	_frames = 0
+	# The room opens again the moment the fight is over: the weapon-get and the
+	# walk out both happen on the other side of this.
+	_drop_walls()
 	var index := defeated_boss.boss_index
 	var weapon := defeated_boss.weapon_id
 	boss = null
@@ -181,6 +186,58 @@ func _on_boss_defeated(defeated_boss: Boss) -> void:
 		weapons.unlock(weapon)
 
 	cleared.emit(index, weapon)
+
+
+## Shuts the room, physically.
+##
+## **The seal was only ever a phase enum.** The room "sealed" in the sense that
+## the sequence started and the player was frozen, and nothing at all stopped
+## them walking out of either end once control came back -- off the right-hand
+## edge of the last room in the stage, into the kill plane. A playtester walked
+## out of the Breakers arena and died there.
+##
+## Two walls, at the room's edges, tall enough not to be jumped. They go up on
+## the seal and come down when the boss is beaten, so the door the player came
+## in by is shut for exactly as long as the fight lasts -- which is what the
+## seal has always claimed to be.
+func _raise_walls() -> void:
+	_drop_walls()
+	var room := _room()
+	if room == null:
+		return
+	var bounds := room.world_bounds()
+	for side in [["SealLeft", bounds.position.x], ["SealRight", bounds.end.x]]:
+		var x: float = side[1]
+		var wall := StaticBody2D.new()
+		wall.name = String(side[0])
+		wall.collision_layer = Layers.bit(Layers.WORLD)
+		wall.collision_mask = 0
+		var shape := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		# A tile thick and the room's full height: a wall that can be jumped is
+		# a wall that will be.
+		rect.size = Vector2(_tile, bounds.size.y)
+		shape.shape = rect
+		shape.position = Vector2(0.0, bounds.size.y * 0.5)
+		wall.add_child(shape)
+		wall.position = Vector2(x, bounds.position.y)
+		var level := get_parent()
+		if level == null:
+			wall.free()
+			return
+		# Deferred: the seal fires from `body_entered`, which runs inside the
+		# physics query flush, and adding a body with a collision shape there
+		# errors out ("Can't change this state while flushing queries") and
+		# silently drops the second wall. Godot's own message says to defer.
+		level.call_deferred("add_child", wall)
+		_walls.append(wall)
+
+
+func _drop_walls() -> void:
+	for wall in _walls:
+		if is_instance_valid(wall):
+			wall.queue_free()
+	_walls.clear()
 
 
 ## Left and right edges of the arena floor, from the enclosing Room. Falls back

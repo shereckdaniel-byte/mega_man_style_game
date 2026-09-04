@@ -879,6 +879,95 @@ whole-run figure varies by several HP between runs because the boss fights seed
 their RNG with `randomize()`; the traversal rooms do not vary at all, which is
 why the ledger is read per room and not as a total.
 
+### M6j — The deck was half a tile lower than the code thought ✅ done
+
+Six more things from a playtest. Four root causes, and the biggest one had been
+in the game since the first tileset landed.
+
+#### The deck's surface is half a tile below its tile row
+
+The tilesets are Wang **corner** sets — `PixelLabTilesetImporter` says so in its
+own header: the terrain grid is offset half a tile from the visual grid, a
+top-surface tile's solid half is its *bottom* half, and collision follows the
+art rather than the tile bounds. `DECK_ROW` is the tile row. The surface is 36 px
+lower. Nothing in the stage code knew.
+
+The player never exposed it because they spawn two tiles up and fall onto
+whatever is there. The boss did. Traced in-engine:
+
+```
+f56  ENTERING  boss_y=792.0  gap_to_floor=  0.0  on_floor=false
+f80  FILLING   boss_y=828.0  gap_to_floor=-36.0  on_floor=TRUE
+```
+
+— it finished its entrance in mid-air and dropped onto the floor the moment
+gravity started at the bar-fill, which is exactly what was reported. Every kit
+element placed at a deck row floated the same half tile, which is why the
+crumbling blocks sat proud of the walkway they are meant to be part of.
+
+`deck_surface_offset()` reads it out of the tile's own collision polygons rather
+than hard-coding 0.5, so a stage whose tileset is not corner terrain gets 0 and
+nothing moves.
+
+**Applying it everywhere broke stage 1, and the bot found it in one run.** The
+first version moved *all* placements. Ceiling spikes hang under a ceiling built
+from tiles, so dropping them half a tile put them 8 NES px below the face they
+hang from — which eats 8 of the 20 px of slide clearance in a `SPIKED_CLEARANCE`
+tunnel and leaves 12 for a 14 px slide. Under West became impassable: **16 deaths,
+4 rooms reached, 450 HP.** So the rule is now stated and narrow: what the player
+*stands on* is placed against the surface (crumbles, one-ways, movers, ladder
+feet, the boss's landing); what hangs off the tilemap is measured in tile rows;
+and lethal boxes stay where they were playtested, because moving a spike is a
+balance change rather than an alignment fix.
+
+#### Every animation now draws at the actor's own height
+
+AutoSprite frames each clip independently, so opaque height varies clip to clip.
+`_build_sprite` measured the *starting* animation and kept that scale forever:
+
+```
+Arc    233-249 px   1.07x   invisible
+Tide   133-180 px   1.35x
+Rust   186-238 px   1.28x   "the boss size changes depending on what he is doing"
+```
+
+Arc's spread is why only one boss was reported. `Enemy.fit_art()` re-measures on
+every animation change (cached per clip) — all three bosses now hold one drawn
+height to within a pixel.
+
+#### The seal was only ever a phase enum
+
+The boss room "sealed" in the sense that the sequence started and the player was
+frozen. Nothing stopped them walking out of either end — off the right-hand edge
+of the last room in the stage, into the kill plane. Two `StaticBody2D` walls now
+go up on the seal and come down when the boss dies. They are added deferred:
+`body_entered` runs inside the physics query flush, and adding a body with a
+collision shape there errors and silently drops the second wall.
+
+#### The crumbling blocks are made of the deck now
+
+They were a flat tan slab on a rust deck — the last thing in the kit that did not
+look like the floor, which is the note a playtester made about the moving
+platforms two milestones ago. They now draw from the stage's own terrain atlas,
+so each stage gets its material for free and no new art was generated.
+
+Plain deck tiles were tried first and rejected **after rendering all three
+stages side by side**: they make the blocks vanish into the walkway on two stages
+out of three, and a trap you cannot see is the exact failure the crack exists to
+prevent. What shipped is damaged deck — the same tiles dulled and darkened,
+corners bitten out, and a crack at triple the line weight, because a hairline
+that read on a flat slab disappears on a textured one.
+
+**Still open:** the reported choppiness is measured at **12.24 fps** animation
+playback (the importer derives it from the source clip length), which at 60 Hz is
+a new frame every five physics frames. That is a deliberate-looking number for
+the genre and changing it is an art decision, not a bug fix, so it is left for a
+decision rather than guessed at.
+
+**Accepted:** 417 tests / 10123 assertions. All three stages complete every room;
+stage 1 reaches the boss door on 22 of 28 HP with no traversal deaths, which is
+its recorded baseline.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
