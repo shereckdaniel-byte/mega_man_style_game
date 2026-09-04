@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DamageTable" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/damage_table.gd" id="1_table"]
+
+[resource]
+script = ExtResource("1_table")
+entity_id = &"rust"
+by_weapon = {
+&"arc_lance": 2,
+&"buster_charged": 3,
+&"contact": 0,
+&"prism_ray": 4,
+&"rust_bloom": 1,
+&"sword": 3,
+&"tide_crawler": 2
+}
+immune_to = Array[StringName]([])

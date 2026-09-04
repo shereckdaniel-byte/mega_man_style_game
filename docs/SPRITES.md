@@ -343,6 +343,75 @@ weapon, `hurt` recoils, `death` collapses), submission order held.
 
 ---
 
+### 6b. Stage 3's six — the first batch where every base was right
+
+Six characters, six animations, one batch: **Cutter** (walker, an oxy-acetylene
+rig on legs), **Jack** (hopper, a bottle jack on a spring), **Rivetgun** (turret),
+**Slag** (flyer, a caged gobbet of molten metal), **Skip** (spawner, a scrap bin
+that tips debris out) and **Seam** (crawler, a segmented welder). Cost: 18 credits
+of `pro` bases plus 48 of animation (5 turbo + 3 `first_frame_quality: pro` each).
+
+§6a's rule is do every base first and look at them together, and this is the first
+batch where **all six passed** — no baked-in scenery, no unwanted legs, one
+coherent rust-and-iron palette. Two things in the prompts look like what changed:
+
+- **Say what the thing physically is, then what it is made of.** "A hydraulic
+  bottle jack turned into a hopping robot: a fat steel cylinder body with a
+  chrome ram rising from the top, a coiled compression spring at its base"
+  leaves much less room than "a hopping robot in a scrapyard".
+- **Name the scenery you do not want, in the negative, every time.** Every prompt
+  ended "no background scenery, no ground, no platform" — which is exactly what
+  the M6c batch got wrong twice.
+
+`isHumanoid: false` with a one-line `characterDescription` on all six, since none
+of them walks on two legs.
+
+### 8e. Stage 3's art, and a tileset that had to be recoloured rather than reprompted
+
+**The tileset took three generations and shipped as the second one, recoloured.**
+
+| Attempt | Prompt emphasis | Result |
+| --- | --- | --- |
+| 1 | "colours strictly rust orange … no plants, no moss" | unmistakably rust, and completely flat — the colour words crowded out the structure |
+| 2 | plate seams, rivets, "dark grey-blue steel with rust streaks" | the best structure of the three, and almost the same cold grey as Substation |
+| 3 | "the whole surface eaten by thick scaly orange-brown rust" | rust again, and the rivets gone again |
+
+Pushing colour cost structure and pushing structure cost colour, twice each. What
+shipped is **attempt 2 mapped through a five-stop rust ramp by luminance** — a
+tritone over the returned PNG, which keeps every rivet and seam exactly where the
+generator put them and guarantees a coherent palette. The source's own range is
+stretched across the ramp first (it uses 19–174 of 0–255, and mapping it straight
+in comes out muddy) and the mid-tones are lifted with a 0.75 gamma.
+
+This is the same answer stage 1 reached for its water: **a few lines over the
+returned PNG beat another generation**, and it is repeatable where a prompt is not.
+Metadata comes from attempt 2 as well — the corner data describes that PNG's
+geometry, and pairing it with a different attempt's art would put collision in
+the wrong half of every tile.
+
+**The backdrop is four plates, and one of them had a sun in it.**
+
+| Plate | Notes |
+| --- | --- |
+| `sky.png` | Asked for an empty banded sky; got a whole scene — cloud, a low sun, a skyline, water. **Cropped above its own horizon** and stretched back to full height with NEAREST. |
+| `hulls.png` | Beached hulls. Keyed (came back on flat cream), pushed to rust, hazed by brightness against the sky behind it. |
+| `water.png` | Derived: the sky mirrored about the waterline, darkened and cooled with depth. Costs no generations and cannot drift out of palette with the sky. |
+| `interior.png` | A rusted bulkhead wall for the middle band. As generated, cropped to the wall. |
+
+The sun mattered more than the composition. A landmark baked into the sky plate
+scrolls at 0.05 while the hulls in front of it scroll at 0.2, so the two horizons
+slide across each other — which is exactly the bug M6b fixed on stage 2, and
+`tests/test_backdrops.gd` exists to catch. **The cut is measured, not eyeballed:**
+the first row whose longest run of pixels darker than 120 exceeds 8 px is where
+the silhouettes start (cloud speckle never manages more than 4), which puts it at
+row 159. At threshold 125 the speckle itself trips the test on row 0, so the
+window is narrow and the number is worth writing down.
+
+**And one thing no test could have caught:** the waterline was placed at plate row
+150 and a room's deck lands at row 176, so the stage shipped with its walkway
+sixteen pixels under the sea. Found by looking at a screenshot. That is the fourth
+milestone running where the fault was found by looking rather than by running.
+
 ## 7. Art direction — settled
 
 **Decision: keep the art, go HD.** The game is not pixel art.

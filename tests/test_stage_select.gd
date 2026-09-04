@@ -1,6 +1,6 @@
 ## The stage select, and the roster behind it.
 ##
-## What this really guards is that **the grid does not move**. Six of the eight
+## What this really guards is that **the grid does not move**. Most of the eight
 ## stages are unbuilt, and the tempting thing is to list only what exists -- which
 ## makes the screen change shape every time a stage lands. A select screen's whole
 ## interface is the player's memory of where a stage *is*, so the cells are fixed
@@ -50,12 +50,13 @@ func test_every_roster_entry_has_a_portrait_on_disk() -> void:
 			"%s has no sprite frames at %s" % [row["boss"], row["frames"]])
 
 
-## The two that exist must be reachable, and the six that do not must say so
+## The stages that exist must be reachable, and the ones that do not must say so
 ## rather than pointing at a scene that is not there.
 func test_built_stages_are_the_ones_with_a_scene() -> void:
 	var built := StageRoster.built()
 	assert_true(built.has(0), "Dawn Boardwalk should be built")
 	assert_true(built.has(1), "Substation should be built")
+	assert_true(built.has(2), "Breakers should be built")
 	for row in StageRoster.ENTRIES:
 		var path: String = row["scene"]
 		if path.is_empty():
@@ -99,10 +100,23 @@ func test_the_cursor_wraps_in_both_axes() -> void:
 func test_an_unbuilt_stage_is_refused_by_name() -> void:
 	var said: Array[String] = []
 	select.refused.connect(func(m: String) -> void: said.append(m))
-	select.cursor = StageRoster.grid_position(2)   # Rust / Breakers
+	# The first stage the roster still calls unbuilt, rather than a hard-coded
+	# index. This test named Breakers until stage 3 landed and then failed on it
+	# -- a test that has to be edited every time a stage ships is a test that
+	# will be edited into passing.
+	var unbuilt := -1
+	for row in StageRoster.ENTRIES:
+		if not StageRoster.is_built(int(row["index"])):
+			unbuilt = int(row["index"])
+			break
+	assert_true(unbuilt >= 0, "every stage is built; this test has nothing to check")
+	var name := String(StageRoster.entry(unbuilt)["stage"]).to_upper()
+
+	select.cursor = StageRoster.grid_position(unbuilt)
 	assert_false(select.confirm())
 	assert_eq(said.size(), 1)
-	assert_true(said[0].contains("BREAKERS"), "said %s" % said[0])
+	assert_true(said[0].contains(name), "said %s, expected it to name %s"
+		% [said[0], name])
 
 
 func test_the_fortress_is_refused() -> void:

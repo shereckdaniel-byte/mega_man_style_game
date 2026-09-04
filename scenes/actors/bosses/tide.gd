@@ -86,11 +86,6 @@ const VOLLEY_SPACING := 14
 ## and nothing but this arithmetic would have said so.
 const VOLLEY_HEIGHT_NES := 18.5
 
-## Horizontal bounds of the arena floor, set by the arena. Spout needs to know
-## where the far side is; without it the boss would leap into a wall.
-var arena_left := 0.0
-var arena_right := 0.0
-
 var _spout_direction := -1
 
 
@@ -109,12 +104,6 @@ func _ready() -> void:
 
 func body_size() -> Vector2:
 	return BODY_NES * tuning.world_scale
-
-
-## The arena hands over the floor span so Spout knows where it can land.
-func set_arena_span(left: float, right: float) -> void:
-	arena_left = minf(left, right)
-	arena_right = maxf(left, right)
 
 
 func build_patterns() -> Array[BossPattern]:
@@ -144,7 +133,7 @@ func tell(pattern: BossPattern, frame: int) -> void:
 	# fired here by design -- see BossPattern.
 	velocity.x = 0.0
 	if pattern.id == &"spout" and frame == 0:
-		_spout_direction = -1 if global_position.x > _arena_centre() else 1
+		_spout_direction = -1 if global_position.x > arena_centre() else 1
 
 
 func act(pattern: BossPattern, frame: int) -> void:
@@ -217,9 +206,3 @@ func _spawn(shot: Node2D) -> void:
 		shot.free()
 		return
 	level.add_child(shot)
-
-
-func _arena_centre() -> float:
-	if is_equal_approx(arena_left, arena_right):
-		return global_position.x
-	return (arena_left + arena_right) * 0.5

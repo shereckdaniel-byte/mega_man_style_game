@@ -33,7 +33,7 @@ const ENTRIES := [
 		"index": 2, "boss": "Rust", "stage": "Breakers",
 		"weapon": "Rust Bloom",
 		"frames": "res://resources/sprite_frames/rust.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/breakers/breakers.tscn",
 	},
 	{
 		"index": 3, "boss": "Prism", "stage": "Mirror Field",

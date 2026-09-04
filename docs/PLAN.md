@@ -709,6 +709,82 @@ unbuilt states, which are also colour.
 fortress centre stays sealed until M7. The centre is drawn locked rather than
 left blank so the shape of the finished screen is visible now.
 
+### M6h — Breakers, Rust, and the press ✅ done
+
+Stage 3, and the first one that closes a loop rather than opening one: Arc's
+damage table has named `rust_bloom` since M6a and there was no such weapon.
+Now there is, and beating Rust gives it to you.
+
+- ✅ **Breakers** — nine rooms that *climb*, through **three bands**. Stage 1 is
+  a U and stage 2 a J; both finish roughly where they started. This one starts
+  at the waterline among the beached hulls and ends three screens up on the
+  gantry. `AuthoredStage` already supported any number of bands — `band_deck_row`
+  is `DECK_ROW + band * ROOM_HEIGHT` and never cared — so the shape cost nothing
+  but the table.
+- ✅ **`CrusherPress`** — the gimmick, and the first piece of level that is
+  dangerous *sometimes*. Its grammar is the bosses', not the kit's: hold, tell,
+  drop, rest, rise. **The cycle is a fact about the press, not a number a room
+  supplies** — the phases are constants, the travelling phases are derived from
+  the distance, and a room may only offset the phase. Stage 2 shipped a 130-frame
+  mover leg that walked a late rider off a lip; the fix was to stop inventing
+  timings per placement.
+- ✅ **Rust** — three answers that are **not dodging**, which after two bosses is
+  the whole vocabulary the player has. Scrap throws a hull plate that can be
+  **shot down** (offence); Press walks in slower than a walk and slams
+  (distance); Bloom vents corrosion that stays on the floor (attrition).
+- ✅ **Rust Bloom** — archetype 4. A lob you aim by judging distance, that bursts
+  into a patch several times its own size. The pattern the player had to learn to
+  live with is the weapon they are given, which is the trade a weapon-get should
+  feel like.
+- ✅ Six enemy skins — **Cutter, Jack, Rivetgun, Slag, Skip, Seam** — one per
+  archetype, generated in one batch. All six bases passed §6a's look-before-you-
+  animate check first time, which is the first batch that has.
+- ✅ Own tileset and a four-plate backdrop; `StageRoster` index 2 now names a
+  scene, so the select screen offers it.
+
+**The bound on Bloom is structural, not tuned.** A pattern that takes floor away
+can make a fight unwinnable, so the arena is divided into seven columns and
+patches only ever land in alternate ones — whichever parity is chosen, at least
+three columns are clear at all times. `tests/test_rust.gd` checks that rather
+than trusting the numbers.
+
+#### Four things that were wrong, and how each was caught
+
+1. **The slide clearance under a press had to be a fraction, and the first
+   version was a whole number.** `tests/test_breakers.gd` measures the opening
+   against `PlayerTuning`'s real boxes rather than against the comment, and
+   failed: two rows leaves 26.6 NES px after the teeth, and a *standing* player
+   is 24, so the press asked for nothing. One row leaves 10.6 and a slide is 14,
+   so it asked for the impossible. Only 1.5 catches one and passes the other.
+   The comment had the arithmetic wrong in exactly the direction that ships a
+   press nobody has to slide under.
+2. **Rust's plate could not be slid under either** — the same class of error, in
+   the same session, found the same way. Thrown from 20 NES px it sat 11 px off
+   the floor and a 14 px slide did not fit. Sliding under is the *old* answer the
+   pattern keeps available while its new one is being learned, so it mattered.
+3. **The stage shipped with its walkway under the sea.** The waterline plate was
+   placed at row 150 and a room's deck lands at row 176. Caught by looking at a
+   screenshot; nothing else would have.
+4. **A retracted press had no rail and hung in the sky** — the same fault a
+   playtester reported on stage 1 as "the turret is just floating in the air",
+   arrived at from the other direction. The rails now draw the whole track,
+   because a press is a thing that runs in one whether or not it has left the top.
+
+#### The bot found a real bug, and it was in the bot
+
+Crane cost 52 HP and two lives, on the same frame every run. The room was fine:
+the bot boarded the ferry **on its return leg**, kept walking forward because it
+was still on the near side of the hole, and stepped off the far end into the
+spikes. `progress` cannot distinguish "just set off" from "nearly home" — 0.16 is
+both — so `MovingPlatform.next_heading()` answers it by looking ahead through the
+cycle instead. With that, Crane is 0 HP and 0 deaths, and Substation's identical
+crossing is unchanged at 0 and 0.
+
+**Accepted:** the bot runs Breakers end to end and beats Rust. Substation's
+traversal is unchanged (2 HP across seven rooms, 0 deaths) and stage 1 still
+finishes with 0 deaths, which is the check that adding a stage did not move the
+two that already worked.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the

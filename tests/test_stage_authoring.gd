@@ -23,6 +23,7 @@ extends TestCase
 const STAGES := {
 	"dawn_boardwalk": preload("res://scenes/stages/dawn_boardwalk/dawn_boardwalk.gd"),
 	"substation": preload("res://scenes/stages/substation/substation.gd"),
+	"breakers": preload("res://scenes/stages/breakers/breakers.gd"),
 }
 
 ## A spiked slide tunnel is at most this wide, in cells.
