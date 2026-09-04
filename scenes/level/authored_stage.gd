@@ -157,6 +157,8 @@ var _log: PlaytestLog = null
 ## Cached `(band, world cell) -> true` for every hole a shaft opens. Built once
 ## from the table; see `_shaft_holes`.
 var _holes: Dictionary = {}
+## Cached deck surface offset in tiles; negative means "not measured yet".
+var _surface_offset := -1.0
 
 
 # --- What a subclass supplies -------------------------------------------------
@@ -241,6 +243,67 @@ func band_top_row(band: int) -> int:
 
 func room_deck_row(index: int) -> int:
 	return band_deck_row(room_band(index))
+
+
+## How far below its own tile row the deck's walkable surface actually is, in
+## tiles.
+##
+## **It is half a tile, and nothing in the code knew that.** The tilesets are
+## Wang *corner* sets, which `PixelLabTilesetImporter` spells out in its header:
+## the terrain grid is offset half a tile from the visual grid, so a top-surface
+## tile's solid half is its *bottom* half and collision follows the art rather
+## than the tile bounds. `DECK_ROW` is the tile row; the surface is lower.
+##
+## The player never exposed it because they spawn two tiles up and fall onto
+## whatever is there. The boss did: the arena handed it `band_deck_row * tile`,
+## it finished its entrance hanging in the air, and the moment gravity switched
+## on at the bar-fill it dropped 36 px onto the real floor. Traced in-engine:
+##
+##     f56  ENTERING  boss_y=792.0  gap_to_floor=  0.0  on_floor=false
+##     f80  FILLING   boss_y=828.0  gap_to_floor=-36.0  on_floor=TRUE
+##
+## Every kit element placed at a deck row had the same half-tile float, which is
+## why the crumbling blocks sat proud of the walkway they are meant to be part of.
+##
+## **Measured, not assumed.** The offset is read out of the tile's own collision
+## polygons, so a stage whose tileset is not corner terrain gets 0 and nothing
+## moves. Cached: it is a property of the tileset, not of the frame.
+func deck_surface_offset() -> float:
+	if _surface_offset >= 0.0:
+		return _surface_offset
+	_surface_offset = 0.0
+	var tile_set := stage_tile_set()
+	if _deck == null or tile_set == null:
+		return _surface_offset
+	# A cell that is definitely deck: the first room's spawn column.
+	var probe := Vector2i(room_origin(0) + 2, room_deck_row(0))
+	var source_id := _deck.get_cell_source_id(probe)
+	if source_id < 0:
+		return _surface_offset
+	var source := tile_set.get_source(source_id) as TileSetAtlasSource
+	if source == null:
+		return _surface_offset
+	var data := source.get_tile_data(_deck.get_cell_atlas_coords(probe),
+		_deck.get_cell_alternative_tile(probe))
+	if data == null or data.get_collision_polygons_count(0) <= 0:
+		return _surface_offset
+	# Polygon points are relative to the tile's centre, so the top of the solid
+	# part is `min y + half a tile` below the tile's top edge.
+	var top := INF
+	for i in data.get_collision_polygons_count(0):
+		for point in data.get_collision_polygon_points(0, i):
+			top = minf(top, point.y)
+	if is_inf(top):
+		return _surface_offset
+	var side := float(tile_set.tile_size.y)
+	_surface_offset = clampf((top + side * 0.5) / side, 0.0, 0.9)
+	return _surface_offset
+
+
+## The row a body actually stands on in a band -- the deck row plus the offset
+## above. Placement uses this; map building still uses `band_deck_row`.
+func band_surface_row(band: int) -> float:
+	return float(band_deck_row(band)) + deck_surface_offset()
 
 
 func rooms() -> Array[Room]:
@@ -520,6 +583,25 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 	# played, and it killed you somewhere slightly wrong. The playthrough bot
 	# found it on stage 2 by dying two cells before a tunnel it had correctly
 	# decided to slide through.
+	# **What the player stands on is placed against the deck's *surface*; what
+	# hangs off the tilemap is not.** The two are half a tile apart on a corner
+	# tileset (see `deck_surface_offset`), and the distinction is not a nicety:
+	#
+	#   * a crumbling block, a one-way or a mover is a piece of walkway, so its
+	#     top belongs on the surface -- they all floated half a tile above the
+	#     deck until a playtest, which is what made the crumblers look like
+	#     something dropped into the room rather than cut out of it;
+	#   * ceiling spikes hang under a ceiling built from *tiles*, so they are
+	#     measured in tile rows. Moving them to the surface drops them half a
+	#     tile below the face they hang from, which eats 8 of the 20 NES px of
+	#     slide clearance in a SPIKED_CLEARANCE tunnel and leaves 12 for a 14 px
+	#     slide. Under West became impassable and the bot died in it sixteen
+	#     times in one run;
+	#   * floor and pit spikes were placed and playtested against the tile row,
+	#     and moving a lethal box is a balance change rather than an alignment
+	#     fix, so they stay where they were tested.
+	var surface := float(deck) + deck_surface_offset()
+
 	for entry in spec.get("spikes", []):
 		var spikes := Hazard.new()
 		spikes.name = "Spikes_%d_%d" % [origin + int(entry[0]), deck]
@@ -561,7 +643,7 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		plat.name = "OneWay_%d_%d" % [origin + int(entry[0]), deck]
 		plat.size_tiles = Vector2(float(entry[2]), 0.5)
 		plat.position = Vector2(float(origin + int(entry[0])),
-			float(deck) - float(entry[1])) * tile
+			surface - float(entry[1])) * tile
 		add_child(plat)
 
 	for entry in spec.get("movers", []):
@@ -571,7 +653,7 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		mover.travel_tiles = Vector2(float(entry[2]), float(entry[3]))
 		mover.frames_per_leg = int(entry[4])
 		mover.position = Vector2(float(origin + int(entry[0])),
-			float(deck) - float(entry[1])) * tile
+			surface - float(entry[1])) * tile
 		add_child(mover)
 
 	for entry in spec.get("crumbles", []):
@@ -579,7 +661,7 @@ func _add_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		block.name = "Crumble_%d_%d" % [origin + int(entry[0]), deck]
 		block.size_tiles = Vector2(1.0, 1.0)
 		block.position = Vector2(float(origin + int(entry[0])),
-			float(deck) - float(entry[1])) * tile
+			surface - float(entry[1])) * tile
 		add_child(block)
 
 	# Ladders. A shaft leaves this room downward; a shaft_up arrives from below.
@@ -613,7 +695,8 @@ func _add_ladder(cell: int, deck: int, other_band: int, tile: float) -> void:
 	# stranded: Climb holds you until you jump or reach ground, and there was no
 	# ground at that height. One tile is enough to grab from the deck.
 	ladder.height_tiles = (foot - head) + 1
-	ladder.position = Vector2(float(cell) + 0.5, float(foot)) * tile
+	ladder.position = Vector2(float(cell) + 0.5,
+		float(foot) + deck_surface_offset()) * tile
 	add_child(ladder)
 
 
@@ -730,7 +813,7 @@ func _add_arena(tile: float) -> void:
 	arena_node.boss_script = script
 	arena_node.arena_room = _rooms[index].get_path()
 	arena_node.position = Vector2(float(room_origin(index)) + 4.0,
-		float(band_deck_row(room_band(index)))) * tile
+		band_surface_row(room_band(index))) * tile
 	arena_node.boss_offset_tiles = boss_offset_tiles()
 	add_child(arena_node)
 	arena_node.cleared.connect(_on_boss_cleared)

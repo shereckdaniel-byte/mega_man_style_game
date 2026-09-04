@@ -35,9 +35,34 @@ enum Phase { SOLID, WARNING, GONE }
 ## How far it shakes while warning, in px.
 @export var shake_px := 2.5
 
+## The stage's own terrain, borrowed so a crumbler is made of the deck it was
+## cut from. 16 px tiles: `wang_12` is the top surface, `wang_0` the interior.
+##
+## **A playtester's note on the moving platforms was that they "should look like
+## the floor below or very close", and these were the last thing in the kit that
+## did not.** A flat tan slab on a rust deck reads as placeholder. But drawing
+## them as *plain* deck goes too far the other way: rendered side by side, plain
+## deck tiles make the blocks vanish into the walkway on two stages out of three,
+## and a trap you cannot see is the exact failure the crack exists to prevent.
+##
+## So they are **damaged deck**: the same tiles, dulled and darkened, corners
+## bitten out, and a crack at roughly triple the old line weight -- a hairline
+## that read on a flat slab disappears on a textured one. The material says
+## "part of this floor" and the damage says "not for long".
+const TOP_TILE := Rect2(48.0, 0.0, 16.0, 16.0)
+const CORE_TILE := Rect2(32.0, 16.0, 16.0, 16.0)
+## Art pixels per tile in the source tilesets (SPRITES.md section 8).
+const ART_TILE := 16.0
+
 const SOLID_FACE := Color(0.55, 0.50, 0.42)
 const WARN_FACE := Color(0.78, 0.58, 0.34)
 const EDGE := Color(0.25, 0.22, 0.18)
+## Dulling laid over the borrowed tiles, and the bitten-out corners.
+const SPOILED := Color(0.18, 0.13, 0.11, 0.42)
+const BITE := Color(0.06, 0.04, 0.04, 0.85)
+const CRACK := Color(0.05, 0.03, 0.03, 0.9)
+
+var _atlas: Texture2D
 
 var phase: Phase = Phase.SOLID
 var _frames := 0
@@ -51,8 +76,29 @@ func _ready() -> void:
 	collision_mask = 0
 	sync_to_physics = true
 	_origin = position
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_atlas = _stage_atlas()
 	_rebuild()
 	_build_sensor()
+
+
+## The terrain atlas of whatever stage this block is in, or null.
+##
+## Found by walking up to the stage rather than injected, so a block dropped
+## into a bare test tree still builds -- it simply falls back to the flat face
+## below, which is what shipped before this and is still what a stage with no
+## tileset gets.
+func _stage_atlas() -> Texture2D:
+	var node := get_parent()
+	while node != null:
+		if node.has_method("stage_tile_set"):
+			var set: TileSet = node.call("stage_tile_set")
+			if set != null and set.get_source_count() > 0:
+				var source := set.get_source(set.get_source_id(0)) as TileSetAtlasSource
+				if source != null:
+					return source.texture
+		node = node.get_parent()
+	return null
 
 
 func tile_size() -> float:
@@ -155,24 +201,66 @@ func _draw() -> void:
 	if phase == Phase.GONE:
 		return
 	var size := world_size()
-	var face := WARN_FACE if phase == Phase.WARNING else SOLID_FACE
-	draw_rect(Rect2(Vector2.ZERO, size), face)
-	draw_rect(Rect2(Vector2.ZERO, size), EDGE, false, maxf(size.y * 0.08, 2.0))
-	# A hairline fracture, so a crumbler is distinguishable from solid terrain
-	# *before* it is stood on.
-	#
-	# Thin and jagged rather than bold. These are a tile across, so a crack drawn
-	# at any weight that reads on a small block becomes a painted symbol on a big
-	# one -- the first attempt put a fat V on every plank of Under East's walkway
-	# and the run of them read as tick marks rather than as damage.
-	var hair := maxf(size.y * 0.025, 1.0)
+
+	if _atlas == null:
+		var face := WARN_FACE if phase == Phase.WARNING else SOLID_FACE
+		draw_rect(Rect2(Vector2.ZERO, size), face)
+		draw_rect(Rect2(Vector2.ZERO, size), EDGE, false, maxf(size.y * 0.08, 2.0))
+	else:
+		_draw_deck(size)
+		_draw_damage(size)
+		if phase == Phase.WARNING:
+			draw_rect(Rect2(Vector2.ZERO, size), Color(WARN_FACE, 0.45))
+
+	_draw_crack(size)
+
+
+## The block's face, tiled out of the stage's terrain: surface tile on the top
+## row, interior below, so a block taller than one tile still reads as a cut
+## piece of deck rather than as a repeated lid.
+func _draw_deck(size: Vector2) -> void:
+	var step := tile_size()
+	var y := 0.0
+	while y < size.y - 0.5:
+		var source := TOP_TILE if y < 0.5 else CORE_TILE
+		var x := 0.0
+		while x < size.x - 0.5:
+			draw_texture_rect_region(_atlas, Rect2(Vector2(x, y),
+				Vector2(minf(step, size.x - x), minf(step, size.y - y))), source)
+			x += step
+		y += step
+
+
+func _draw_damage(size: Vector2) -> void:
+	draw_rect(Rect2(Vector2.ZERO, size), SPOILED)
+	var bite := size.x * 0.22
+	for corner in [Vector2(0.0, 0.0), Vector2(size.x, 0.0)]:
+		var inward := 1.0 if corner.x < 1.0 else -1.0
+		draw_colored_polygon(PackedVector2Array([
+			corner,
+			corner + Vector2(inward * bite, 0.0),
+			corner + Vector2(0.0, bite * 0.8),
+		]), BITE)
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.03, 0.03, 0.75),
+		false, maxf(size.y * 0.05, 2.0))
+
+
+## A fracture, so a crumbler is distinguishable from solid terrain *before* it
+## is stood on.
+##
+## Thin and jagged rather than bold -- but three times the weight it was, because
+## the block is now made of the deck's own pixels and a hairline drawn on a flat
+## slab is invisible on a textured one. Still one crack and one branch: two say
+## "damaged", three start to say "pattern".
+func _draw_crack(size: Vector2) -> void:
+	var hair := maxf(size.y * 0.075, 4.0) if _atlas != null else maxf(size.y * 0.025, 1.0)
+	var ink := CRACK if _atlas != null else EDGE
 	var mid := size.x * 0.5
 	draw_polyline(PackedVector2Array([
 		Vector2(mid + size.x * 0.06, size.y * 0.08),
 		Vector2(mid - size.x * 0.02, size.y * 0.34),
 		Vector2(mid + size.x * 0.05, size.y * 0.58),
 		Vector2(mid - size.x * 0.04, size.y * 0.92),
-	]), EDGE, hair)
-	# One short branch. Two cracks say "damaged"; three start to say "pattern".
+	]), ink, hair)
 	draw_line(Vector2(mid - size.x * 0.02, size.y * 0.34),
-		Vector2(mid - size.x * 0.22, size.y * 0.52), EDGE, hair)
+		Vector2(mid - size.x * 0.22, size.y * 0.52), ink, hair)
