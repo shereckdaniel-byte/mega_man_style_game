@@ -43,6 +43,11 @@ func setup() -> void:
 
 func behave(_delta: float) -> void:
 	velocity = Vector2.ZERO
+	# The barrel points where the shot is going. A tracking turret re-aims every
+	# frame; a fixed one settles on its `aim` and stays there. This is the one a
+	# playtester noticed -- "the weapons are on the right but shoot left" -- and
+	# it was true of every enemy in the game, not just this one. See Enemy.face.
+	face(_direction().x)
 	_frames += 1
 	if _frames >= period_frames:
 		_frames = 0

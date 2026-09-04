@@ -35,6 +35,7 @@ func setup() -> void:
 
 
 func behave(_delta: float) -> void:
+	face(drone_direction.x)
 	velocity = Vector2.ZERO
 	_prune()
 	_frames += 1

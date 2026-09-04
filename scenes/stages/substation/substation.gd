@@ -195,7 +195,7 @@ const ROOMS := [
 		"checkpoint": 2.0,
 		"crumbles": [[10, 0], [11, 0]],
 		"one_ways": [[9, 3, 5]],
-		"shaft_up": [24, 2],
+		"shaft_up": [23, 2],
 	},
 	{
 		"name": "Gate", "col": 4, "band": BAND_YARD,

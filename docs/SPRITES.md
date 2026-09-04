@@ -412,6 +412,33 @@ window is narrow and the number is worth writing down.
 sixteen pixels under the sea. Found by looking at a screenshot. That is the fourth
 milestone running where the fault was found by looking rather than by running.
 
+### 8f. A prop, and the one number that made it drop in cleanly
+
+The crusher press shipped as a drawn grey box with a yellow band, and the first
+person to see it asked for something better. Three `create_image_pixflux`
+generations, and the one that shipped is **48×32** — which is not a guess:
+16 art px is one tile at this project's density, so 48×32 is exactly 3×2 tiles
+and lands on the grid at a clean integer 4.5× with no resampling, the same
+arithmetic §8 settled for the tilesets. Ask for the sprite at the size the thing
+actually is and it needs no fitting.
+
+| Attempt | Size | Result |
+| --- | --- | --- |
+| A | 48×32 | hazard stripe ended up on the *top* face; no teeth |
+| B | 48×32 | **shipped** — rusted slab, stripe across the middle, four blunt teeth |
+| C | 96×64 | three-quarter view and far too detailed for a 3×2 prop |
+
+What separated B from A was describing the *shape* before the object: "a solid
+rectangular slab filling the entire frame" with the stripe "across the middle",
+rather than naming a press and hoping. Same lesson as §6b's enemy bases — say
+what the thing physically is, then what it is made of.
+
+**It is drawn over the body *and* the teeth.** The kill volume hangs
+`CrusherPress.TEETH_TILES` below the solid box, and the art carries its own row
+of teeth, so the texture is stretched over both. Drawing it to the body alone
+paints the teeth inside the solid box and leaves nothing drawn in the volume that
+actually bites. The stretch is about 17% on a 32 px sprite and is invisible.
+
 ## 7. Art direction — settled
 
 **Decision: keep the art, go HD.** The game is not pixel art.

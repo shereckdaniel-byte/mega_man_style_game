@@ -81,6 +81,23 @@ const ROOM_WIDTH := 28
 const MAX_STEP_TILES := 2
 const MAX_GAP_TILES := 2
 
+## Solid deck a shaft's hole must leave between itself and the room's far edge.
+##
+## **A ladder delivers the player onto a hole unless the room leaves them
+## somewhere to stand.** Every `shaft_up` in the game was authored at cell 24 of
+## 28 while the hole was being cut in the wrong band -- so the upper room's deck
+## was solid and the position looked fine. Correcting the band put a two-cell
+## hole four cells from the right-hand edge of every upper room, which on stage 1
+## is exactly where the boss door is: the playthrough bot climbed out, walked
+## right into the hole, fell back down the shaft and did it again, 147 times.
+##
+## Three cells is a landing and a step, which is all that is needed -- the
+## player emerges, stands, and walks on. It applies to `shaft_up` only: a
+## downward `shaft` is a hole the player walks into deliberately and *is* the
+## room's exit, so there is nothing on its far side to land on by design.
+## `tests/test_shafts.gd` holds every stage to it.
+const SHAFT_LANDING_CELLS := 3
+
 ## A room with no checkpoint. Not -1 by accident: a checkpoint at cell -1 would
 ## be placed silently outside the room, and the pit would eat the player.
 const NO_CHECKPOINT := -1.0
@@ -137,6 +154,9 @@ var _deck: TileMapLayer
 var _rooms: Array[Room] = []
 var _backdrop: Node2D
 var _log: PlaytestLog = null
+## Cached `(band, world cell) -> true` for every hole a shaft opens. Built once
+## from the table; see `_shaft_holes`.
+var _holes: Dictionary = {}
 
 
 # --- What a subclass supplies -------------------------------------------------
@@ -311,7 +331,7 @@ func _build_deck(world_scale: float) -> void:
 		for x in range(origin, origin + ROOM_WIDTH):
 			if _in_gap(spec, x - origin):
 				continue
-			if _in_shaft(spec, x - origin):
+			if _in_shaft(room_band(index), x):
 				continue  # the hole the ladder goes through
 			for y in range(deck, deck + DECK_DEPTH):
 				cells.append(Vector2i(x, y))
@@ -352,15 +372,45 @@ func _build_deck(world_scale: float) -> void:
 ## Cells a ladder shaft opens in the deck, so a ladder is not blocked by the
 ## floor it passes through. A ladder into a solid ceiling climbs two tiles and
 ## stops, which reads as a broken ladder rather than a missing hole.
-func _in_shaft(spec: Dictionary, local_x: int) -> bool:
-	for key in ["shaft", "shaft_up"]:
-		if not spec.has(key):
-			continue
-		var shaft: Array = spec[key]
-		var from := int(shaft[0])
-		if local_x >= from and local_x < from + int(shaft[1]):
-			return true
-	return false
+##
+## **The hole belongs to the deck the ladder passes through, which is not always
+## the deck of the room that declares it.** A `shaft` leaves a room downward, so
+## the hole is in that room's own deck. A `shaft_up` *arrives* from below: the
+## deck it has to pass through is the one a band higher, in the same column, and
+## the declaring room's own floor must stay solid because that is what the player
+## is standing on to reach the ladder.
+##
+## Both stages shipped with this the wrong way round from M4 until a playtest
+## found it, and it produced two symptoms that read as separate faults: the
+## ladder was blocked at the top (a solid deck where the hole should be) and its
+## foot hung over a hole (a hole where the floor should be). `tests/
+## test_stage_authoring.gd` now checks the tiles under and above every ladder
+## rather than trusting the table.
+##
+## Keyed by `(band, world cell)` because a shaft's hole is a fact about a place
+## in the stage, not about the room that happened to mention it.
+func _shaft_holes() -> Dictionary:
+	if not _holes.is_empty():
+		return _holes
+	var table := room_table()
+	for index in table.size():
+		var spec: Dictionary = table[index]
+		var origin := room_origin(index)
+		var band := room_band(index)
+		# A shaft goes down through this room's deck; a shaft_up comes up
+		# through the deck of the band above.
+		for key in ["shaft", "shaft_up"]:
+			if not spec.has(key):
+				continue
+			var shaft: Array = spec[key]
+			var pierced := band if key == "shaft" else band - 1
+			for x in range(int(shaft[0]), int(shaft[0]) + int(shaft[1])):
+				_holes[Vector2i(pierced, origin + x)] = true
+	return _holes
+
+
+func _in_shaft(band: int, world_x: int) -> bool:
+	return _shaft_holes().has(Vector2i(band, world_x))
 
 
 func _in_gap(spec: Dictionary, local_x: int) -> bool:
@@ -434,6 +484,13 @@ func _add_door(index: int, tile: float) -> void:
 	door.direction = Vector2.DOWN if going_down else Vector2.UP
 	door.vertical_size_tiles = Vector2(float(shaft[1]) + 1.0, 1.0)
 	door.position = Vector2(column, boundary) * tile
+	if not going_down:
+		# Climbing out lands the player on the deck *beside* the hole, not in
+		# it. The cell past the far edge of the shaft is solid by
+		# SHAFT_LANDING_CELLS, and its centre is half a cell further on.
+		door.exit_offset_tiles = Vector2(
+			float(shaft[1]) * 0.5 + 0.5,
+			float(band_deck_row(to_band)) - boundary)
 	add_child(door)
 
 

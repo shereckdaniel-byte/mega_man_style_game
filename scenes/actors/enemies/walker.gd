@@ -52,6 +52,7 @@ func setup() -> void:
 
 func behave(_delta: float) -> void:
 	velocity.x = float(facing) * tuning.px_s(speed_pf)
+	face(float(facing))
 
 	if not is_on_floor():
 		return  # in the air: no ledge to read, and nothing to turn on

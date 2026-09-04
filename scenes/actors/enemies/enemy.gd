@@ -152,6 +152,25 @@ func _build_sprite() -> void:
 	add_child(sprite)
 
 
+## Points the sprite the way the enemy is going.
+##
+## **Every enemy's art in this project is drawn facing right** (SPRITES.md §2),
+## and until a playtest nothing ever flipped any of it. Every walker, hopper and
+## flyer in the game moonwalked half the time, and the one a playtester actually
+## reported was the turret -- "these enemies have the weapons on the right but
+## shoot left" -- because a barrel makes the mistake unmissable where a pair of
+## legs does not.
+##
+## Stated once here rather than in each of the six archetypes, since "which way
+## is the art drawn" is a fact about the art and not about the behaviour. `0` is
+## explicitly a no-op, so an archetype that is momentarily stationary keeps
+## facing wherever it last was instead of snapping back to the default.
+func face(direction: float) -> void:
+	if sprite == null or is_zero_approx(direction):
+		return
+	sprite.flip_h = direction < 0.0
+
+
 ## Height of the opaque pixels in a frame, or 0 when it cannot be measured.
 func _measure_art_height(playing: StringName) -> float:
 	if sprite_frames.get_frame_count(playing) <= 0:

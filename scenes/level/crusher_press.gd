@@ -71,6 +71,14 @@ const TEETH_TILES := 0.34
 ## visibly moves during its tell is a press that has started dropping.
 const SHUDDER_TILES := 0.06
 
+## The press's art. 48x32 art px is exactly 3x2 tiles at the tileset's density
+## (16 art px per tile), so it lands on the grid at a clean integer 4.5x with no
+## resampling error -- the same arithmetic SPRITES.md section 8 settled for the
+## tilesets. Loaded by path rather than preloaded so the press still builds while
+## the art is being regenerated; `_draw` falls back to the shapes below, which
+## are what shipped first and are still what a differently-sized press gets.
+const ART_PATH := "res://assets/props/crusher_press.png"
+
 const FACE := Color(0.40, 0.36, 0.36)
 const PLATE := Color(0.48, 0.42, 0.40)
 const RIVET := Color(0.28, 0.25, 0.25)
@@ -90,6 +98,18 @@ const WARN := Color(0.92, 0.72, 0.20)
 ## Offsets the cycle at spawn, so a row of presses can be staggered.
 @export var phase_frames: int = 0
 
+## Extra track drawn below the press's own travel, in tiles.
+##
+## **The rails have to reach the floor even when the press does not.** A press
+## that rests clear of the deck (so it can be slid under) drew its track only as
+## far as its own travel, which left two steel rails stopping in mid-air a tile
+## and a half above the ground -- and the first person to see it read the press
+## as broken rather than as an opening to slide through. A machine is bolted at
+## both ends; the gap under it is the point, and it only reads as deliberate if
+## the thing around it looks finished. The stage sets this to the rest clearance
+## it authored.
+@export var track_extra_tiles := 0.0
+
 ## Set false to leave it parked, for a press switched on by something else.
 @export var running: bool = true
 
@@ -97,6 +117,7 @@ var _origin := Vector2.ZERO
 var _frames := 0
 var _shape: CollisionShape2D
 var _teeth: Hazard
+var _art: Texture2D
 
 
 func _ready() -> void:
@@ -110,6 +131,11 @@ func _ready() -> void:
 	sync_to_physics = true
 	_origin = position
 	_frames = phase_frames
+	if ResourceLoader.exists(ART_PATH):
+		_art = load(ART_PATH) as Texture2D
+		# 16 px art magnified 4.5x, like the tilesets. The project default is
+		# Linear and must stay Linear for the character (SPRITES.md section 8).
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_rebuild()
 	_apply()
 
@@ -259,12 +285,30 @@ func _draw() -> void:
 	# from the opposite direction. A press is a thing that runs in a track, and
 	# the track is there whether or not the press has left the top of it.
 	var overhead := _origin.y - position.y
-	var track := drop_distance() + size.y
+	var track := drop_distance() + size.y + track_extra_tiles * tile
 	var rail_w := maxf(tile * 0.18, 3.0)
 	for at in [tile * 0.35, size.x - tile * 0.35 - rail_w]:
 		var rect := Rect2(Vector2(at, overhead), Vector2(rail_w, track))
 		draw_rect(rect, RAIL)
 		draw_rect(rect, RAIL_EDGE, false, maxf(tile * 0.03, 1.0))
+
+	if _art != null:
+		# **Drawn to body + teeth, not to the body alone.** The art carries its
+		# own row of teeth along the bottom, and the kill volume hangs
+		# TEETH_TILES below the solid box -- so the art is stretched over both,
+		# which puts its drawn teeth exactly where the thing that kills you is.
+		# The stretch is about 17% on a 32 px sprite and is not visible; drawing
+		# to the body alone leaves the teeth painted inside the solid box with
+		# nothing drawn in the volume that actually bites.
+		draw_texture_rect(_art, Rect2(Vector2.ZERO,
+			Vector2(size.x, size.y + TEETH_TILES * tile)), false)
+		# The hazard stripe brightens on the tell and through the drop, so "this
+		# one is about to move" is visible on the press itself rather than only
+		# in its position.
+		if is_biting() or phase() == Phase.TELL:
+			draw_rect(Rect2(Vector2(0.0, size.y * 0.40),
+				Vector2(size.x, size.y * 0.22)), Color(WARN, 0.30))
+		return
 
 	# Body.
 	draw_rect(Rect2(Vector2.ZERO, size), FACE)
