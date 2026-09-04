@@ -37,6 +37,9 @@ func setup() -> void:
 
 
 func behave(_delta: float) -> void:
+	# Before the mid-hop early return: a hopper that only faced while grounded
+	# would flip direction in the air and turn round on landing.
+	face(float(facing))
 	if not is_on_floor():
 		return  # mid-hop: the arc is ballistic, nothing to steer
 

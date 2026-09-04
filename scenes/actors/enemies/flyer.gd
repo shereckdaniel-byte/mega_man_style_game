@@ -38,6 +38,7 @@ func setup() -> void:
 
 
 func behave(delta: float) -> void:
+	face(float(facing))
 	var speed := tuning.px_s(speed_pf)
 	_travelled += speed * delta
 

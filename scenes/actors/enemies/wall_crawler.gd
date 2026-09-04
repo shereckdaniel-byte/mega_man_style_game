@@ -37,6 +37,9 @@ func setup() -> void:
 
 
 func behave(delta: float) -> void:
+	# `spin` is the travel direction along the sprite's own x, and the node is
+	# already rotated onto the surface, so a local flip is the right one.
+	face(float(spin))
 	var along := _along()
 	var step := along * tuning.px_s(speed_pf) * delta
 

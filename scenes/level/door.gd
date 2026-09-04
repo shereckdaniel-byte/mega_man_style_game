@@ -37,6 +37,23 @@ extends Area2D
 ## just fires somewhere unexpected, which is a bad thing to debug.
 @export var vertical_size_tiles := Vector2(6.0, 1.0)
 
+## Where the player ends up, **measured from this door**, in tiles. Zero means
+## "carry them through along `direction`", which is right for a horizontal
+## doorway and for going down a shaft.
+##
+## From the door rather than from the player, deliberately: a ladder trips its
+## trigger anywhere in a one-tile band, so a player-relative offset lands them
+## somewhere different every time -- a tile inside the deck, in the case that
+## found this.
+##
+## **Going *up* a shaft needs a position rather than a push.** The far side of an
+## upward doorway is the hole the ladder passes through, so a player carried
+## straight up along the shaft arrives standing on nothing, falls back through
+## the door, and does it again -- the playthrough bot managed 178 round trips in
+## one run of stage 1. The room knows where the solid deck beside the hole is;
+## this is how it says so. See AuthoredStage._add_door.
+@export var exit_offset_tiles := Vector2.ZERO
+
 var _used := false
 
 

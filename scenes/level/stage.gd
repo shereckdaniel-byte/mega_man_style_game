@@ -142,6 +142,13 @@ func _run_transition(door: Door, next: Room) -> void:
 	var from := camera.global_position
 	var player_from := player.global_position
 	var player_to := player_from + step
+	# A door that names where the player lands overrides the push, and it is
+	# measured **from the door**, not from the player. Relative to the player it
+	# depends on where they happened to trip the trigger -- which for a ladder is
+	# anywhere in a one-tile band -- and the first version of this put them a
+	# tile inside the deck they were meant to land on. See Door.exit_offset_tiles.
+	if door.exit_offset_tiles != Vector2.ZERO:
+		player_to = door.global_position + door.exit_offset_tiles * 16.0 * scale_factor
 	camera.begin_slide(next)
 	var to := camera.slide_target(next, player_to)
 

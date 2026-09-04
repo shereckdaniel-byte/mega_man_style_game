@@ -172,7 +172,7 @@ const ROOMS := [
 		"crushers": [[13, 3, PRESS_ROWS, CLEARANCE_SLIDE, 0]],
 		# Up at cell 24, near the far end: the climb is the room's exit, and a
 		# shaft in the middle would have the player walk past it to a dead end.
-		"shaft_up": [24, 2],
+		"shaft_up": [23, 2],
 	},
 	{
 		"name": "Hold", "col": 2, "band": BAND_HULL,
@@ -210,7 +210,7 @@ const ROOMS := [
 		"crumbles": [[11, 0], [12, 0]],
 		"one_ways": [[10, 3, 5]],
 		"pit_spikes": [[11, 3, 2]],
-		"shaft_up": [24, 2],
+		"shaft_up": [23, 2],
 	},
 	{
 		"name": "Gantry", "col": 3, "band": BAND_GANTRY,
@@ -310,6 +310,9 @@ func place_stage_elements(spec: Dictionary, _index: int, origin: int, deck: int,
 		press.size_tiles = Vector2(float(entry[1]), float(entry[2]))
 		press.drop_tiles = press_drop_rows(float(entry[2]), float(entry[3]))
 		press.phase_frames = int(entry[4])
+		# The rails run on down to the deck even where the press stops short of
+		# it -- see CrusherPress.track_extra_tiles.
+		press.track_extra_tiles = float(entry[3])
 		# Hung from the room's ceiling, which is where a press in a ship is: the
 		# rails are drawn up to it, so a press placed anywhere else would have
 		# them ending in mid-air.

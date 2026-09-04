@@ -785,6 +785,100 @@ traversal is unchanged (2 HP across seven rooms, 0 deaths) and stage 1 still
 finishes with 0 deaths, which is the check that adding a stage did not move the
 two that already worked.
 
+### M6i — The second playtest ✅ done
+
+Somebody played the built stages and came back with three things. All three were
+real, and **two of them were the same bug**.
+
+| # | Reported | What it was |
+| --- | --- | --- |
+| 1 | "I cannot climb this, I am blocked" | every `shaft_up` in the game left the deck above it solid |
+| 2 | "these enemies have the weapons on the right but shoot left" | **no enemy in the game had ever flipped its sprite** |
+| 3 | "how are we supposed to get on this ladder by jumping on it?" | the same `shaft_up` bug, from below: it holed the floor its own ladder stands on |
+
+#### One bug, two symptoms, three stages
+
+A `shaft` leaves a room downward, so the hole belongs in that room's own deck. A
+`shaft_up` **arrives** from below, and the deck it has to pass through is the one
+a band higher — not the declaring room's, which is the floor the player is
+standing on to reach the ladder. `AuthoredStage` cut both in the declaring room's
+own deck, so every `shaft_up` did two wrong things at once and they read from the
+outside as two separate faults.
+
+It shipped in stage 1 at M4 and was copied into stages 2 and 3. Probing the built
+tilemap says it plainly:
+
+```
+before   shaft    ladders: floor_under_foot=true   blocked_rows=[]
+         shaft_up ladders: floor_under_foot=false  blocked_rows=[11, 12]
+after    all six ladders:  floor_under_foot=true   blocked_rows=[]
+```
+
+**Nothing caught it because every existing check reads the room table, and the
+table was right.** The translation from table to tiles was wrong.
+`tests/test_shafts.gd` builds each stage for real and asks the TileMapLayer;
+reverting the one-line fix makes three of its five tests fail, which was checked
+rather than assumed.
+
+#### No enemy had ever faced anywhere
+
+Every enemy's art is drawn facing right, and nothing flipped any of it. Every
+walker, hopper, flyer and crawler in three stages moonwalked half the time, and
+the one a playtester noticed was the turret — because a barrel makes it
+unmissable where a pair of legs does not. `Enemy.face()` states the art's
+convention once and all six archetypes call it.
+
+That is the **fifth** milestone running where the fault was found by looking
+rather than by running. It is no longer a coincidence worth remarking on; it is
+the strongest argument in this document for a human playing every stage before it
+is called done.
+
+#### Two things about the press, from the same session
+
+- **A press that rests clear of the deck drew its rails only as far as its own
+  travel**, leaving two steel rails stopping in mid-air a tile and a half above
+  the ground. The gap under it is the point — it is the one you slide through —
+  but it only reads as deliberate if the machine around it looks finished. The
+  track now runs to the floor (`CrusherPress.track_extra_tiles`).
+- **The press has real art now.** It was a drawn grey box with a yellow band;
+  it is now a 48×32 sprite that matches the tileset's palette and pixel density
+  exactly (SPRITES.md §8f). The drawn version stays as the fallback.
+
+#### Fixing it broke stage 1, and the bot said so immediately
+
+Correcting the band put a two-cell hole four cells from the right-hand edge of
+every upper room — which on stage 1 is exactly where the boss door is. The
+playthrough bot climbed out of the shaft, walked right into the hole, fell back
+down and did it again: **147 entries to the Boss Door room, 90 seconds, never
+reached the arena.** The stage was unfinishable in a way no test noticed, because
+every test was still passing the fix that caused it.
+
+The position was only ever safe *because* the hole was in the wrong place. Every
+`shaft_up` moved from cell 24 to 23 — which clears the boss door, clears the
+authored blocks in three rooms (20 collided with all three), and leaves
+`SHAFT_LANDING_CELLS` of deck to step out onto. Both halves are now tests.
+
+**And that still was not enough**, which is the part worth recording. A vertical
+transition carries the player 40 NES px through the doorway, and 40 px above the
+boundary used to land them *on* a solid deck — the transition was teleporting
+them through it. With the hole in the right place they arrived in mid-air over it
+and fell straight back: 178 round trips in one run. So an upward door now names
+where the player lands (`Door.exit_offset_tiles`) rather than pushing them a
+fixed distance, and the room computes it as "the deck beside the hole".
+
+That took two attempts as well. Measured from the *player* it depends on where
+they happened to trip the trigger — anywhere in a one-tile band, for a ladder —
+and the first version delivered them a tile inside the deck they were meant to
+stand on. It is measured from the door.
+
+**Accepted:** 414 tests / 10102 assertions. **Stage 1's traversal ledger is
+exactly its recorded baseline — 0 deaths, 22 of 28 HP at the boss door** — which
+is the substitution check that a fix to the shafts did not change the stage. Both
+other stages reach their arena; Breakers is 18 HP and 0 deaths end to end. The
+whole-run figure varies by several HP between runs because the boss fights seed
+their RNG with `randomize()`; the traversal rooms do not vary at all, which is
+why the ledger is read per room and not as a total.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the

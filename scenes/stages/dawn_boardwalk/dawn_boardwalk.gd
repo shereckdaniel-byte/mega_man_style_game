@@ -228,7 +228,7 @@ const ROOMS := [
 		],
 		"checkpoint": 2.0,
 		"tide": true,
-		"shaft_up": [24, 2],
+		"shaft_up": [23, 2],
 	},
 	{
 		"name": "Boss Door", "col": 4, "band": BAND_DECK,
