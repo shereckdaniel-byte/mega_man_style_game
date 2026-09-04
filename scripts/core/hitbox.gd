@@ -47,7 +47,14 @@ func tick() -> void:
 		_cooldown -= 1
 	# Contact damage has to keep landing while the boxes stay overlapped;
 	# area_entered only fires on the frame the overlap begins.
-	if not one_shot and _cooldown == 0:
+	#
+	# `monitoring` is checked because an Area2D that is not monitoring cannot be
+	# asked for its overlaps -- Godot errors rather than returning an empty list.
+	# A hitbox that is switched on and off by its owner (the crusher's teeth are
+	# live only while the press is dropping) would otherwise print that error on
+	# every frame it is off, and the owner would have to remember to stop
+	# ticking it, which is a rule that will be forgotten by the second owner.
+	if not one_shot and _cooldown == 0 and monitoring:
 		for area in get_overlapping_areas():
 			if area is Hurtbox:
 				_deliver(area as Hurtbox)

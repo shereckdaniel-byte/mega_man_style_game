@@ -140,6 +140,30 @@ func progress() -> float:
 	return progress_at(_frames, frames_per_leg, pause_frames, mode)
 
 
+## Which way the platform is about to travel along x, as -1, 0 or +1.
+##
+## **Progress alone cannot answer this**, which is the trap: a ping-pong platform
+## at progress 0.16 is either sixteen percent into its outward leg or eighty-four
+## percent of the way home, and those are opposite answers to "will this carry me
+## forwards". The playthrough bot boarded one on its return leg, kept walking
+## forwards because it was still on the near side of the hole, and stepped off
+## the far end into the spikes -- deterministically, on the same frame every run.
+##
+## Answered by looking ahead rather than by remembering: the cycle is pure
+## arithmetic, so the platform can simply be asked where it will be. The scan
+## walks past a pause, because "stationary" is not an answer a rider can use.
+func next_heading() -> int:
+	if not running or absf(travel().x) < 0.001:
+		return 0
+	var here := progress()
+	var ahead := maxi(pause_frames, 0) + 2
+	for step in range(1, ahead + 1):
+		var then := progress_at(_frames + step, frames_per_leg, pause_frames, mode)
+		if absf(then - here) > 0.0001:
+			return signi(int(signf((then - here) * travel().x)))
+	return 0
+
+
 ## Where the platform is right now, in world coordinates.
 func current_position() -> Vector2:
 	return _origin + travel() * progress()

@@ -64,6 +64,7 @@ extends SceneTree
 const STAGES := {
 	"dawn_boardwalk": "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn",
 	"substation": "res://scenes/stages/substation/substation.tscn",
+	"breakers": "res://scenes/stages/breakers/breakers.tscn",
 }
 const DEFAULT_STAGE := "dawn_boardwalk"
 
@@ -511,7 +512,8 @@ func _drive(frame: int = 0) -> void:
 		# is the only answer it had and the hole is eight cells across.
 		var ferry := _platform_for(heading)
 		if ferry != null:
-			if not _platform_is_boardable(ferry):
+			if not _platform_is_boardable(ferry) \
+					or not _platform_is_outbound(ferry, heading):
 				_release_move()
 				return
 			# Level and alongside: step on. Jumping onto a platform that is
@@ -603,6 +605,24 @@ func _platform_for(_heading: int) -> MovingPlatform:
 		if child is MovingPlatform and bounds.has_point((child as Node2D).global_position):
 			return child as MovingPlatform
 	return null
+
+
+## Is the platform about to carry the rider *forwards*?
+##
+## Boardable is not enough, and this is the whole of stage 3's Crane room. A
+## ping-pong platform comes back past the near lip on its return leg, and it is
+## alongside and level then too -- so the bot stepped on, kept holding forward
+## because it was still on the near side of a hole, and walked straight off the
+## far end of a platform that was travelling the other way. Into the spikes,
+## deterministically, on the same frame every run.
+##
+## A person waits for the ferry going their way. This is that, and the answer
+## has to come from `MovingPlatform.next_heading` rather than from `progress`:
+## progress 0.16 is both "just set off" and "nearly home", and the first version
+## of this check read the second as the first and boarded anyway.
+func _platform_is_outbound(ferry: MovingPlatform, heading: int) -> bool:
+	var going := ferry.next_heading()
+	return going == 0 or going == heading
 
 
 ## Is the platform close enough, and level enough, to step onto?

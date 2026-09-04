@@ -75,11 +75,6 @@ const CURTAIN_HEIGHT_NES := 62.0
 ## own attack. Small: this is a step aside, not a Spout.
 const CURTAIN_HOP_PF := 3.4
 
-## Horizontal bounds of the arena floor, set by the arena. Rail needs to know
-## where to stop and Curtain needs to know what to divide up.
-var arena_left := 0.0
-var arena_right := 0.0
-
 var _rail_direction := -1
 var _open_column := 0
 
@@ -99,13 +94,6 @@ func _ready() -> void:
 
 func body_size() -> Vector2:
 	return BODY_NES * tuning.world_scale
-
-
-## The arena hands over the floor span. Without it Rail would dash into a wall
-## and Curtain would have nothing to divide.
-func set_arena_span(left: float, right: float) -> void:
-	arena_left = minf(left, right)
-	arena_right = maxf(left, right)
 
 
 func build_patterns() -> Array[BossPattern]:
@@ -133,36 +121,7 @@ func fight_move(_delta: float) -> void:
 		and (pattern.id == &"rail" or pattern.id == &"curtain")
 	if not driving:
 		velocity.x = 0.0
-	_hold_inside_arena()
-
-
-## Keeps Arc in the room, whatever a pattern asks for.
-##
-## **A bound, not a tuned number, and that distinction is the lesson from M5.**
-## Tide left the arena through the ceiling because its leap velocity was chosen
-## to look right rather than derived, and the fix was a smaller number -- which
-## works until the next pattern, on the next boss, picks the wrong one again.
-## Curtain's hop did the same thing sideways here: 56 frames of act phase at a
-## walking speed nobody thought of as travel, and Arc was 900 px outside the
-## arena still fighting.
-##
-## So the constraint lives where it can be stated once: whatever a pattern does
-## with `velocity`, Arc is inside the span at the end of the frame. A pattern is
-## then free to be wrong about its own arithmetic without taking the fight off
-## the screen.
-func _hold_inside_arena() -> void:
-	var span := _span()
-	var margin := BODY_NES.x * 0.5 * tuning.world_scale
-	var low := span.x + margin
-	var high := span.y - margin
-	if low >= high:
-		return
-	if global_position.x < low:
-		global_position.x = low
-		velocity.x = maxf(velocity.x, 0.0)
-	elif global_position.x > high:
-		global_position.x = high
-		velocity.x = minf(velocity.x, 0.0)
+	hold_inside_arena()
 
 
 func tell(pattern: BossPattern, frame: int) -> void:
@@ -176,7 +135,7 @@ func tell(pattern: BossPattern, frame: int) -> void:
 			# dash, so the direction is part of what the tell shows. A dash whose
 			# direction is chosen at the last moment is a tell that says
 			# "something is coming" and not "it is coming *here*".
-			_rail_direction = -1 if global_position.x > _centre() else 1
+			_rail_direction = -1 if global_position.x > arena_centre() else 1
 		&"curtain":
 			_open_column = _choose_open_column()
 
@@ -211,7 +170,7 @@ func _choose_open_column() -> int:
 
 
 func _column_at(x: float) -> int:
-	var span := _span()
+	var span := arena_span()
 	if span.y - span.x < 0.001:
 		return CURTAIN_COLUMNS / 2
 	var t := (x - span.x) / (span.y - span.x)
@@ -219,7 +178,7 @@ func _column_at(x: float) -> int:
 
 
 func _column_centre(column: int) -> float:
-	var span := _span()
+	var span := arena_span()
 	var width := (span.y - span.x) / float(CURTAIN_COLUMNS)
 	return span.x + width * (float(column) + 0.5)
 
@@ -250,7 +209,7 @@ func _do_rail(frame: int) -> void:
 	if frame == 0:
 		velocity.x = float(_rail_direction) * tuning.px_s(RAIL_SPEED_PF)
 		return
-	var span := _span()
+	var span := arena_span()
 	var margin := BODY_NES.x * 0.5 * tuning.world_scale
 	if (_rail_direction < 0 and global_position.x <= span.x + margin) \
 			or (_rail_direction > 0 and global_position.x >= span.y - margin):
@@ -293,18 +252,3 @@ func _spawn(shot: Node2D) -> void:
 		shot.free()
 		return
 	level.add_child(shot)
-
-
-## The arena floor, or a span around Arc when there is no arena -- which is what
-## a bare test has, and returning a zero-width span there would put every
-## curtain column on the same pixel.
-func _span() -> Vector2:
-	if is_equal_approx(arena_left, arena_right):
-		var half := 12.0 * tuning.tile_size()
-		return Vector2(global_position.x - half, global_position.x + half)
-	return Vector2(arena_left, arena_right)
-
-
-func _centre() -> float:
-	var span := _span()
-	return (span.x + span.y) * 0.5

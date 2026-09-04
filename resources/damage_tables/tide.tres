@@ -9,6 +9,7 @@ by_weapon = {
 &"arc_lance": 4,
 &"buster_charged": 3,
 &"contact": 0,
+&"rust_bloom": 2,
 &"sword": 3,
 &"tide_crawler": 1
 }

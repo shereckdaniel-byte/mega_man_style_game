@@ -25,6 +25,7 @@ extends SceneTree
 const STAGES := {
 	"dawn_boardwalk": "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn",
 	"substation": "res://scenes/stages/substation/substation.tscn",
+	"breakers": "res://scenes/stages/breakers/breakers.tscn",
 }
 
 ## Frames to let the stage build, the backdrop swap and the markers spawn.

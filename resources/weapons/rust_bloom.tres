@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/weapon_data.gd" id="1_data"]
+[ext_resource type="Script" path="res://scenes/actors/projectiles/bloom_shot.gd" id="2_shot"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"rust_bloom"
+display_name = "Rust Bloom"
+projectile_script = ExtResource("2_shot")
+ammo_max = 28
+ammo_cost = 2
+max_on_screen = 1
+fire_cooldown_frames = 26
+damage = 3
+flags = 0
+palette = Array[Color]([Color(0.78, 0.42, 0.16, 1), Color(0.94, 0.72, 0.35, 1)])
+tuning = {
+"fall_pf": 0.11,
+"lift_pf": 2.4,
+"speed_pf": 3.0
+}

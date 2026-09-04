@@ -353,6 +353,70 @@ func facing() -> int:
 	return 1
 
 
+## --- The arena floor ------------------------------------------------------------
+##
+## Where the fight happens, handed over by `BossArena` through `set_arena_span`.
+## It lives here rather than in each boss because all three of the first three
+## wanted it and two of them had written it out: Tide needed a centre so Spout
+## knew which way to leap, Arc needed a span so Rail knew where to stop and
+## Curtain knew what to divide, and Rust needs one to place its patches. Three
+## copies of a fact is the same argument `StageRoster` was extracted on.
+
+var arena_left := 0.0
+var arena_right := 0.0
+
+
+## Called by the arena, by name -- see BossArena. Ordered rather than trusted,
+## so a stage that hands over its edges the other way round still gets a span.
+func set_arena_span(left: float, right: float) -> void:
+	arena_left = minf(left, right)
+	arena_right = maxf(left, right)
+
+
+## The floor span, or a span around the boss when there is no arena -- which is
+## what a bare test has, and returning a zero-width span there would put every
+## column of a pattern on the same pixel.
+func arena_span() -> Vector2:
+	if is_equal_approx(arena_left, arena_right):
+		var half := 12.0 * tuning.tile_size()
+		return Vector2(global_position.x - half, global_position.x + half)
+	return Vector2(arena_left, arena_right)
+
+
+func arena_centre() -> float:
+	var span := arena_span()
+	return (span.x + span.y) * 0.5
+
+
+## Keeps the boss in the room, whatever a pattern asks for.
+##
+## **A bound, not a tuned number, and that distinction is the lesson from M5.**
+## Tide left the arena through the ceiling because its leap velocity was chosen
+## to look right rather than derived, and the fix was a smaller number -- which
+## works until the next pattern, on the next boss, picks the wrong one again.
+## Arc's Curtain did the same thing sideways: 56 frames of act phase at a walking
+## speed nobody thought of as travel, and Arc was 900 px outside the arena still
+## fighting.
+##
+## So the constraint lives where it can be stated once, for every boss: whatever
+## a pattern does with `velocity`, the boss is inside the span at the end of the
+## frame. A pattern is then free to be wrong about its own arithmetic without
+## taking the fight off the screen.
+func hold_inside_arena() -> void:
+	var span := arena_span()
+	var margin := body_size().x * 0.5
+	var low := span.x + margin
+	var high := span.y - margin
+	if low >= high:
+		return
+	if global_position.x < low:
+		global_position.x = low
+		velocity.x = maxf(velocity.x, 0.0)
+	elif global_position.x > high:
+		global_position.x = high
+		velocity.x = minf(velocity.x, 0.0)
+
+
 func _play(anim: StringName) -> void:
 	if anim == &"" or sprite == null or sprite.sprite_frames == null:
 		return

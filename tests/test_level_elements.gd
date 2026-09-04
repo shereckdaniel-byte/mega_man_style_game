@@ -127,6 +127,53 @@ func test_progress_never_leaves_its_range() -> void:
 				"frame %d mode %d gave %.3f" % [frame, m, p])
 
 
+## Which way a platform is about to go, which `progress` on its own cannot say.
+##
+## The bug this pins: on a ping-pong leg, progress 0.16 is both "just set off"
+## and "nearly home". The playthrough bot read the second as the first, boarded a
+## ferry travelling away from the crossing, kept walking forwards and stepped off
+## the far end into the spikes -- the same frame every run, on stage 3.
+func test_a_platform_says_which_way_it_is_about_to_go() -> void:
+	var plat := _moving(Vector2(500.0, FLOOR_TOP - 240.0), Vector2(3.0, 0.5),
+		Vector2(4.0, 0.0), 60)
+	plat.pause_frames = 10
+	var cycle := plat.cycle_frames()
+
+	# Walk a whole cycle and check the answer against where it actually goes.
+	for frame in cycle:
+		plat._frames = frame
+		var here := plat.current_position().x
+		plat._frames = frame + 1
+		var moved := plat.current_position().x - here
+		plat._frames = frame
+		var said := plat.next_heading()
+		if absf(moved) > 0.001:
+			assert_eq(said, signi(int(signf(moved))),
+				"frame %d: said %d, actually moved %.2f" % [frame, said, moved])
+	plat.queue_free()
+
+
+func test_a_paused_platform_still_says_which_way_it_will_go() -> void:
+	# "Stationary" is not an answer a rider can use: the whole point of the pause
+	# is that it is when you decide whether to step on.
+	var plat := _moving(Vector2(500.0, FLOOR_TOP - 240.0), Vector2(3.0, 0.5),
+		Vector2(4.0, 0.0), 60)
+	plat.pause_frames = 10
+	plat._frames = 0                       # parked at the near end, about to set off
+	assert_eq(plat.next_heading(), 1, "parked at the start and not heading out")
+	plat._frames = 60 + 5                  # parked at the far end, mid-pause
+	assert_eq(plat.next_heading(), -1, "parked at the far end and not heading back")
+	plat.queue_free()
+
+
+func test_a_vertical_lift_has_no_horizontal_heading() -> void:
+	var lift := _moving(Vector2(500.0, FLOOR_TOP - 240.0), Vector2(3.0, 0.5),
+		Vector2(0.0, -4.0), 60)
+	assert_eq(lift.next_heading(), 0,
+		"a lift carries a rider either way and must not refuse them")
+	lift.queue_free()
+
+
 ## A platform with no pause is one the player has to board on the exact frame it
 ## arrives. The pause is what makes it catchable.
 func test_the_default_platform_pauses_at_each_end() -> void:
