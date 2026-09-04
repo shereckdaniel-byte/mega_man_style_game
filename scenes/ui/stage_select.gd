@@ -217,24 +217,19 @@ func _build_cell(cell: Vector2i) -> Control:
 	return box
 
 
-## The boss's first idle frame, or null for the centre and for art that is not
-## on disk. Loaded by path so a stage select still opens mid-regeneration.
+## The boss's portrait, cropped to the character.
+##
+## Loaded by path so the screen still opens while art is mid-regeneration, and
+## cropped by `BossPortrait` so a character framed small inside its 256 px cell
+## is not drawn smaller than the ones framed large — see that class for the
+## measurements. Returns null for the fortress and for art that is not on disk.
 func _portrait_for(index: int) -> Texture2D:
 	if index < 0:
 		return null
 	var path: String = StageRoster.entry(index)["frames"]
 	if not ResourceLoader.exists(path):
 		return null
-	var frames := load(path) as SpriteFrames
-	if frames == null:
-		return null
-	for anim in ["idle", "walk", "attack"]:
-		if frames.has_animation(anim) and frames.get_frame_count(anim) > 0:
-			return frames.get_frame_texture(anim, 0)
-	var names := frames.get_animation_names()
-	if names.is_empty() or frames.get_frame_count(names[0]) <= 0:
-		return null
-	return frames.get_frame_texture(names[0], 0)
+	return BossPortrait.of(load(path) as SpriteFrames)
 
 
 func _refresh() -> void:
