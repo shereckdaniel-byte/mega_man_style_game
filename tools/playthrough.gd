@@ -8,7 +8,7 @@
 ##
 ## **It advances on `physics_frame`, and that is not a detail.** It used to await
 ## `process_frame` -- a *rendered* frame -- while every constant in it (JUMP_HOLD,
-## SLIDE_HOLD, SHOOT_PERIOD, the 9000-frame budget) is a count of physics ticks,
+## SLIDE_HOLD, SHOOT_PERIOD, the traversal budget) is a count of physics ticks,
 ## and the engine runs as many physics ticks per rendered frame as it needs to
 ## keep up with the wall clock. On a quiet machine that is one, and the two agree.
 ## Under load it is two or three: the bot then decides once per three ticks,
@@ -129,6 +129,16 @@ const SHAFT_TOLERANCE := 0.6
 const CLIMB_CLEAR_FRAMES := 40
 ## Frames without horizontal progress before we call it stuck.
 const STUCK_FRAMES := 900
+
+## Frames to give the walk from spawn to the boss door before calling it a loss.
+##
+## **Sized against the longest stage, not the average one.** It was 9000 while
+## every stage was eight or nine rooms and stage 1 crossed in about 2400. Stage 1
+## is nineteen rooms now and takes 6800, which fits -- and a run that hit one
+## more bad jump would not have, so the bot would have reported a stage it can
+## finish as one it cannot. Twice the longest known crossing leaves room for the
+## stage after this one.
+const TRAVERSAL_FRAMES := 14000
 
 ## Frames to give the boss fight before calling it a loss.
 const FIGHT_FRAMES := 5400
@@ -292,7 +302,7 @@ func _run() -> void:
 	var last_room := 0
 	var stuck := 0
 	var reached := false
-	for frame in 9000:
+	for frame in TRAVERSAL_FRAMES:
 		await physics_frame
 		if _stage.is_transitioning():
 			_release()

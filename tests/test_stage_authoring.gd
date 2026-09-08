@@ -197,6 +197,57 @@ func test_a_gap_is_never_cut_over_another_room() -> void:
 					% [name, spec["name"], int(spec["band"]), col, int(deepest[col])])
 
 
+## **A gap must not start within a jump of whatever stands before it.**
+##
+## Anything the player can be on top of -- a block, a one-way platform, the roof
+## of a slide tunnel -- is something they can jump off, and a jump taken from up
+## there starts with height already spent and carries further than one from the
+## ground. Put a hole inside that reach and the level has built a leap into a
+## pit that looks, from a screenshot, like a generous run-up.
+##
+## This has cost three rooms across two milestones, twice in the same stage.
+## Stage 1's Pilings records the first in a comment -- a slide overhang at cell 6
+## "sets the player down at 10, which is the lip of the gap. The bot fell in
+## fourteen times running before this moved." Boardwalk then hit it twice while
+## being authored: once with two cells of run-up (four deaths, the whole life
+## counter, in one room) and again with **four**, which reads like plenty and is
+## not, because the jump came off a two-tile step.
+##
+## So the clearance is measured rather than guessed: `RUN_UP_CELLS` of flat deck
+## for every gap, **plus one cell per tile of height for a block**, because a
+## block is the one of these the route goes over rather than under.
+##
+## That distinction is not a loophole, it is the reason two shipped rooms are
+## fine. Pilings has a tunnel roof three cells from a gap and Under West a
+## one-way platform three cells from one, and neither has ever dropped anybody
+## in: the player slides *under* the first and walks *under* the second, so
+## neither is a place they jump from. A block on the deck is the floor -- the
+## route crosses its top, and the height it adds to a jump is height the level
+## chose to give. A player who climbs a one-way and leaps off it has taken a
+## route the room did not ask for, and the low road is still there.
+const RUN_UP_CELLS := 3
+
+func test_a_gap_does_not_start_within_a_jump_of_a_drop() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for gap in spec.get("gaps", []):
+				var start := int(gap[0])
+				# All three read [x, rise, w, ...]; only a block gets the height
+				# term, for the reason above.
+				for key in ["blocks", "one_ways", "ceilings"]:
+					for entry in spec.get(key, []):
+						var ends: int = int(entry[0]) + int(entry[2])
+						var rise: int = int(entry[1]) if key == "blocks" else 0
+						var needed: int = RUN_UP_CELLS + rise
+						if ends <= start - needed or ends > start:
+							continue
+						assert_true(false,
+							"%s/%s: a %s ending at %d leaves %d cells before the gap at %d, and a jump off it needs %d"
+								% [name, spec["name"], key.trim_suffix("s"),
+									ends, start - ends, start, needed])
+
+
 ## A ceiling in a shaft's column hangs over the spot the ladder delivers to.
 func test_no_ceiling_stands_in_a_shaft() -> void:
 	for name in STAGES:

@@ -1407,6 +1407,58 @@ shaped by the original's feel, and the E-tank's 1% is the one that matters most
 because a tank persists across stages. This is exactly the sort of question
 M5b's playtest is for.
 
+### M6p — Stage 1 at its proper length ✅ done
+
+Stage 1 was seven rooms of traversal and about forty seconds of it, against
+Mega Man 3's ninety to a hundred and fifty. It is now **eighteen rooms and
+about a hundred and seven seconds**, which is inside that range rather than
+past it. Nothing else changed: same six enemy skins, same element kit, same
+boss.
+
+- ✅ **A W, not a U.** The old shape went down under the deck once and came
+  back up. This goes down twice, which is what lets every element be
+  **introduced, complicated and then combined** rather than appearing once:
+  the slide is optional in Pilings, required in Bait Shop and closes Long
+  Pier; the ferry has a plank alternative in Under East, none in The Cut and
+  no escort in Deep Water; the tide is rehearsed dry in Low Water before it
+  is flooded in Tide. Length without new ideas is padding, and this is the
+  arrangement that avoids it with the vocabulary already built.
+- ✅ **Two rooms are deliberately empty**, and both are the far side of a
+  ladder. `SHAFT_LANDING_CELLS` leaves three cells between where the player
+  emerges and the door, so there is no room there for a room. Rise and Boss
+  Door are written as breaths rather than pretended into content.
+- ✅ **The bot's traversal budget was sized for the old stage.** 9000 frames
+  while stage 1 crossed in 2400; the new one takes 6445, which fits, and a
+  run that hit one bad jump would not have — so the bot would have reported a
+  stage it can finish as one it cannot. Now 14000, which is twice the longest
+  known crossing.
+
+**A gap must not start within a jump of whatever stands before it**, and this
+is the milestone that turned that from a comment into a test. Pilings has
+carried the observation since M5a — a slide overhang that "sets the player
+down at 10, which is the lip of the gap. The bot fell in fourteen times
+running before this moved." Boardwalk then hit it twice while being authored:
+once with two cells of run-up, and again with **four**, which reads like
+plenty and is not, because the jump came off a two-tile step and a jump from
+height carries further. Four deaths and the whole life counter, in one room,
+without reaching the third.
+
+The rule now measures: three cells of flat deck for every gap, plus one per
+tile of height **for a block**. The height term is deliberately not applied to
+tunnel roofs or one-way platforms, and that is not a loophole — it is why two
+shipped rooms are correct. The player slides *under* Pilings' overhang and
+walks *under* Under West's platform, so neither is somewhere they jump from. A
+block is the floor; the route crosses its top.
+
+**Accepted:** 493 tests green. The bot walks all nineteen rooms with **zero
+traversal deaths across three seeds**, arriving at the boss door on 22–28 HP
+having spent 12 across eighteen rooms.
+
+**Worth saying plainly:** that traversal cost is *lower* per room than the
+seven-room version's, and item drops are part of why — the bar is being topped
+up as it goes. A longer stage that is no harder is a pacing question a bot
+cannot answer, and it is the same question M5b has had open since M5.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
