@@ -39,7 +39,7 @@ const ENTRIES := [
 		"index": 3, "boss": "Prism", "stage": "Mirror Field",
 		"weapon": "Prism Ray",
 		"frames": "res://resources/sprite_frames/prism.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/mirror_field/mirror_field.tscn",
 	},
 	{
 		"index": 4, "boss": "Gale", "stage": "Turbine Row",

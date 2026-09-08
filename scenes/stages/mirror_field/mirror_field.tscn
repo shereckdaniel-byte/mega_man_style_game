@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/stages/mirror_field/mirror_field.gd" id="1_stage"]
+
+[node name="MirrorField" type="Node2D"]
+script = ExtResource("1_stage")

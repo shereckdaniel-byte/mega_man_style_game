@@ -113,6 +113,46 @@ func test_climbing_through_a_vertical_door_changes_room() -> void:
 	assert_has(entered, "Upper")
 
 
+## **A door tripped while another transition is running must not be spent.**
+##
+## `Door` marks itself used *before* it asks the stage to run the transition, so
+## a refusal that does not release it kills the door for the rest of the run --
+## and a dead door is a room the player walks straight through while the game
+## believes they are somewhere else. It happened on Mirror Field, where a ladder
+## delivers the player four cells from the next room's door: the stage ran Tower
+## -> Gate with Focus never entered, its enemies never spawned, and its row in
+## the playtest ledger stayed blank. Nothing errored and no test read anything
+## that was wrong, because every check was reading the table.
+##
+## The two doors here are the two rooms the fixture has; what is being tested is
+## the refusal, not the geometry.
+func test_a_door_tripped_during_a_transition_is_not_spent() -> void:
+	var boundary := float(ROOM_H) * TILE
+	var first := _door(Vector2.UP, upper, Vector2(float(LADDER_X) * TILE, boundary))
+	var second := _door(Vector2.RIGHT, lower,
+		Vector2(float(ROOM_W - 2) * TILE, float(ROOM_H * 2) * TILE))
+	await _frames(2)
+
+	stage.begin_transition(first)
+	assert_true(stage.is_transitioning(),
+		"the first door did not start a transition, so this proves nothing")
+
+	# The second door trips mid-slide, exactly as the shove out of a block did.
+	second._on_body_entered(player)
+	assert_false(second.is_spent(),
+		"a door refused as re-entrant kept itself marked used; its room is now unreachable")
+
+	# And it still works afterwards, which is the property that actually matters.
+	for _i in 200:
+		await tree.physics_frame
+		if not stage.is_transitioning():
+			break
+	assert_false(stage.is_transitioning(), "the first transition never finished")
+	second._on_body_entered(player)
+	assert_true(second.is_spent(),
+		"the door did not fire once the stage was free again")
+
+
 ## The camera has to follow. A room change that leaves the camera behind is the
 ## failure that looks like the level broke rather than the camera.
 func test_the_camera_moves_to_the_room_above() -> void:

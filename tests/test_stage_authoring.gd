@@ -24,6 +24,7 @@ const STAGES := {
 	"dawn_boardwalk": preload("res://scenes/stages/dawn_boardwalk/dawn_boardwalk.gd"),
 	"substation": preload("res://scenes/stages/substation/substation.gd"),
 	"breakers": preload("res://scenes/stages/breakers/breakers.gd"),
+	"mirror_field": preload("res://scenes/stages/mirror_field/mirror_field.gd"),
 }
 
 ## A spiked slide tunnel is at most this wide, in cells.
@@ -32,6 +33,13 @@ const STAGES := {
 ## commit up to two cells before the lip -- so three cells of tunnel leaves about
 ## one of slack and comes down to timing. Two leaves two.
 const MAX_SPIKED_TUNNEL_TILES := 2
+
+## Cells a panel path's ends may sit from the lips of the gap it crosses.
+##
+## Two, which is the jump's comfortable reach -- the same number
+## `AuthoredStage.MAX_GAP_TILES` is, arrived at from the other side. Three is the
+## frame-perfect distance and a path should not open or close on one.
+const MAX_LIP_REACH_CELLS := 2
 
 
 func test_every_stage_is_registered_here() -> void:
@@ -68,6 +76,14 @@ func test_no_step_is_taller_than_the_jump() -> void:
 
 
 ## A gap wider than the arc has to be crossed by something.
+##
+## **"Something" grew a second member at stage 4** and the rule did not notice.
+## Until Mirror Field the only thing in the kit that crossed a wide gap was a
+## moving platform, so this asked for a mover by name -- and a stage whose
+## crossings are all panel paths would have failed it on every one of them while
+## being perfectly crossable. A rule that names one implementation is a rule
+## about the kit rather than about the player, which is the mistake this whole
+## file exists to stop.
 func test_a_gap_past_the_jump_has_a_platform_over_it() -> void:
 	for name in STAGES:
 		var script: GDScript = STAGES[name]
@@ -76,9 +92,88 @@ func test_a_gap_past_the_jump_has_a_platform_over_it() -> void:
 				var width := int(gap[1]) - int(gap[0])
 				if width <= AuthoredStage.MAX_GAP_TILES:
 					continue
-				assert_false(spec.get("movers", []).is_empty(),
+				var crossed: bool = not spec.get("movers", []).is_empty() \
+					or _panels_span(spec, int(gap[0]), int(gap[1]))
+				assert_true(crossed,
 					"%s/%s: a %d-cell gap with nothing to cross it"
 						% [name, spec["name"], width])
+
+
+## **A panel path has to be crossable one panel at a time.**
+##
+## The same two numbers every other piece of geometry is held to, applied to the
+## thing that is *made* of geometry: consecutive panels no further apart than the
+## jump covers and no higher than it reaches. A path that breaks either is a path
+## that looks like a route and is a dead end in the middle of a pit, and nothing
+## about it reads wrong from a screenshot -- the panels are all there, they are
+## just never both there at a distance a player can cross.
+##
+## Checked between *successive* entries, because the list order is the beat order
+## (see `PhaseBlock`): panel 3 is only ever reached from panel 2.
+func test_every_panel_in_a_path_is_within_a_jump_of_the_last() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for set_entry in spec.get("mirrors", []):
+				var path: Array = set_entry["path"]
+				for i in range(1, path.size()):
+					var across: int = absi(int(path[i][0]) - int(path[i - 1][0]))
+					var rise: int = int(path[i][1]) - int(path[i - 1][1])
+					assert_true(across <= AuthoredStage.MAX_GAP_TILES + 1,
+						"%s/%s: %d cells between panel %d and %d, and the jump covers about %d"
+							% [name, spec["name"], across, i - 1, i,
+								AuthoredStage.MAX_GAP_TILES + 1])
+					assert_true(rise <= AuthoredStage.MAX_STEP_TILES,
+						"%s/%s: a %d-tile rise between panel %d and %d, and the jump clears %d"
+							% [name, spec["name"], rise, i - 1, i,
+								AuthoredStage.MAX_STEP_TILES])
+
+
+## **A path is only a path if it is longer than two.**
+##
+## Structural rather than a taste: a panel is solid for `SOLID_BEATS` beats and a
+## set's cycle is one beat per panel, so with two panels every panel is solid all
+## the time. The room would ship a permanent staircase that the table describes
+## as a disappearing one, and it would look completely correct in a screenshot.
+func test_no_panel_path_is_shorter_than_the_gimmick_needs() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for set_entry in spec.get("mirrors", []):
+				assert_true((set_entry["path"] as Array).size() > PhaseBlock.SOLID_BEATS,
+					"%s/%s: a %d-panel path never disappears"
+						% [name, spec["name"], (set_entry["path"] as Array).size()])
+
+
+## The first panel of a path must be reachable from the deck the player is
+## standing on, and the last must land them back on it.
+##
+## A path that starts two cells inside a gap is a path whose first panel is a
+## jump into a pit, and one that ends two cells short of the far lip is worse:
+## the player crosses the whole thing correctly and falls off the end.
+func test_a_panel_path_reaches_both_lips_of_its_gap() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for gap in spec.get("gaps", []):
+				if int(gap[1]) - int(gap[0]) <= AuthoredStage.MAX_GAP_TILES:
+					continue
+				if not _panels_span(spec, int(gap[0]), int(gap[1])):
+					continue  # crossed by a mover; not this rule's business
+				for set_entry in spec.get("mirrors", []):
+					var path: Array = set_entry["path"]
+					var first := int(path[0][0])
+					var last := int(path[path.size() - 1][0])
+					if last < int(gap[0]) or first >= int(gap[1]):
+						continue  # this set is not over this gap
+					# The near lip is the last solid cell before the gap, the far
+					# lip the first solid cell after it.
+					assert_true(first - (int(gap[0]) - 1) <= MAX_LIP_REACH_CELLS,
+						"%s/%s: the first panel is %d cells from the near lip"
+							% [name, spec["name"], first - int(gap[0]) + 1])
+					assert_true(int(gap[1]) - last <= MAX_LIP_REACH_CELLS,
+						"%s/%s: the last panel is %d cells from the far lip"
+							% [name, spec["name"], int(gap[1]) - last])
 
 
 ## **A gap is only a pit if there is nothing underneath.**
@@ -118,6 +213,47 @@ func test_no_ceiling_stands_in_a_shaft() -> void:
 				assert_true(c_to <= from or c_from >= to,
 					"%s/%s: a ceiling at %d-%d sits over the shaft at %d-%d"
 						% [name, spec["name"], c_from, c_to, from, to])
+
+
+## **Nothing may be built on the spot a ladder delivers to.**
+##
+## `SHAFT_LANDING_CELLS` promises solid *deck* past an upward shaft, and every
+## check so far has read that as "not a hole". It is also "not a wall": a block
+## reaching across the landing spawns the player inside solid terrain, and Godot
+## resolves that by shoving them out sideways.
+##
+## The shove is the interesting part, because it is not what it looks like. On
+## Mirror Field it moved the player the last few pixels into the *next* room's
+## door while the climb was still running -- `Stage.begin_transition` refused it
+## as re-entrant and, until this was found, spent the door permanently. The stage
+## then ran Tower -> Gate with Focus never entered: its enemies never spawned,
+## its row in the ledger stayed blank, and the bot walked the whole room while
+## the game believed it was somewhere else. Nothing errored.
+##
+## The landing belongs to the band **above** the room that declares the shaft,
+## which is the same distinction the M6i shaft bug turned on.
+func test_nothing_is_built_on_a_shafts_landing() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			if not spec.has("shaft_up"):
+				continue
+			var shaft: Array = spec["shaft_up"]
+			var from := int(shaft[0])
+			var to := from + int(shaft[1]) + AuthoredStage.SHAFT_LANDING_CELLS
+			var above := _room_at(script, int(spec["col"]), int(spec["band"]) - 1)
+			assert_false(above.is_empty(),
+				"%s/%s: a shaft_up into no room" % [name, spec["name"]])
+			if above.is_empty():
+				continue
+			for key in ["blocks", "ceilings"]:
+				for entry in above.get(key, []):
+					var b_from := int(entry[0])
+					var b_to := b_from + int(entry[2])
+					assert_true(b_to <= from or b_from >= to,
+						"%s/%s: a %s at %d-%d stands on %s's landing at %d-%d"
+							% [name, above["name"], key, b_from, b_to,
+								spec["name"], from, to])
 
 
 ## Teeth mean the tunnel has to be the wider kind, or the slide has nowhere to go.
@@ -244,6 +380,13 @@ func test_the_last_two_rooms_are_clear_for_the_boss() -> void:
 				"%s/%s: a gap in the run-up to the boss" % [name, spec["name"]])
 			assert_true(spec.get("enemies", []).is_empty(),
 				"%s/%s: enemies in the run-up to the boss" % [name, spec["name"]])
+			# Timed geometry belongs to the walk, not to the fight. A panel in
+			# the arena asks the player to solve the floor and the boss at once,
+			# which is the argument Breakers keeps the press out of Rust's room
+			# on.
+			assert_true(spec.get("mirrors", []).is_empty(),
+				"%s/%s: a panel path in the run-up to the boss"
+					% [name, spec["name"]])
 		assert_true(is_equal_approx(float(rooms[rooms.size() - 1]["checkpoint"]),
 				AuthoredStage.NO_CHECKPOINT),
 			"%s: a checkpoint inside the arena would let a dead player respawn past the seal"
@@ -251,6 +394,35 @@ func test_the_last_two_rooms_are_clear_for_the_boss() -> void:
 
 
 # --- Helpers -------------------------------------------------------------------
+
+## Does some panel path in this room actually reach across `[from, to)`?
+##
+## "There is a `mirrors` key in the room" is not the question -- Pylons has one
+## over solid deck and it crosses nothing. What counts is a set with a panel at
+## or before the near lip and one at or after the far one.
+func _panels_span(spec: Dictionary, from: int, to: int) -> bool:
+	for set_entry in spec.get("mirrors", []):
+		var path: Array = set_entry["path"]
+		if path.is_empty():
+			continue
+		var lowest := int(path[0][0])
+		var highest := int(path[0][0])
+		for at in path:
+			lowest = mini(lowest, int(at[0]))
+			highest = maxi(highest, int(at[0]))
+		if lowest <= from + MAX_LIP_REACH_CELLS - 1 \
+				and highest >= to - MAX_LIP_REACH_CELLS:
+			return true
+	return false
+
+
+## The room at a grid position, or {} when the stage has none there.
+func _room_at(script: GDScript, col: int, band: int) -> Dictionary:
+	for spec in script.ROOMS:
+		if int(spec["col"]) == col and int(spec["band"]) == band:
+			return spec
+	return {}
+
 
 func _deepest_band_per_column(script: GDScript) -> Dictionary:
 	var deepest: Dictionary = {}

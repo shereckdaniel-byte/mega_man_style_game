@@ -113,6 +113,23 @@ func _on_player_respawned() -> void:
 ## rather than as the camera catching up with a player who kept walking.
 func begin_transition(door: Door) -> void:
 	if _transitioning:
+		# **Released, not just refused.** `Door` marks itself used before it
+		# calls this, so a door declined here without being released is a door
+		# that never fires again -- one room silently deleted from the stage, and
+		# nothing logged.
+		#
+		# It is reachable wherever a vertical transition delivers the player near
+		# the next room's door: Mirror Field's Tower is entered from a ladder
+		# four cells from its exit, the arrival shoved the player the last few
+		# pixels into Door5's trigger while the climb was still running, and the
+		# stage went Tower -> Gate with Focus never entered at all. The
+		# playthrough bot walked the whole of Focus while the game believed it
+		# was in Tower, so its enemies never spawned and its ledger row was
+		# blank.
+		#
+		# The branch below already releases on its own refusal; this one had
+		# simply forgotten to.
+		door.release()
 		return
 	var next := door.target_room(self)
 	if next == null:

@@ -8,6 +8,15 @@
 ##
 ## Also the groundwork for Mirror Field's disappearing blocks (PLAN section 4) --
 ## those are the same timed geometry on a fixed cycle instead of a triggered one.
+##
+## **That promise is kept by `PhaseBlock`, and it cost this class two hooks.**
+## The three phases map exactly -- solid, a tell, gone -- and the only thing that
+## differs is *what starts the countdown*: a foot on the lid here, a clock there.
+## So `triggers_on_contact()` says whether to build the lid at all, and
+## `_tick_solid()` is the frame hook a subclass with its own reason to give way
+## overrides. Everything else -- the shape, the collision, the restore -- is
+## shared rather than copied, which is what PLAN section 4 meant by "the basis
+## for".
 class_name CrumblingBlock
 extends AnimatableBody2D
 
@@ -135,7 +144,24 @@ func _physics_process(_delta: float) -> void:
 			if _frames >= respawn_frames:
 				_restore()
 		Phase.SOLID:
-			pass
+			_tick_solid()
+
+
+## Whether the block waits to be stood on.
+##
+## A subclass driven by a clock has its own reason to give way, and a lid under
+## it would mean a player's foot could bring the whole set forward a beat -- the
+## sequence would then depend on where the player had been, which is the one
+## thing a fixed cycle is for.
+func triggers_on_contact() -> bool:
+	return true
+
+
+## One frame of being solid. Nothing here: being stood on is what starts this
+## block's countdown, and `trigger()` is what the lid calls. A subclass with a
+## clock overrides this and calls `trigger()` on its own beat.
+func _tick_solid() -> void:
+	pass
 
 
 func _fall() -> void:
@@ -182,6 +208,8 @@ func _rebuild() -> void:
 ## it collides with only from the mover's side, and the player is the one doing
 ## the moving. So the block watches for a body arriving on its lid.
 func _build_sensor() -> void:
+	if not triggers_on_contact():
+		return
 	_sensor = Area2D.new()
 	_sensor.name = "Lid"
 	_sensor.collision_layer = 0
