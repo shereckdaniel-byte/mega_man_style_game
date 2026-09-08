@@ -65,20 +65,40 @@ const LOOPING := ["idle", "walk", "run", "climb", "hurt", "walk_shoot", "run_sho
 ##
 ## Playback speed is deliberately taken from the *source* frame count, so
 ## trimming changes which frames play, never how fast they play.
+##
+## **Keyed by character first, and that is a bug fix, not decoration.** The first
+## version keyed on the animation name alone, which worked only because every
+## trimmed name -- `slide`, `climb`, `walk_shoot`, `jump_shoot` -- happened to be
+## one the player alone owns. `attack` is not: five bosses have one. Trimming the
+## player's sword to its last eleven frames silently cut four bosses' attacks to
+## the same window and made three of them clamp, in the same run, with nothing
+## naming the player as the cause. A trim describes one clip in one batch, so it
+## is stored against the character it was measured on.
+##
+## **These ranges describe one particular batch of clips and do not survive a
+## regeneration.** They were re-derived wholesale when the player was replaced in
+## M6l: every number below is measured off the new sheets' own frames (opaque
+## height for a slide, silhouette width for a climb, extent for an extended
+## cannon), because the previous set's ranges described choreography that no
+## longer existed. Carrying them over would have shown the wrong part of five
+## moves, and nothing would have errored.
 const TRIM := {
-	"slide": [18, 24],         # the settled low skim; 0-8 stand up, 9-17 bob 30 px vertically
-	"climb": [7, 19],          # the hand-over-hand reach; either end is a static stand
-	"walk_shoot": [11, 20],    # the arm cannon is only extended across these
-	"jump_shoot": [12, 14],    # tucked with the cannon lit; it stands before, drops the cannon after
-	"teleport_in": [2, 24],    # 0-1 are a stray standing pose before the beam
+	"player": {
+		"attack": [14, 24],        # cannon lit, blade forms, sweeps down; 0-13 hold the finished pose
+		"slide": [10, 24],         # the settled low skim; 0-9 dive, and height drops 130 -> 47 at 10
+		"climb": [19, 24],         # the clean vertical reach; 6-18 turn side-on and stop reading
+		"jump_shoot": [0, 5],      # the knees-up tuck with the cannon lit; 7+ splay flat into a dive
+	},
 }
 
 ## The cell row every animation's feet are normalised onto.
 ##
 ## AutoSprite frames each clip independently, so the row the character stands on
 ## drifts between animations -- measured across the player's fourteen, the
-## lowest opaque row ranges from 204 (`climb`) to 238 (`walk`), a 34 px spread in
-## art that is meant to share one ground line. `AnimatedSprite2D` has a single
+## lowest opaque row ranges from 170 (`jump_shoot`, tucked) to 247 (seven of
+## them), a 77 px spread in art that is meant to share one ground line.
+##
+## `AnimatedSprite2D` has a single
 ## `offset` for the whole node and no per-animation equivalent, so a scene can
 ## only ever compensate for one of them; the others float or sink by the
 ## difference. Normalising here fixes it once for every actor.
@@ -96,7 +116,17 @@ const TRIM := {
 ##
 ## So the target is per character (see `_character_baseline`), and this constant
 ## is the one pinned value: the player's, because a scene constant depends on it.
-const BASELINE_ROW := 223
+##
+## **It moved from 223 to 247 in M6l, and that is the whole reason it is written
+## down here rather than derived.** The replacement player art is framed the same
+## way as the 2026-09 bosses -- feet near the bottom of the cell with single
+## digits of padding under them -- so the old row was 24 px above anything the
+## new clips could reach and twelve of the fourteen clamped. 247 is the median of
+## the new sheets' own feet rows, which is the rule every other character already
+## gets; the player just has to have it spelled out because
+## `Player.SOURCE_ART_BASELINE` compensates for exactly this number. Regenerate
+## the player and this becomes wrong again -- the clamp warnings are what say so.
+const BASELINE_ROW := 247
 
 ## The character whose baseline is pinned to BASELINE_ROW.
 const PINNED_CHARACTER := "player"
@@ -187,7 +217,8 @@ func _import_character(char_dir: String) -> bool:
 
 		var sheet: Texture2D = load(sheet_path)
 		var anim_name := _animation_name(anim_dir)
-		if _add_animation(frames, anim_name, sheet, parsed as Dictionary, target):
+		if _add_animation(frames, character, anim_name, sheet, parsed as Dictionary,
+				target):
 			imported += 1
 			var height := _body_height(sheet, _atlas_regions(parsed as Dictionary))
 			if height > 0:
@@ -252,8 +283,8 @@ func _character_baseline(char_dir: String, character: String) -> int:
 	return baselines[baselines.size() / 2]
 
 
-func _add_animation(frames: SpriteFrames, anim_name: String, sheet: Texture2D,
-		atlas: Dictionary, target_baseline: int) -> bool:
+func _add_animation(frames: SpriteFrames, character: String, anim_name: String,
+		sheet: Texture2D, atlas: Dictionary, target_baseline: int) -> bool:
 	var rects: Dictionary = atlas.get("frames", {})
 	if rects.is_empty():
 		return false
@@ -266,7 +297,7 @@ func _add_animation(frames: SpriteFrames, anim_name: String, sheet: Texture2D,
 
 	# fps comes from the full clip; trimming must not speed the motion up.
 	var source_frames := keys.size()
-	keys = _trim(anim_name, keys)
+	keys = _trim(character, anim_name, keys)
 	if keys.is_empty():
 		return false
 
@@ -447,10 +478,14 @@ func _atlas_regions(atlas: Dictionary) -> Array[Rect2]:
 
 
 ## Keeps only TRIM's slice of an animation's frames, in order.
-func _trim(anim_name: String, keys: Array) -> Array:
-	if not TRIM.has(anim_name) or keys.is_empty():
+##
+## `character` is the source directory's name, not the output resource's, so a
+## trim is looked up under the same key the sheets were measured from.
+func _trim(character: String, anim_name: String, keys: Array) -> Array:
+	var ranges: Dictionary = TRIM.get(_snake_case(character), {})
+	if not ranges.has(anim_name) or keys.is_empty():
 		return keys
-	var bounds: Array = TRIM[anim_name]
+	var bounds: Array = ranges[anim_name]
 	var first := clampi(int(bounds[0]), 0, keys.size() - 1)
 	var last := clampi(int(bounds[1]), first, keys.size() - 1)
 	return keys.slice(first, last + 1)

@@ -3,7 +3,7 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M6k complete** — the player controller, combat, enemies, four bosses with weapon
+**Status: M6l complete** — the player controller, combat, enemies, four bosses with weapon
 gets, and **four stages**: Dawn Boardwalk, Substation, Breakers and Mirror Field, all
 authored as room tables against a shared `AuthoredStage`. Verified on Godot 4.7.stable,
 headless, in CI. Next up is the rest of M6, stages 5–8.
@@ -39,6 +39,16 @@ godot scenes/stages/mirror_field/mirror_field.tscn
 # A shot of every room, for looking at a whole stage at once. Paste them onto the
 # (col, band) grid the room table declares and the sheet is the stage's shape.
 xvfb-run -a godot --script res://tools/stage_map.gd -- /tmp/out stage=substation
+
+# A contact sheet of one character's animations, frame by frame. The default is the
+# imported art with the ground line drawn on it -- what the game will show. `raw=true`
+# is every source frame untrimmed, which is what you need before setting a TRIM range.
+godot --headless --script res://tools/contact_sheet.gd -- /tmp/out
+godot --headless --script res://tools/contact_sheet.gd -- /tmp/out character=arc raw=true
+
+# The player in each of its states, in the engine rather than in the atlas. This is
+# what catches art that floats, sinks, or shows the wrong part of a move.
+xvfb-run -a godot --script res://tools/screenshot.gd -- /tmp/out
 
 # The full suite is about three and a half minutes, nearly all of it spent waiting on
 # real physics frames. While working on one thing, narrow it — arguments after `--` are

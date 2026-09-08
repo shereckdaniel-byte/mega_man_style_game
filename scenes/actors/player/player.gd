@@ -25,12 +25,17 @@ signal charge_level_changed(level: int)
 
 const FLOOR_NORMAL := Vector2.UP
 ## Measured from the AutoSprite export's opaque bounding box. The character does
-## not fill its 256 px cell -- it is 177 px tall and its feet sit on row 223 --
+## not fill its 256 px cell -- it is 238 px tall and its feet sit on row 247 --
 ## so neither the scale nor the ground alignment can be derived from the cell.
 ## Re-measure if the art is regenerated at a different size; the test
 ## `test_sprite_feet_sit_on_the_origin` will catch it if these drift.
-const SOURCE_ART_HEIGHT := 177.0
-const SOURCE_ART_BASELINE := 223.0
+##
+## Both numbers changed in M6l with the character. The baseline must stay equal
+## to `AutoSpriteImporter.BASELINE_ROW`, which is what normalises the art onto
+## it; `tests/test_sprite_frames.gd` asserts that, because a silent drift here
+## puts the player in the floor and nothing else notices.
+const SOURCE_ART_HEIGHT := 238.0
+const SOURCE_ART_BASELINE := 247.0
 
 ## Animations where the character is standing at full height, so all of them
 ## must be drawn at the same size on screen.
@@ -773,7 +778,7 @@ func _build_shapes() -> void:
 		0.0, -(tuning.hitbox_size().y - tuning.slide_hitbox_size().y))
 
 
-## The art is ~177 px tall and the character is 108 px in world units, so the
+## The art is ~238 px tall and the character is 108 px in world units, so the
 ## sprite is minified. That is why the project filters linearly.
 ##
 ## `offset` is deliberately not touched when the scale changes. It is in texture

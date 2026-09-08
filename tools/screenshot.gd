@@ -106,6 +106,19 @@ func _capture() -> void:
 	_report(player, "10_teleport_in")
 	await _shot(out_dir, "10_teleport_in")
 
+	# The sword. Two shots, because the clip's whole point is the change between
+	# them: the cannon lights up first and the blade is out by the end. Attack
+	# fits the trimmed clip into SWING_FRAMES with `speed_scale`, so the frames
+	# below are a fraction of the swing rather than of the animation.
+	await _place(player, 13.5)
+	player.state_machine.transition_to(&"Attack")
+	await _frames(4)
+	_report(player, "11_sword_forming")
+	await _shot(out_dir, "11_sword_forming")
+	await _frames(9)
+	_report(player, "12_sword_out")
+	await _shot(out_dir, "12_sword_out")
+
 	quit(0)
 
 
