@@ -1,18 +1,37 @@
 ## Stage 1, "Dawn Boardwalk", authored end to end.
 ##
-## Eight rooms of drowned boardwalk, laid out as a **U**: along the deck, down
-## under it, back along the pilings, up again, and into the arena.
+## Nineteen rooms of drowned boardwalk, laid out as a **W**: along the deck, down
+## under it, back up, along the deck again, down a second time, and up into the
+## arena.
 ##
-##      col 0     1        2                4        5
-##  band 0  Arrival - Pilings - Descent    BossDoor - Arena
-##                              |             ^
-##  band 1                    Under W - Under E - Tide
+##   col  0     1      2       3      4      5       6     7     8      9     10     11     12    13    14
+##  band 0 Arrival-Pilings-Boardwalk-Bait-Gantry-Descent                    Rise-LongPier-Winch     BossDoor-Arena
+##                                                    |                      ^              |          ^
+##  band 1                                       UnderW-Barnacle-UnderE-Slack-TheCut      Deep-Low--Tide
 ##
-## The shape is the point. Four rooms in a straight line was ~19 s of traversal
-## against MM3's 90-150, and more importantly it was four rooms of the same two
-## ideas -- a gap, and a block. Going down and coming back up is what lets the
-## stage use ladders, one-way platforms, moving platforms, crumbling planks and
-## the rising tide, which is the vocabulary M5a exists to provide.
+## **The shape is the point, and the length is the shape repeated.** Four rooms
+## in a straight line was ~19 s of traversal against MM3's 90-150; the first
+## rewrite made it a U of eight and about 40 s, which was still half a stage.
+## This is that U twice, and it comes to a little over two minutes -- inside
+## MM3's range rather than past it.
+##
+## Going down and coming back up is what lets the stage use ladders, one-way
+## platforms, moving platforms, crumbling planks and the rising tide, which is
+## the vocabulary M5a exists to provide. Doing it twice is what lets each of
+## those be **introduced, complicated, and then combined** instead of appearing
+## once and never again:
+##
+##   slide       optional in Pilings, required in Bait Shop, closing Long Pier
+##   one-ways    in daylight in Gantry, over water in Barnacle Run
+##   ferry       with a plank alternative in Under East, alone in The Cut,
+##               widest and unescorted in Deep Water
+##   crumbles    beside a ferry in Under East, instead of a jump in Slack Water
+##   tide        rehearsed dry in Low Water, then flooded in Tide
+##
+## Two rooms are deliberately empty -- Rise and Boss Door -- and both are the
+## far side of a ladder, where SHAFT_LANDING_CELLS leaves three cells and no
+## room for a room. They are written as breaths rather than pretended into
+## content.
 ##
 ## This is the stage the game boots into; `art_preview.tscn` stays as the bare
 ## art harness.
@@ -104,7 +123,88 @@ const ROOMS := [
 		# later than the second screen.
 	},
 	{
-		"name": "Descent", "col": 2, "band": BAND_DECK,
+		"name": "Boardwalk", "col": 2, "band": BAND_DECK,
+		# Gaps, complicated. Pilings taught one; this is two, with a step
+		# between them so the room is not the same jump twice.
+		#
+		# **The step comes after both gaps, and it took two goes to learn why.**
+		#
+		# The first draft put a two-high block between the gaps with four cells
+		# of flat deck after it, which sounds like room. It is not: a jump taken
+		# from the top of a block starts two tiles up and carries *further* than
+		# one from the ground, so the bot leapt off the step, sailed over all
+		# four cells of run-up and into the hole. Four times, then the whole life
+		# counter, without leaving this room.
+		#
+		# Pilings records the same fault from the other direction one room
+		# earlier -- a slide overhang that "sets the player down at 10, which is
+		# the lip of the gap". Twice is a rule, so it is now
+		# `tests/test_stage_authoring.gd`, which measures the clearance a gap
+		# needs against the height of whatever stands before it.
+		#
+		# With the step last, nothing in this room drops the player anywhere near
+		# a hole: two gaps off flat deck, then something to climb.
+		# Seven cells between the two gaps, not four. At four the bot took a
+		# gullbot hit on the walk between them and went straight into the second
+		# one -- a full bar in the only room of nineteen that was costing more
+		# than two. A flyer's sweep is wide enough to reach both holes, so the
+		# room has to leave ground between them on which being hit is survivable.
+		"gaps": [[8, 10], [17, 19]], "blocks": [[23, 2, 3, 2]],
+		"enemies": [
+			[WALKER, "dockrat", &"walk", 5.0, 0.0],
+			# Over the first gap, so the jump the room asks for is the jump the
+			# flyer is patrolling. Neither is hard; together they are a choice
+			# about when.
+			[FLYER, "gullbot", &"fly", 9.0, 3.0],
+			[TURRET, "lampjack", &"idle", 21.0, 2.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Bait Shop", "col": 3, "band": BAND_DECK,
+		# **The slide stops being optional.** Pilings put a one-row overhang
+		# where going over was as good as going under; this one is four rows
+		# thick, so its top is out of the jump's reach and the tunnel is the
+		# only way through. Introducing a move and requiring it in the same
+		# breath is what Pilings was careful not to do -- two rooms later is
+		# where the asking belongs.
+		#
+		# Three cells wide, because a slide covers about four and a tunnel
+		# longer than the slide traps the player inside it, standing up into
+		# the ceiling. tests/test_dawn_boardwalk.gd holds every tunnel to it.
+		"gaps": [[5, 7]], "blocks": [[20, 2, 4, 2]],
+		"ceilings": [[12, SLIDE_CLEARANCE, 3, 4]],
+		"enemies": [
+			[HOPPER, "bollard", &"hop", 8.0, 0.0],
+			[FLYER, "gullbot", &"fly", 17.0, 4.0],
+			[WALKER, "dockrat", &"walk", 22.0, 2.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Gantry", "col": 4, "band": BAND_DECK,
+		# One-way platforms, introduced in daylight on the deck rather than in
+		# the dark under it. They are the one element whose rule -- solid from
+		# above, passable from below -- cannot be read off the art, so the
+		# player meets them here, where getting it wrong costs a step and not a
+		# life.
+		#
+		# Two rises of two, which is exactly MAX_STEP_TILES: a climb the jump
+		# makes without a run-up, so the room reads as a staircase rather than
+		# as a puzzle.
+		"gaps": [[8, 10]], "blocks": [],
+		"one_ways": [[13, 2, 4], [19, 4, 4]],
+		"enemies": [
+			[TURRET, "lampjack", &"idle", 11.0, 2.0],
+			# High and to the right, over the top platform: the reason to climb
+			# is also the reason to be careful up there.
+			[FLYER, "gullbot", &"fly", 16.0, 6.0],
+			[WALKER, "dockrat", &"walk", 24.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Descent", "col": 5, "band": BAND_DECK,
 		# The deck opens and the stage goes down. No gaps: the hole *is* the
 		# feature, and a second one would make it ambiguous which to take.
 		"gaps": [], "blocks": [[6, 2, 3, 2]],
@@ -118,7 +218,7 @@ const ROOMS := [
 		"shaft": [14, 2],
 	},
 	{
-		"name": "Under West", "col": 2, "band": BAND_UNDER,
+		"name": "Under West", "col": 5, "band": BAND_UNDER,
 		# Tight and low. The ceiling is the deck the player was just walking on.
 		"gaps": [[8, 10], [18, 20]], "blocks": [],
 		"enemies": [
@@ -171,7 +271,26 @@ const ROOMS := [
 		# there is a piece of geometry that earns one. See docs/PLAN.md M5a.
 	},
 	{
-		"name": "Under East", "col": 3, "band": BAND_UNDER,
+		"name": "Barnacle Run", "col": 6, "band": BAND_UNDER,
+		# The spawner's room. Under West introduced one on a wall the player
+		# walks past; here it sits over the middle of the room and the crawlers
+		# it releases arrive while the two gaps are being crossed. That is what
+		# a spawner is for -- a room that does not get easier the longer you
+		# stand in it.
+		# The platform sits past both gaps for Boardwalk's reason: a one-way is
+		# something to jump off, and a gap two cells beyond one is a hole the
+		# jump lands in.
+		"gaps": [[6, 8], [15, 17]], "blocks": [],
+		"one_ways": [[20, 3, 4]],
+		"enemies": [
+			[CRAWLER, "limpet", &"crawl", 4.0, 0.0],
+			[SPAWNER, "barnacle_hive", &"idle", 12.0, 4.0],
+			[CRAWLER, "limpet", &"crawl", 22.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Under East", "col": 7, "band": BAND_UNDER,
 		# The widest water in the stage, crossed on a moving platform. A gap
 		# this wide is deliberately past MAX_GAP_TILES -- it is not a jump, and
 		# the platform is the only way over.
@@ -218,7 +337,130 @@ const ROOMS := [
 		"pit_spikes": [[9, 3, 8], [19, 3, 6]],
 	},
 	{
-		"name": "Tide", "col": 4, "band": BAND_UNDER,
+		"name": "Slack Water", "col": 8, "band": BAND_UNDER,
+		# Under East's choice, without the safety net. There the crumbling
+		# walkway was the fast alternative to a ferry; here it is the fast
+		# alternative to *jumping*, and each of the three gaps is a jump the
+		# player can already make. Run the planks and keep the pace, or stop at
+		# every lip and take each one properly.
+		#
+		# Two cells each, so every gap is inside MAX_GAP_TILES and the planks
+		# stay genuinely optional. A crumbling block is never allowed to be the
+		# only way across -- it falls, and tests/test_dawn_boardwalk.gd accepts
+		# only a mover as a crossing for a gap past the jump.
+		"gaps": [[7, 9], [12, 14], [17, 19]], "blocks": [],
+		"crumbles": [[7, 0], [8, 0], [12, 0], [13, 0], [17, 0], [18, 0]],
+		"enemies": [
+			[CRAWLER, "limpet", &"crawl", 4.0, 0.0],
+			[FLYER, "gullbot", &"fly", 15.0, 4.0],
+			[CRAWLER, "limpet", &"crawl", 24.0, 0.0],
+		],
+		# The stakes, visible at the lip rather than discovered underneath it.
+		"pit_spikes": [[7, 3, 2], [12, 3, 2], [17, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "The Cut", "col": 9, "band": BAND_UNDER,
+		# The widest water under the deck, and the way back up. One ferry and no
+		# planks beside it: Under East offered a choice between patience and
+		# speed, and this is the room that says patience was a real option.
+		"gaps": [[6, 14]], "blocks": [],
+		"movers": [[6, 0, 8.0, 0.0, 150]],
+		"pit_spikes": [[6, 3, 8]],
+		"enemies": [
+			[TURRET, "lampjack", &"idle", 18.0, 2.0],
+			[CRAWLER, "limpet", &"crawl", 20.0, 0.0],
+		],
+		"checkpoint": 2.0,
+		"shaft_up": [23, 2],
+	},
+	{
+		"name": "Rise", "col": 9, "band": BAND_DECK,
+		# A breath, and deliberately so. The ladder delivers the player three
+		# cells from this room's exit -- SHAFT_LANDING_CELLS guarantees the
+		# landing is solid and forbids anything being built on it -- so there is
+		# no room here for a room. Fighting that would mean moving the ladder to
+		# the left-hand end of The Cut, which would put it before the water
+		# instead of after it.
+		#
+		# So it is written as what it is: the stage's long crossing ends with
+		# the player stepping back out onto the boardwalk. Boss Door makes the
+		# same argument at the other end of the stage.
+		"gaps": [], "blocks": [],
+		"enemies": [],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Long Pier", "col": 10, "band": BAND_DECK,
+		# Everything the deck has taught, in one room: two gaps, a step, a
+		# turret to shoot past, a flyer to time, and a slide to finish. The
+		# stage's densest room, and the last one before it goes back down.
+		#
+		# Ordered the way Boardwalk had to be: **both gaps first, off flat
+		# ground, and everything you can fall off afterwards.** The draft had a
+		# step three cells before the second gap, which is a jump that lands in
+		# it.
+		#
+		# So the room reads left to right as jump, jump, slide, climb -- four
+		# things the stage has taught, each given its own ground.
+		"gaps": [[6, 8], [12, 14]], "blocks": [[23, 2, 3, 2]],
+		"ceilings": [[18, SLIDE_CLEARANCE, 3, 3]],
+		"enemies": [
+			[WALKER, "dockrat", &"walk", 4.0, 0.0],
+			[TURRET, "lampjack", &"idle", 10.0, 2.0],
+			[FLYER, "gullbot", &"fly", 16.0, 4.0],
+			[HOPPER, "bollard", &"hop", 22.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Winch Deck", "col": 11, "band": BAND_DECK,
+		# **No gaps, and not by choice.** Deep Water sits directly underneath,
+		# and a hole cut in this deck would open into that room rather than into
+		# a pit -- tests/test_stage_authoring.gd refuses gaps in any band that
+		# is not the deepest in its column. So this room climbs instead of
+		# opening: two steps and a platform, with the shaft at the far end.
+		"gaps": [], "blocks": [[5, 2, 3, 2], [10, 2, 3, 2]],
+		"one_ways": [[16, 2, 4]],
+		"enemies": [
+			[HOPPER, "bollard", &"hop", 13.0, 0.0],
+			[WALKER, "dockrat", &"walk", 6.0, 2.0],
+			[TURRET, "lampjack", &"idle", 19.0, 3.0],
+		],
+		"checkpoint": 2.0,
+		"shaft": [22, 2],
+	},
+	{
+		"name": "Deep Water", "col": 11, "band": BAND_UNDER,
+		# The widest water in the stage, and the second ferry. Nine cells
+		# against The Cut's eight -- barely more, deliberately. The difference
+		# is not the distance; it is that this one is crossed with a flyer over
+		# it and no lip to wait on halfway.
+		"gaps": [[8, 17]], "blocks": [],
+		"movers": [[8, 0, 9.0, 0.0, 160]],
+		"pit_spikes": [[8, 3, 9]],
+		"enemies": [
+			[FLYER, "gullbot", &"fly", 12.0, 5.0],
+			[CRAWLER, "limpet", &"crawl", 22.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Low Water", "col": 12, "band": BAND_UNDER,
+		# The tide's room, dry. Exactly the block ladder the next room has --
+		# three steps of two, rising six above the deck -- so the shape the
+		# player climbs under pressure is one they have already climbed at their
+		# own pace. Introduce, then complicate: the water is the complication,
+		# and the geometry is not.
+		"gaps": [], "blocks": [[6, 2, 3, 2], [12, 4, 3, 2], [18, 6, 3, 2]],
+		"enemies": [
+			[CRAWLER, "limpet", &"crawl", 4.0, 0.0],
+			[FLYER, "gullbot", &"fly", 15.0, 7.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Tide", "col": 13, "band": BAND_UNDER,
 		# The gimmick. The water starts below the pilings and climbs; the only
 		# way out is the ladder at the far end, and the tide stops one row below
 		# the top of it so the exit is never covered.
@@ -231,14 +473,14 @@ const ROOMS := [
 		"shaft_up": [23, 2],
 	},
 	{
-		"name": "Boss Door", "col": 4, "band": BAND_DECK,
+		"name": "Boss Door", "col": 13, "band": BAND_DECK,
 		# Deliberately empty. The run-up to a boss is a breath, not a fight.
 		"gaps": [], "blocks": [],
 		"enemies": [],
 		"checkpoint": 2.0,
 	},
 	{
-		"name": "Arena", "col": 5, "band": BAND_DECK,
+		"name": "Arena", "col": 14, "band": BAND_DECK,
 		# Flat, empty, and no checkpoint. The arena is the fight and nothing
 		# else: a gap here would decide the fight instead of the boss, and a
 		# checkpoint inside it would let a player who died mid-fight respawn
