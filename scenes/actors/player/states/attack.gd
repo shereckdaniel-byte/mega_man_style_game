@@ -5,11 +5,13 @@
 ## enemy's reach for the length of the swing with no way to cancel out of it.
 ## Take that commitment away and there is no reason to ever fire the buster.
 ##
-## Works on the ground and in the air. The clip is a planted two-blade guard
-## stance and it does read a little wrong mid-air -- an air swing really wants
-## its own animation -- but a sword you cannot use while jumping is the worse
-## problem by a distance, and half the things worth hitting are reached by
-## jumping at them. The visual is a known compromise, recorded in SPRITES.
+## Works on the ground and in the air. Since M6l the clip is the arm cannon
+## itself lighting up and unfolding into a blade, which is why there is no
+## separate weapon to draw and no hand to put it in: the sword is the buster,
+## reconfigured. It still reads a little wrong mid-air -- the swing plants a
+## stance it cannot plant while falling -- but a sword you cannot use while
+## jumping is the worse problem by a distance, and half the things worth hitting
+## are reached by jumping at them. The visual is a known compromise, in SPRITES.
 ##
 ## An air swing does **not** hover. Gravity keeps running, the arc is unchanged,
 ## and landing mid-swing does not cut it short -- so the sword is never a way to

@@ -44,23 +44,40 @@ func test_unmapped_names_survive() -> void:
 ## edit rather than a test failure.
 func test_trim_keeps_the_requested_slice() -> void:
 	var keys: Array = range(25)
-	for anim_name: String in AutoSpriteImporter.TRIM:
-		var bounds: Array = AutoSpriteImporter.TRIM[anim_name]
-		var first: int = int(bounds[0])
-		var last: int = int(bounds[1])
-		assert_true(first >= 0 and last >= first and last < keys.size(),
-			"%s bounds %s fit a 25-frame clip" % [anim_name, bounds])
-		var kept: Array = importer._trim(anim_name, keys)
-		assert_eq(kept, range(first, last + 1),
-			"%s keeps frames %d-%d in order" % [anim_name, first, last])
-	assert_eq(importer._trim("idle", keys).size(), 25, "an untrimmed name is untouched")
+	for character: String in AutoSpriteImporter.TRIM:
+		var ranges: Dictionary = AutoSpriteImporter.TRIM[character]
+		for anim_name: String in ranges:
+			var bounds: Array = ranges[anim_name]
+			var first: int = int(bounds[0])
+			var last: int = int(bounds[1])
+			assert_true(first >= 0 and last >= first and last < keys.size(),
+				"%s/%s bounds %s fit a 25-frame clip" % [character, anim_name, bounds])
+			var kept: Array = importer._trim(character, anim_name, keys)
+			assert_eq(kept, range(first, last + 1),
+				"%s/%s keeps frames %d-%d in order" % [character, anim_name, first, last])
+	assert_eq(importer._trim("player", "idle", keys).size(), 25,
+		"an untrimmed name is untouched")
+
+
+## A trim is measured off one character's sheets, so it must not reach another's
+## clip of the same name. `attack` is the case that bit: the player's sword is
+## trimmed to its last eleven frames, and five bosses have an `attack` too.
+func test_a_trim_does_not_reach_another_character() -> void:
+	var keys: Array = range(25)
+	assert_eq(importer._trim("player", "attack", keys).size(),
+		int(AutoSpriteImporter.TRIM["player"]["attack"][1])
+			- int(AutoSpriteImporter.TRIM["player"]["attack"][0]) + 1,
+		"the player's own attack is trimmed")
+	for boss in ["arc", "cinder", "frost", "rust", "prism"]:
+		assert_eq(importer._trim(boss, "attack", keys).size(), 25,
+			"%s's attack keeps every frame" % boss)
 
 
 ## A clip shorter than its trim range must clamp rather than crash or come back
 ## empty, so a regenerated animation with fewer frames still imports.
 func test_trim_clamps_to_a_short_clip() -> void:
-	assert_eq(importer._trim("slide", [0, 1, 2]).size(), 1, "bounds clamp to a short clip")
-	assert_true(importer._trim("slide", []).is_empty(), "an empty clip stays empty")
+	assert_eq(importer._trim("player", "slide", [0, 1, 2]).size(), 1, "bounds clamp to a short clip")
+	assert_true(importer._trim("player", "slide", []).is_empty(), "an empty clip stays empty")
 
 
 # --- Generated resources ------------------------------------------------------
@@ -121,11 +138,11 @@ func test_trimmed_animations_drop_their_wind_up() -> void:
 	assert_not_null(frames, "player.tres")
 	if frames == null:
 		return
-	for anim_name: String in AutoSpriteImporter.TRIM:
+	for anim_name: String in AutoSpriteImporter.TRIM["player"]:
 		var name := StringName(anim_name)
 		if not frames.has_animation(name):
 			continue
-		var bounds: Array = AutoSpriteImporter.TRIM[anim_name]
+		var bounds: Array = AutoSpriteImporter.TRIM["player"][anim_name]
 		var expected: int = int(bounds[1]) - int(bounds[0]) + 1
 		assert_eq(frames.get_frame_count(name), expected,
 			"%s keeps frames %d-%d" % [anim_name, bounds[0], bounds[1]])

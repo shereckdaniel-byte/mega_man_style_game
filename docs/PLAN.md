@@ -57,10 +57,13 @@ The charge is **per weapon, opt-in**: `WeaponData` carries the whole block and o
 buster sets `chargeable` today. The mechanism is built for all eight; proving it on one
 weapon first is deliberate.
 
-The sword is a committed swing — planted, no cancel, ground only. Take the commitment away
-and there is no reason ever to fire the buster. Ground-only is a limitation, not a
-decision: the clip is a planted two-blade guard stance that reads wrong in mid-air, and an
-air slash wants its own animation and its own arc.
+The sword is a committed swing — planted, no cancel. Take the commitment away and there is
+no reason ever to fire the buster. It works in the air as well as on the ground, which is
+a decision about reach rather than about the art: half the things worth hitting are
+reached by jumping at them. Since M6l the clip is **the arm cannon unfolding into a
+blade** — the same limb, reconfigured — so there is no second weapon to hold and no hand
+to hold it in. It still reads slightly wrong mid-air, because a swing plants a stance, and
+an air slash would want its own arc; that is recorded rather than fixed.
 
 Two things that would have shipped broken and are worth remembering:
 
@@ -1167,6 +1170,72 @@ survivable; it does not mean the patterns read, and that still wants a human.
 **21 HP lost, 0 deaths**, against Breakers' 20 and 0. Every one of the four panel
 rooms costs 0 HP, and all nine rooms are entered.
 
+### M6l — The player joins its own cast ✅ done
+
+No new mechanics. The player was the last character still drawn in the original
+2026-09-02 style, and standing next to Arc, Rust and Prism it read as a sprite
+borrowed from somewhere else.
+
+- ✅ **Fourteen clips, one batch, the bosses' style.** That is §6a's rule applied
+  to the one character it had never been applied to. Two came back wrong and both
+  were failure modes SPRITES already names: `climb` arrived with a **ladder baked
+  into the sprite** (the level supplies its own), and `attack` arrived as a
+  **cannon shot** duplicating `idle_shoot`, because the request carried a kind and
+  no prompt and the base is a cannon-armed android. Both were caught on a contact
+  sheet before animating.
+- ✅ **The sword is the arm cannon, unfolding.** The replacement for that duff
+  `attack`, and it is a better design than the dual blades it replaces rather
+  than a workaround: the character has one weapon-bearing limb, so a sword that
+  *is* the cannon reconfigured needs no second weapon, no hand to hold it, and no
+  account of where it goes between swings. `Attack` already fitted the whole clip
+  into `SWING_FRAMES` with `speed_scale`, so the swing's length did not change.
+- ✅ **The pinned baseline moved, 223 → 247.** The new art is framed like the
+  bosses' — feet near the bottom of the cell with single digits of padding — so
+  the old row was above anything the new clips could reach and **twelve of the
+  fourteen clamped in one run**. `AutoSpriteImporter.BASELINE_ROW` and
+  `Player.SOURCE_ART_BASELINE` are one number in two files; a test asserts they
+  agree, which is why moving one of them was never an option.
+- ✅ **Every `TRIM` range re-derived, not adjusted.** The ranges described
+  choreography that no longer existed. Two of them straddled a stance change and
+  so were lying about the clip's own baseline as well as showing the wrong
+  frames: `jump_shoot` was pointed at the frames where the tuck splays flat into
+  a dive, and `attack` at the frames where the blade is put *away* — AutoSprite
+  delivered that clip with its finished pose first and the transformation last.
+- ✅ **`TRIM` is keyed by character now, and that is a bug it caught.** Keying on
+  the animation name alone worked only because every trimmed name — `slide`,
+  `climb`, `walk_shoot`, `jump_shoot` — is one the player alone owns. `attack` is
+  not: five bosses have one. Trimming the player's sword to eleven frames cut
+  four bosses' attacks to the same window in the same run and made three of them
+  clamp, with nothing in the output naming the player as the cause.
+- ✅ **`tools/contact_sheet.gd`**, because the rule this milestone kept leaning on
+  had no tool behind it. The risk table below and SPRITES §4a have both said
+  "check a contact sheet before judging a new animation" for four milestones, and
+  neither the repo nor CI could produce one. It draws two things: the imported art with
+  the character's ground line on it, which is what the game will show, and
+  `raw=true`, every source frame untrimmed — which is the only view that shows
+  the frames a `TRIM` range has to choose between.
+
+**Accepted:** 470 tests green. All fourteen clips land on the ground line with no
+clamping, which is the number that matters — twelve of them could not before.
+The twelve states `tools/screenshot.gd` drives were looked at **in the engine**
+rather than in the atlas, two of them new: the sword gets a shot at the cannon
+and a shot at the blade, because it is the one move whose whole point is the
+change between two frames.
+
+The bot beats Rust (18 HP, 0 deaths) and Prism (26, 0) and loses to Tide and Arc,
+both at a full bar and one death. **The same two runs on the commit before this
+one lose identically**, so the losses are not this change, and nothing here could
+have moved them: every collision box the player has comes from `PlayerTuning`, and
+`sprite.scale`, `sprite.offset` and the clip a state asks for are read by nothing
+but the renderer.
+
+Worth recording that this contradicts M6k's note above, which says the bot wins
+Tide, Arc and Rust buster-only. `Boss` seeds no RNG, so a fight is a different
+fight on every run and a single run is a sample, not a result — Prism came back at
+26 HP here against the 21 recorded a milestone ago on the same code. Whether Tide
+and Arc have drifted out of reach or the bot is simply losing coin flips it used
+to win is a question for repeated runs and a human, not for this milestone.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
@@ -1317,6 +1386,7 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 | AutoSprite frame counts don't match the animation lengths the controller expects | Animation desync | Controller drives timing; animations are cosmetic. Never gate state exits on `animation_finished` except for teleport and weapon-get. Confirmed: exports are 25 frames, the original batch at 10.7 fps and the 2026-09 batch at 12.2 fps (a 2.042 s `turbo` clip) — the mismatch is harmless for exactly this reason |
 | ~~Missing animations block the controller~~ | ~~Blocks M1~~ | **Closed 2026-09-02.** All six generated and verified in-engine — SPRITES.md §4 |
 | Generated clips open with a wind-up the player never sees | Move looks wrong | The controller owns timing, so a 26-frame slide shows ~5 animation frames. `AutoSpriteImporter.TRIM` selects the frames the move lives in; check a contact sheet before judging any new animation — SPRITES.md §4a |
+| **Replacing a character's art invalidates every number measured off the old art** | Player floats or sinks, four moves show the wrong frames, and nothing errors | **Hit at M6l.** `BASELINE_ROW` and `Player.SOURCE_ART_BASELINE` are one number in two files and a test asserts they agree; the importer's clamp warnings are the signal that the pinned row is unreachable (twelve of fourteen clamped in one run). Re-derive every `TRIM` range off the new sheets rather than carrying it over, and key the table by character — a range named `attack` reaches five bosses otherwise. SPRITES.md §4a, §7 |
 | Art style drifts between separately generated animations | Inconsistent character | Generate a character's animations in one batch. Regenerating a single animation from the same base image held style fine; a fresh batch weeks later is the untested case |
 | Hand-authoring 8 stages is the schedule | Slips M6 | Build stage 1 fully, then extract a gimmick-block library before stages 2–8 |
 | ~~Tileset art style clashes with the HD character~~ | ~~Looks like two games~~ | **Closed 2026-09-02.** Stage 1 was generated and judged against the player in `art_preview.tscn`: flat banded pixel terrain behind a smooth anti-aliased character reads as deliberate. 16 px tiles fit the 72 px grid exactly at 4.5×, and a per-node `TEXTURE_FILTER_NEAREST` keeps them crisp without touching the project default — SPRITES.md §8b |

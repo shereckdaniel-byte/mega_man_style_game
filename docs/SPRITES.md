@@ -185,6 +185,25 @@ the character never visibly slides — the exact bug the animation was generated
 speed is taken from the *source* frame count, so trimming changes which frames play,
 never how fast. The atlases stay exactly as downloaded; the selection is reviewable code.
 
+**`tools/contact_sheet.gd` is how a range gets chosen**, and it has two modes because
+setting a trim and checking one need different pictures: `raw=true` draws every source
+frame untrimmed, which is the only view that shows the frames a range has to choose
+*between*; the default draws the imported result with the character's ground line on it,
+which is what the game will show.
+
+**It is keyed by character, then by animation, and that is a bug fix.** The first version
+keyed on the animation name alone and got away with it only because every trimmed name —
+`slide`, `climb`, `walk_shoot`, `jump_shoot` — is one the player alone owns. `attack` is
+not: five bosses have one. Trimming the player's sword to its last eleven frames cut four
+bosses' attacks to the same window in the same run and made three of them clamp, with
+nothing in the output naming the player as the cause. A range is measured off one batch of
+one character's sheets, so it is stored against the character it was measured on.
+
+**A trim is not carried over a regeneration.** Every range in the table was re-derived from
+scratch when the player was replaced in M6l — measured off the new sheets' own frames, not
+adjusted from the old ones — because the previous ranges described choreography that no
+longer existed. Reusing them showed the wrong part of four moves and nothing errored.
+
 Two further things read off the real output:
 
 - **The clips are 2.042 s, not 2.333 s** (the `turbo` video tier emits a 2 s clip), so the
@@ -225,8 +244,8 @@ plays once).
 
 Three policy tables sit at the top of `autosprite_importer.gd` and are the only things
 that normally need editing: `NAME_MAP` (directory name → animation name), `LOOPING`, and
-`TRIM` (which frames of a clip to keep — see §4a). All three are plain data, so retuning
-an animation is a one-line change with no scene edits.
+`TRIM` (character → animation → which frames of a clip to keep, see §4a). All three are
+plain data, so retuning an animation is a one-line change with no scene edits.
 
 The importer also **normalises every animation's feet onto `BASELINE_ROW`** by measuring
 the alpha channel, which needs no configuration — see §7. That happens for every character
@@ -399,6 +418,42 @@ Glint kept a set of spidery landing legs nobody asked for and was **kept anyway*
 — a hovering drone with limbs reads fine, and §6a's warning is about scenery
 baked into a sprite and about the silhouette lying, not about every unrequested
 detail.
+
+### 6d. Replacing the player — M6l
+
+The player was the last character still drawn in the original 2026-09-02 style, and
+standing next to four bosses generated later it read as a different game's sprite. It was
+regenerated as **one batch of fourteen clips in the bosses' style**, which is §6a's rule
+applied to the one character it had never been applied to.
+
+Two of the fourteen came back wrong, and both were failure modes this document already
+names:
+
+- **`climb` had a ladder baked into the sprite** — §6a's exact case. The prompt said "climbs
+  a vertical ladder", which invites the generator to draw one; the level supplies its own.
+  The redo named the ladder in the negative and described the pose instead ("reaching
+  upward hand over hand, nothing in front of it"), and came back clean.
+- **`attack` was a cannon shot**, duplicating `idle_shoot`, because the request carried a
+  kind and no prompt and the base is a cannon-armed android — so the generator drew the
+  weapon it could see. The replacement is the better design and is not a workaround: **the
+  arm cannon unfolds into a blade.** The character has one weapon-bearing limb, so a sword
+  that is the cannon reconfigured needs no second weapon, no hand to hold it, and no
+  explanation for where it went between swings.
+
+Both were caught on a contact sheet before animating, per §6a — on the first sheet made by
+`tools/contact_sheet.gd`, which is new here. Two documents had been telling the reader to
+check a contact sheet for four milestones and neither the repo nor CI could produce one;
+every mistake they record was visible on a sheet and found somewhere more expensive.
+
+**Look at the sheet in the order the frames play, not just at the poses.** AutoSprite
+delivered `attack` with its *finished* stance in frames 0–13 and the transformation in
+14–24, so a glance at the sheet says "sword" while the untrimmed clip plays the move
+backwards — the blade is out, and then it is put away. `TRIM` is what fixes that, and §4a
+is where the ranges live.
+
+What the swap cost beyond the art is in §7: the pinned baseline row and four trim ranges
+were all measured off the old sheets and all of them were wrong for the new ones. Nothing
+errored; twelve of fourteen clamp warnings were the only signal.
 
 ### 8e. Stage 3's art, and a tileset that had to be recoloured rather than reprompted
 
@@ -579,7 +634,7 @@ ground, and would be dark against dark on any of the other three.
 | `world_scale` | 4.5 |
 | Tile | 72 px |
 | Character | 108 px (1.5 tiles, as in the original) |
-| Sprite draw scale | 0.61× from the 177 px source |
+| Sprite draw scale | 0.45× from the M6l player's 238 px source (0.61× from the 177 px batch before it) |
 | Filtering | **Linear**, snapping off, no integer scaling |
 
 The frame holds 26.7 × 15 tiles against the original's 16 × 14: vertical view is nearly
@@ -601,20 +656,23 @@ and prints the state and animation it actually captured.
 **The problem.** AutoSprite frames every clip independently, so the row the character
 stands on drifts between animations. Measured across the player's fourteen, the lowest
 opaque row ranged from **204 (`climb`) to 238 (`walk`)** — a 34 px spread in art that is
-supposed to share one ground line. Wave Man had the same spread, 205 to 212.
+supposed to share one ground line. Wave Man had the same spread, 205 to 212. The M6l
+player is framed differently and drifts further: **170 (`jump_shoot`, tucked) to 247**,
+which seven of its fourteen share.
 
 `AnimatedSprite2D` has a single `offset` for the whole node and no per-animation
 equivalent, so a scene can only ever compensate for one of them. `player.gd` compensates
-for `SOURCE_ART_BASELINE` = 223, measured from `idle`; every other animation was off by
-`(its baseline − 223) × 0.6102` world px. In the test room that was `walk` sinking 6 px
-into the floor and `slide` hovering **39 px** above it.
+for `SOURCE_ART_BASELINE`, measured from `idle`; every other animation was off by
+`(its baseline − SOURCE_ART_BASELINE) × 0.6102` world px. In the test room that was `walk`
+sinking 6 px into the floor and `slide` hovering **39 px** above it.
 
 Retuning `SOURCE_ART_BASELINE` cannot fix this — it is one number serving fourteen
 animations with fourteen different baselines, so moving it to suit `slide` buries `idle`.
 
 **The fix.** `AutoSpriteImporter` measures each animation's baseline from the alpha
-channel and shifts the art onto `BASELINE_ROW` (223, which must equal the scene's
-`SOURCE_ART_BASELINE` — a test asserts it). The shift is `AtlasTexture.margin.position.y`:
+channel and shifts the art onto `BASELINE_ROW` (**247** since M6l, and it must equal the
+scene's `SOURCE_ART_BASELINE` — a test asserts it). The shift is
+`AtlasTexture.margin.position.y`:
 
 - verified on 4.7 — with `margin.size` left at zero, `get_size()` stays the region size
   and only the drawn pixels move, so centring is untouched;
@@ -625,10 +683,24 @@ channel and shifts the art onto `BASELINE_ROW` (223, which must equal the scene'
 
 Drawn content **clips at the frame box**, so a shift larger than the transparent padding
 would slice pixels off the character. The importer measures the available padding and
-clamps, warning which animation was clamped and by how much. Nothing needed clamping for
-the current 22 animations.
+clamps, warning which animation was clamped and by how much, and records the clamped names
+on the resource so a test can tell "the art ran out of cell" from "this silently drifted".
 
-Result: every animation on both characters lands within 1 px of the ground line.
+**A row that most of a character's animations cannot reach is the real failure, and the
+clamp warning is what says so.** The 2026-09 roster arrived framed low in its cell — feet
+around row 247, single digits of padding underneath — so a single shared row stopped
+working: `_character_baseline` now targets the **median of each character's own** feet
+rows, which is by construction reachable, and only the player's is pinned (to
+`BASELINE_ROW`, because a scene constant depends on it). When the player was replaced in
+M6l the pinned row was still the old art's 223 and **twelve of fourteen clamped in one
+run**; the fix was to move `BASELINE_ROW` and `SOURCE_ART_BASELINE` together to the new
+art's median, 247, and to re-derive the two trims whose windows straddled a stance change
+(`attack`, `jump_shoot`) so their medians were honest. Nothing about the pipeline changed.
+
+Result: all fourteen player animations land on the ground line with no clamping. One clip
+each on Arc, Frost, Gale, Rust and Wave Man still clamps, and three on Cinder — a pose that
+ends flat on the floor has nowhere left to move — which is why the test bounds the
+*proportion* of a character's clips that clamp rather than forbidding it outright.
 
 ### Per-animation *size* drift — corrected in the scene
 
@@ -647,6 +719,11 @@ different scale in each one. Measured head-to-feet on the player:
 One scale factor applied to all of them reproduces that spread exactly: the character
 grows 15% on the walk and shrinks 13% when it stands still and fires — the two most common
 transitions in the game.
+
+The M6l player is drawn larger in the cell and the spread is narrower, but it is the same
+fault and the same size: `idle` **238**, `walk` 235, `idle_shoot` 230, `walk_shoot` 223,
+`hurt` 216, `climb` 214 — a 10% range across six poses that are all standing upright. The
+correction below is measured per import, so nothing about it needed changing.
 
 **Why the bounding box is the wrong ruler.** The obvious fix — scale each clip by its own
 bounding-box height — inverts the bug. A pose with a raised arm or a lifted weapon has a
@@ -683,12 +760,20 @@ are to regenerate its art or extend this scaling to `Enemy`, not to raise the bo
 
 ### A note on the unused clips
 
-`attack` **is now used** — it is the sword swing (docs/PLAN.md §2a). It turned out to be a
-dual-wield low guard stance rather than the two-handed lunge it was first described as,
-which is why the swing reads as planted and committed. Its head-to-feet height is 21% under
-`idle`, and that is correct posture rather than framing drift: the character really is
-crouched in that stance. It is deliberately **not** in `Player.UPRIGHT_ANIMS` for that
-reason — normalising it would stand the character up mid-swing.
+`attack` **is now used** — it is the sword swing (docs/PLAN.md §2a). Through M6k it was a
+dual-wield low guard stance, which is why the swing read as planted and committed. **M6l
+replaced it with the arm cannon unfolding into a blade**, which is the same commitment
+carried by the same limb the buster fires from: there is no second weapon to draw, so the
+swing cannot be mistaken for a different character. Its head-to-feet height is 19% under
+`idle`, and that is correct posture rather than framing drift — the character drops into a
+wide lunge for the sweep. It is deliberately **not** in `Player.UPRIGHT_ANIMS` for that
+reason: normalising it would stand the character up mid-swing.
+
+The trim matters more here than anywhere else in the table. AutoSprite delivered the clip
+with the *finished* pose first — thirteen near-identical frames of the blade already out —
+and the transformation itself in the last eleven. `TRIM["player"]["attack"] = [14, 24]`
+selects those: cannon lit, blade forms, blade sweeps down. Untrimmed, the move plays its
+own ending and then appears to put the sword away.
 
 `victory` and `teleport_out` are still never played. The player's states ask for `idle`,
 `walk`, `jump`, `slide`, `climb`, `hurt`, `death`, `attack`, `teleport_in` and the `_shoot`
