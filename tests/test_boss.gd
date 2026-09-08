@@ -215,6 +215,43 @@ func test_the_same_pattern_is_not_chosen_twice_running() -> void:
 			"%s ran twice in a row at index %d" % [seen[i], i])
 
 
+## The property `tools/playthrough.gd -- seed=<n>` rests on: the same seed gives
+## the same fight.
+##
+## `Boss._rng` calls `randomize()` in `_ready`, so unseeded the bot samples a
+## different fight every run -- Breakers came back 18 HP / 0 deaths and then
+## 28 / 1 within the hour on identical code. That spread is real and the bot
+## still shows it by default. A seed is for the other job: comparing two builds
+## that should behave the same, which is only meaningful if a seed actually pins
+## the sequence.
+func test_the_same_seed_gives_the_same_pattern_order() -> void:
+	var first := await _pattern_order(boss, 4242)
+	# Freed before the second runs, or it keeps fighting through the second's
+	# window and its list grows past the one being compared to it.
+	boss.queue_free()
+	await tree.physics_frame
+
+	var second_boss := TideScript.new() as Boss
+	second_boss.position = Vector2(600.0, FLOOR_TOP)
+	root.add_child(second_boss)
+	await _frames(2)
+	var second := await _pattern_order(second_boss, 4242)
+
+	assert_true(first.size() >= 2, "only %d patterns ran" % first.size())
+	assert_eq(first, second, "same seed, different fight: %s then %s"
+		% [str(first), str(second)])
+
+
+## The patterns one seeded boss runs, in order.
+func _pattern_order(subject: Boss, seed_value: int) -> Array[StringName]:
+	var seen: Array[StringName] = []
+	subject.pattern_started.connect(func(id: StringName) -> void: seen.append(id))
+	subject.seed_rng(seed_value)
+	subject.begin_fight()
+	await _frames(300)
+	return seen
+
+
 # --- Defeat ---------------------------------------------------------------------
 
 ## Death is a sequence, not a free(). A boss that vanished on the frame its last

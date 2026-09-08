@@ -3,6 +3,7 @@
 ##
 ##   godot --headless --script res://tools/playthrough.gd
 ##   godot --headless --script res://tools/playthrough.gd -- stage=substation
+##   godot --headless --script res://tools/playthrough.gd -- seed=1 stage=breakers
 ##   xvfb-run -a godot --script res://tools/playthrough.gd -- <out_dir>   # + a png
 ##
 ## **It advances on `physics_frame`, and that is not a detail.** It used to await
@@ -68,6 +69,11 @@ const STAGES := {
 	"mirror_field": "res://scenes/stages/mirror_field/mirror_field.tscn",
 }
 const DEFAULT_STAGE := "dawn_boardwalk"
+
+## Printed where a seed would go when none was given. Any integer is a valid
+## seed, including 0 and negatives, so absence is carried by its own flag rather
+## than by a magic value.
+const UNSEEDED_LABEL := "none"
 
 const DECK_ROW := 11
 const DECK_DEPTH := 2
@@ -158,10 +164,61 @@ var _climb_left := 0
 var _room_index := 0
 var _climbing_up := false
 var _log: PlaytestLog
+## `seed=` and whether it was given. See `_read_seed`.
+var _seed := 0
+var _seeded := false
 
 
 func _initialize() -> void:
 	_run()
+
+
+## `seed=<int>` from the arguments after `--`. Absent means unseeded.
+##
+## **The default is deliberately unseeded, and that is the whole design of this
+## option.** `Boss._rng` calls `randomize()` in `_ready`, so a fight is a
+## different fight on every run: Breakers came back 18 HP / 0 deaths and then
+## 28 / 1 within the hour on identical code, and Mirror Field 26 / 0, 23 / 0 and
+## 28 / 1. A single run is a sample. Seeding by default would hide that spread
+## behind one fight repeated forever, which is worse than knowing the number is
+## noisy -- `PlaytestLog.summary_line` has said so in a docstring since M5.
+##
+## What a seed is *for* is comparing two things that should be the same. The
+## boss-facing fix in M6m changed `sprite.flip_h`, which `Boss.facing()` reads,
+## so it could have moved the first pattern of every fight; seeded runs against
+## `main` came back frame-identical on all four stages, which is a fact no
+## number of unseeded runs could have established.
+##
+## Seeding the boss is enough to make a whole run deterministic. It is the only
+## `randomize()` in the game -- the stage backdrops seed their own generators
+## with a written-down constant, and no enemy uses randomness at all.
+func _read_seed() -> void:
+	for argument in OS.get_cmdline_user_args():
+		if not argument.begins_with("seed="):
+			continue
+		var text := argument.substr(5).strip_edges()
+		if not text.is_valid_int():
+			push_error("seed=%s is not an integer; running unseeded" % text)
+			return
+		_seed = text.to_int()
+		_seeded = true
+		return
+
+
+func _seed_label() -> String:
+	return str(_seed) if _seeded else UNSEEDED_LABEL
+
+
+## Pins the boss's pattern order, once the arena has built it.
+##
+## Called from the fight loop rather than at startup because the boss does not
+## exist until the arena spawns it, and `_ready` randomises. The arena spawns it
+## during the seal, well before `begin_fight` picks the first pattern.
+func _seed_boss(arena: BossArena) -> bool:
+	if not _seeded or arena.boss == null:
+		return false
+	arena.boss.seed_rng(_seed)
+	return true
 
 
 ## `stage=<name>` from the arguments after `--`, or the default.
@@ -183,7 +240,8 @@ func _requested_stage() -> String:
 func _run() -> void:
 	await physics_frame
 	var stage_name := _requested_stage()
-	print("stage: %s" % stage_name)
+	_read_seed()
+	print("stage: %s  seed: %s" % [stage_name, _seed_label()])
 	change_scene_to_file(STAGES[stage_name])
 	for i in 60:
 		await physics_frame
@@ -272,7 +330,10 @@ func _run() -> void:
 	_release()
 	for line in _log.report():
 		print(line)
-	print(_log.summary_line())
+	# The seed on the summary line as well as in the header, because the summary
+	# is the line that gets pasted into a document and the header is the one that
+	# scrolls away. A number quoted without its seed is not reproducible.
+	print("%s seed=%s" % [_log.summary_line(), _seed_label()])
 	# The screenshot needs something to have been drawn, so it is only offered
 	# when there is a display: `xvfb-run -a godot --script ... -- <out_dir>`.
 	# Headless it is skipped rather than saving a blank, which is what asking the
@@ -314,8 +375,13 @@ func _fight() -> bool:
 	arena.cleared.connect(func(_i: int, w: StringName) -> void: awarded.append(w))
 
 	var last_phase := -1
+	# Nothing to do when running unseeded, so the check is spent before the loop
+	# rather than asked once per frame for the length of a fight.
+	var seeded := not _seeded
 	for frame in FIGHT_FRAMES:
 		await physics_frame
+		if not seeded:
+			seeded = _seed_boss(arena)
 		if arena.phase != last_phase:
 			last_phase = arena.phase
 			print("  arena phase -> %s at fight frame %d" % [_phase_name(last_phase), frame])

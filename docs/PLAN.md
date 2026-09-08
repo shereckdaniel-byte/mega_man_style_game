@@ -1304,6 +1304,40 @@ a fix. Making it an option (`seed=`, defaulting to unseeded so real variance is
 still visible) is the obvious next step and is deliberately not in this
 milestone.
 
+### M6n — The bot can be pinned ✅ done
+
+One flag, and it is here because M6m needed it and borrowed it rather than
+shipping it.
+
+- ✅ **`tools/playthrough.gd -- seed=<int>`** pins `Boss._rng`, which is the
+  only `randomize()` in the game — the stage backdrops seed their own
+  generators with a written-down constant and no enemy uses randomness at
+  all — so one seed makes a whole run reproducible. The seed is printed in
+  the header **and on the `SUMMARY` line**, because the summary is what
+  gets pasted into a document and the header is what scrolls away.
+- ✅ **It is off by default, and that is the design.** Seeding by default
+  would replace a noisy number with one fight repeated forever, which is
+  worse than knowing the number is noisy;
+  `PlaytestLog.summary_line` has carried a docstring saying no single run
+  should be quoted as a stage's cost since M5, and it was right. What a
+  seed is *for* is comparing two builds that should behave the same — which
+  is exactly how M6m established that facing a boss during its entrance
+  moves no fight, a fact no number of unseeded runs could have shown.
+- ✅ **A test for the property the flag rests on.** `seed_rng` has existed
+  since M5 and two tests called it, but nothing asserted that the same seed
+  actually gives the same fight. It does now, by running two seeded bosses
+  and comparing the pattern order.
+
+**Accepted:** 476 tests green. `seed=7` on Breakers twice gives the same
+kill frame, the same HP and the same frame count; unseeded still varies.
+
+**Still open, and not a tooling problem:** the bot loses to Tide and Arc
+where M6k recorded wins. That was measured against the commit before the
+player art landed and reproduces there too, so it is not the art. With a
+seed it is now a question somebody can actually work on — pick a seed, watch
+the fight, change one number — rather than a figure that moves when you look
+at it again.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
