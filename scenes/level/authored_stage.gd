@@ -154,6 +154,7 @@ var _deck: TileMapLayer
 var _rooms: Array[Room] = []
 var _backdrop: Node2D
 var _log: PlaytestLog = null
+var _pause_menu: PauseMenu = null
 ## Cached `(band, world cell) -> true` for every hole a shaft opens. Built once
 ## from the table; see `_shaft_holes`.
 var _holes: Dictionary = {}
@@ -353,8 +354,9 @@ func _ready() -> void:
 	# upper one's sky. Driven from here because which band a room is in is the
 	# stage's fact, not the backdrop's.
 	room_changed.connect(_on_room_changed_backdrop)
-	_add_hud()
+	# The menu first: the HUD's menu button needs something to open.
 	_add_pause_menu()
+	_add_hud()
 	_add_playtest_log()
 	_add_overlay()
 	_player.game_over.connect(_on_game_over)
@@ -824,6 +826,8 @@ func _add_hud() -> void:
 	hud.name = "Hud"
 	add_child(hud)
 	hud.track(_player)
+	if _pause_menu != null:
+		hud.use_pause_menu(_pause_menu)
 	var arena_node := arena()
 	if arena_node != null:
 		arena_node.use_hud(hud)
@@ -835,6 +839,7 @@ func _add_pause_menu() -> void:
 	add_child(menu)
 	menu.bind(_player)
 	menu.restart_requested.connect(_restart_run)
+	_pause_menu = menu
 
 
 ## The playtest ledger, on for every run of every stage.

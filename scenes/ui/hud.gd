@@ -16,6 +16,11 @@ const MARGIN_NES := Vector2(12.0, 12.0)
 ## Gap between bars, in NES pixels.
 const BAR_GAP_NES := 10.0
 
+## The menu button's box, in NES pixels, and how far in from the top-right it
+## sits. Sized in NES px like the bars so it scales with everything else rather
+## than being a fixed pixel size that shrinks as the viewport grows.
+const MENU_BUTTON_NES := Vector2(46.0, 16.0)
+
 const WEAPON_FILL := Color(1.0, 0.82, 0.36)
 const BOSS_FILL := Color(1.0, 0.45, 0.42)
 
@@ -23,6 +28,8 @@ var energy: EnergyBar
 var weapon: EnergyBar
 var boss: EnergyBar
 var charge: ChargeBar
+## The on-screen way into the pause menu. See `use_pause_menu`.
+var menu_button: Button
 
 var _scale := 4.5
 var _weapons: Node = null
@@ -53,6 +60,8 @@ func _ready() -> void:
 		MARGIN_NES.y + EnergyBar.SEGMENT_NES.y * float(Health.BAR_TICKS) * 1.6) * _scale
 	add_child(charge)
 
+	_build_menu_button()
+
 	_weapons = get_node_or_null(^"/root/WeaponManager")
 	if _weapons != null:
 		_weapons.weapon_changed.connect(_on_weapon_changed)
@@ -81,6 +90,44 @@ func _physics_process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player) or charge == null:
 		return
 	charge.set_charge(_player.charge_fraction(), _player.charge_level())
+
+
+## Points the menu button at the pause menu, and shows it.
+##
+## **The button is hidden until something wires it up**, rather than being drawn
+## and doing nothing. A control that is visible and inert is worse than no
+## control: it reads as broken rather than as absent, which is the same argument
+## `PauseMenu.confirm` makes about a silent refusal.
+func use_pause_menu(menu: PauseMenu) -> void:
+	if menu_button == null:
+		return
+	menu_button.visible = true
+	menu_button.pressed.connect(menu.toggle)
+
+
+## The button in the top-right corner.
+##
+## `FOCUS_NONE` is not a detail. A focused Button in Godot activates on Space and
+## Enter, and this game binds Space to jump and Enter to pause -- so a button
+## that could take focus would turn the jump key into a second pause key the
+## moment anything clicked it.
+##
+## `PROCESS_MODE_ALWAYS` so it keeps working while the tree is paused. The menu
+## panel covers it at layer 40, so in practice this matters for the frame the
+## menu is closing on rather than for reaching the button underneath.
+func _build_menu_button() -> void:
+	menu_button = Button.new()
+	menu_button.name = "MenuButton"
+	menu_button.text = "MENU"
+	menu_button.focus_mode = Control.FOCUS_NONE
+	menu_button.process_mode = Node.PROCESS_MODE_ALWAYS
+	menu_button.visible = false
+	menu_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	menu_button.size = MENU_BUTTON_NES * _scale
+	menu_button.position = Vector2(
+		-(MENU_BUTTON_NES.x + MARGIN_NES.x) * _scale, MARGIN_NES.y * _scale)
+	menu_button.add_theme_font_size_override(&"font_size", int(6.0 * _scale))
+	add_child(menu_button)
 
 
 ## Shows the boss bar and fills it from empty, which is the intro beat.

@@ -73,6 +73,28 @@ func test_a_trim_does_not_reach_another_character() -> void:
 			"%s's attack keeps every frame" % boss)
 
 
+## A looping animation must not be trimmed.
+##
+## **This is the rule the climb broke.** A trim picks the frames a *move* lives
+## in, and that is right for a one-shot: a slide, a swing, a jump-shoot each have
+## a moment worth showing and a wind-up and recovery worth cutting. A loop has no
+## moment -- it has a cycle, and cutting a cycle down leaves the loop replaying
+## an arc of it. `climb` was trimmed to its last six frames, which are the top of
+## the reach with the arms already up, so a player on a ladder saw the arms hold
+## still and reported that climbing had no animation at all. Untrimmed it is one
+## full sweep, up to down and back, and it loops because the first and last
+## frames are the same pose.
+##
+## Written as a rule rather than as a note about `climb`, because the next batch
+## will have a `run` in it.
+func test_a_looping_animation_is_not_trimmed() -> void:
+	for character: String in AutoSpriteImporter.TRIM:
+		for anim_name: String in AutoSpriteImporter.TRIM[character]:
+			assert_false(AutoSpriteImporter.LOOPING.has(anim_name),
+				"%s/%s loops, so a trim leaves it replaying part of a cycle"
+					% [character, anim_name])
+
+
 ## A clip shorter than its trim range must clamp rather than crash or come back
 ## empty, so a regenerated animation with fewer frames still imports.
 func test_trim_clamps_to_a_short_clip() -> void:

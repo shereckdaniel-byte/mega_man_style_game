@@ -160,6 +160,12 @@ func begin_intro(floor_position: Vector2, p_target: Node2D = null) -> void:
 	_phase_frames = 0
 	_landed_frames = 0
 	velocity = Vector2.ZERO
+	# Face the player before the beam is drawn, not when the fight starts.
+	# Sprites are authored right-facing, so a boss that only turns in FIGHTING
+	# spends its whole entrance and the entire bar fill with its back to a player
+	# who -- in every arena in the game -- came in from the left. That is several
+	# seconds of the boss's one entrance, looking away.
+	_face_target()
 
 
 ## Called by the arena once the energy bar has finished filling.
@@ -209,9 +215,14 @@ func _physics_process(delta: float) -> void:
 		Phase.DORMANT:
 			return
 		Phase.ENTERING:
+			_face_target()
 			_process_entrance(delta)
 		Phase.POSING:
 			health.tick()
+			# Kept up through the pose as well: the player is free to move while
+			# the bar fills, and a boss frozen mid-turn reads as a bug rather
+			# than as a boss holding still.
+			_face_target()
 			_apply_gravity(delta)
 			move_and_slide()
 		Phase.FIGHTING:

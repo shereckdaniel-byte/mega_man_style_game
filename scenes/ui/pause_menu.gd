@@ -39,6 +39,44 @@ const ETANK_ROW := &"__etank"
 ## front end, or stay: plenty of modern releases keep one.
 const RESTART_ROW := &"__restart"
 
+## And a resume row last, which exists because the HUD grew a menu button.
+##
+## Opening the menu with the mouse and then having no way out of it with the
+## mouse is not a menu, it is a trap. The pause key still closes it and always
+## did; this is the visible half of that, for a player who found the menu by
+## clicking rather than by reading a key binding.
+const RESUME_ROW := &"__resume"
+
+## What each binding is *for*, in display order.
+##
+## The keys themselves are **not** in this table -- they are read from the live
+## `InputMap` (see `control_lines`), so this list cannot drift out of step with
+## the bindings the way a hand-written key list would. What a human has to write
+## down is the part the engine does not know: which action is "fire" and which
+## is "change weapon".
+##
+## `slide` is the interesting row. It is deliberately not an action -- it is
+## down plus jump, as in Mega Man 3 (see `tools/bootstrap_input_map.gd`) -- so it
+## has no InputMap entry to read and is spelled out from the two actions that
+## make it. A controls screen that lists only the actions would leave out the
+## one move nobody guesses.
+## `primary_only` keeps just the first key bound to each action, and exists for
+## exactly one row: "DOWN / S + Z / SPACE" is not a control, it is a puzzle.
+## Where two actions are combined, the alternates are noise.
+const CONTROL_ROWS: Array[Dictionary] = [
+	{"label": "MOVE", "actions": [&"move_left", &"move_right"]},
+	{"label": "CLIMB", "actions": [&"move_up", &"move_down"]},
+	{"label": "JUMP", "actions": [&"jump"]},
+	{"label": "SLIDE", "actions": [&"move_down", &"jump"], "joiner": " + ",
+		"primary_only": true},
+	{"label": "FIRE", "actions": [&"shoot"]},
+	{"label": "SWORD", "actions": [&"melee"]},
+	{"label": "CHANGE WEAPON", "actions": [&"weapon_prev", &"weapon_next"],
+		"joiner": ", "},
+	{"label": "THIS MENU", "actions": [&"pause"]},
+	{"label": "LEDGER", "actions": [&"debug_overlay"]},
+]
+
 var is_open := false
 ## Row ids in display order: the unlocked weapon ids, then ETANK_ROW.
 var rows: Array[StringName] = []
@@ -132,6 +170,9 @@ func confirm() -> bool:
 		else:
 			_report("ALREADY AT FULL HEALTH")
 		return used
+	if row == RESUME_ROW:
+		close()
+		return true
 	if row == RESTART_ROW:
 		# Closed first: the stage is about to be rebuilt underneath this menu,
 		# and a menu left open would keep the tree paused with nothing to
@@ -147,6 +188,62 @@ func confirm() -> bool:
 	_report("%s EQUIPPED" % _row_text(row).strip_edges().to_upper())
 	_redraw_rows()
 	return true
+
+
+## The controls, as "LABEL" / "KEYS" pairs, in `CONTROL_ROWS` order.
+##
+## **The keys come from the live `InputMap`, not from a list in this file.** A
+## hand-written controls screen is a second copy of the bindings, and the copy is
+## the one that goes stale -- `melee` spent two milestones bound in
+## `project.godot` and absent from the generator that is supposed to own the
+## bindings, and nothing noticed. Reading the map means this screen is wrong only
+## if the game is wrong.
+##
+## Keyboard only, deliberately. Every action is also on the pad, but printing
+## both doubles the width of every row to tell a player holding a controller
+## something the buttons already tell them.
+func control_lines() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for spec in CONTROL_ROWS:
+		var joiner: String = spec.get("joiner", "   ")
+		var primary_only: bool = spec.get("primary_only", false)
+		var parts: Array[String] = []
+		for action: StringName in spec["actions"]:
+			var keys := _keys_for(action, primary_only)
+			if keys != "":
+				parts.append(keys)
+		if parts.is_empty():
+			# An action nothing is bound to is left out rather than listed
+			# blank: a controls screen naming a key you do not have is worse
+			# than one that is short.
+			continue
+		out.append({"label": String(spec["label"]), "keys": joiner.join(parts)})
+	return out
+
+
+## Every keyboard key bound to one action, as "Z, SPACE", or just the first when
+## `primary_only`.
+##
+## A comma rather than a slash separates the alternates, because a slash is what
+## a reader takes for "one or the other of two *different* controls" once there
+## are two actions on the same row.
+func _keys_for(action: StringName, primary_only: bool = false) -> String:
+	if not InputMap.has_action(action):
+		return ""
+	var names: Array[String] = []
+	for event in InputMap.action_get_events(action):
+		var key := event as InputEventKey
+		if key == null:
+			continue
+		# Bindings are stored as physical keycodes so they follow the key's
+		# position on any layout; that is also the one that has a name here.
+		var code := key.physical_keycode if key.physical_keycode != 0 else key.keycode
+		var text := OS.get_keycode_string(code).to_upper()
+		if text != "" and not names.has(text):
+			names.append(text)
+		if primary_only and not names.is_empty():
+			break
+	return ", ".join(names)
 
 
 ## Shows one line of feedback under the rows until the next confirm.
@@ -230,6 +327,54 @@ func _build() -> void:
 	_status.add_theme_font_size_override(&"font_size", 26)
 	box.add_child(_status)
 
+	_build_controls(box)
+
+
+## The controls block under the weapon rows.
+##
+## Dimmer and smaller than the rows above it, because it is reference rather
+## than choice: the rows are things you press this screen to do, and this is a
+## list you read once and then stop seeing. Drawn as a grid so the keys line up
+## in a column -- ragged keys are what makes a printed control list hard to scan.
+func _build_controls(into: VBoxContainer) -> void:
+	var lines := control_lines()
+	if lines.is_empty():
+		return
+
+	var heading := Label.new()
+	heading.name = "ControlsHeading"
+	heading.text = "CONTROLS"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_color_override(&"font_color", DIM_COLOUR)
+	heading.add_theme_font_size_override(&"font_size", 26)
+	into.add_child(heading)
+
+	var grid := GridContainer.new()
+	grid.name = "Controls"
+	grid.columns = 2
+	grid.add_theme_constant_override(&"h_separation", 40)
+	grid.add_theme_constant_override(&"v_separation", 4)
+	# Centred as a block: a left-aligned grid inside a centred column would sit
+	# against the screen's left edge with the menu floating in the middle.
+	var centre := HBoxContainer.new()
+	centre.alignment = BoxContainer.ALIGNMENT_CENTER
+	centre.add_child(grid)
+	into.add_child(centre)
+
+	for line in lines:
+		var label := Label.new()
+		label.text = String(line["label"])
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		label.add_theme_color_override(&"font_color", DIM_COLOUR)
+		label.add_theme_font_size_override(&"font_size", 22)
+		grid.add_child(label)
+
+		var keys := Label.new()
+		keys.text = String(line["keys"])
+		keys.add_theme_color_override(&"font_color", ROW_COLOUR)
+		keys.add_theme_font_size_override(&"font_size", 22)
+		grid.add_child(keys)
+
 
 func _refresh_rows() -> void:
 	rows.clear()
@@ -238,6 +383,7 @@ func _refresh_rows() -> void:
 			rows.append(id)
 	rows.append(ETANK_ROW)
 	rows.append(RESTART_ROW)
+	rows.append(RESUME_ROW)
 	# Open on whatever is equipped, so the common case -- open, switch back,
 	# close -- does not start by hunting for the cursor.
 	if _weapons != null:
@@ -276,6 +422,8 @@ func _redraw_rows() -> void:
 
 
 func _row_text(id: StringName) -> String:
+	if id == RESUME_ROW:
+		return "RESUME"
 	if id == RESTART_ROW:
 		return "RESTART STAGE"
 	if id == ETANK_ROW:
@@ -293,7 +441,7 @@ func _row_text(id: StringName) -> String:
 
 
 func _row_available(id: StringName) -> bool:
-	if id == RESTART_ROW:
+	if id == RESUME_ROW or id == RESTART_ROW:
 		return true
 	if id == ETANK_ROW:
 		return _state != null and _state.etanks > 0

@@ -204,6 +204,15 @@ scratch when the player was replaced in M6l — measured off the new sheets' own
 adjusted from the old ones — because the previous ranges described choreography that no
 longer existed. Reusing them showed the wrong part of four moves and nothing errored.
 
+**A looping animation is not trimmed at all**, and `tests/test_sprite_frames.gd` asserts it.
+A trim picks the frames a *move* lives in, which is right for a one-shot: a slide, a swing
+and a jump-shoot each have a moment worth showing and a wind-up worth cutting. A loop has
+no moment — it has a cycle, and cutting the cycle down leaves the loop replaying an arc of
+it. `climb` shipped trimmed to its last six frames, the top of the reach with the arms
+already up, and the first thing a playtester said about a ladder was that climbing had no
+animation. Untrimmed it is one sweep, arms up to arms down and back, and it loops cleanly
+because the first and last frames are the same pose.
+
 Two further things read off the real output:
 
 - **The clips are 2.042 s, not 2.333 s** (the `turbo` video tier emits a 2 s clip), so the
@@ -454,6 +463,14 @@ is where the ranges live.
 What the swap cost beyond the art is in §7: the pinned baseline row and four trim ranges
 were all measured off the old sheets and all of them were wrong for the new ones. Nothing
 errored; twelve of fourteen clamp warnings were the only signal.
+
+**One of those four ranges was still wrong after that pass, and a player found it.** The
+new `climb` was trimmed to its last six frames — a stable band, chosen off measurements,
+and the arms are already up in all six. On a ladder that reads as no animation at all,
+which is what came back from the first person to climb one. The clip is a full reach cycle
+and wanted no trim; the rule that came out of it is above, in §4a. Worth naming plainly:
+the contact sheet was made and looked at, and a still sheet of six similar poses does not
+say "this will look frozen" the way ten seconds on a ladder does.
 
 ### 8e. Stage 3's art, and a tileset that had to be recoloured rather than reprompted
 

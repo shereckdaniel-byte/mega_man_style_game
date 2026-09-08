@@ -60,6 +60,31 @@ func test_a_boss_lands_on_the_floor_rather_than_through_it() -> void:
 		"boss ended at y=%.0f, floor is %.0f" % [boss.global_position.y, FLOOR_TOP])
 
 
+## The boss must face the player from the first frame of the entrance, not from
+## the first frame of the fight.
+##
+## Sprites are authored right-facing and `_face_target` only ran in FIGHTING, so
+## a boss spent its beam, its landing and the whole bar fill turned away from a
+## player who -- in every arena in the game -- arrives from the left. Several
+## seconds of the one moment the boss is meant to be looked at.
+func test_a_boss_faces_the_player_through_its_entrance() -> void:
+	var watcher := Node2D.new()
+	root.add_child(watcher)
+	# To the boss's left, which is where the arena door is.
+	watcher.global_position = Vector2(boss.global_position.x - 400.0, FLOOR_TOP)
+	boss.begin_intro(Vector2(600.0, FLOOR_TOP), watcher)
+	assert_eq(boss.facing(), -1, "the boss starts its entrance facing away")
+	await _frames(4)
+	assert_eq(boss.facing(), -1, "the boss turned away during the beam")
+	await _frames(INTRO_FRAMES)
+	assert_eq(boss.facing(), -1, "the boss turned away while the bar filled")
+
+	# And it tracks: a player who crosses during the pose is still faced.
+	watcher.global_position = Vector2(boss.global_position.x + 400.0, FLOOR_TOP)
+	await _frames(2)
+	assert_eq(boss.facing(), 1, "the boss did not follow the player past it")
+
+
 ## Tide fought through the whole of M5 as an invisible box, because nothing
 ## assigned its sprite frames and nothing checked. The fight worked, the tests
 ## passed and the playthrough won -- a boss with no art is not a broken boss to

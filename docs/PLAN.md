@@ -1236,6 +1236,74 @@ fight on every run and a single run is a sample, not a result — Prism came bac
 and Arc have drifted out of reach or the bot is simply losing coin flips it used
 to win is a question for repeated runs and a human, not for this milestone.
 
+### M6m — Four things a player noticed ✅ done
+
+The first session with the new player art, and every item here came from
+somebody playing rather than from a test. Worth saying plainly: three of the
+four were invisible to a green suite, and two of them were *created* by the
+milestone before this one.
+
+- ✅ **A `MENU` button on screen.** The pause menu has always existed and has
+  always been opened by a key nothing on screen mentions. A key binding is not a
+  control if the only place it is written down is the README, so there is now a
+  button in the top-right corner. It is hidden until a stage wires it to a menu:
+  a visible control that does nothing reads as broken rather than as absent,
+  which is the same argument `PauseMenu.confirm`'s status line already makes.
+- ✅ **The menu lists the controls**, generated from the live `InputMap` rather
+  than written out. A hand-written control screen is a second copy of the
+  bindings and the copy is the one that goes stale — `melee` spent two
+  milestones bound in `project.godot` and missing from the generator that owns
+  the bindings, and nothing noticed. Reading the map means the screen is wrong
+  only if the game is wrong. `slide` is the one row spelled out by hand, because
+  it is deliberately not an action (down + jump, as in Mega Man 3) and a list
+  built only from actions would omit the one move nobody guesses.
+- ✅ **A `RESUME` row**, which the button made necessary. Opening a screen by
+  clicking and then having no way out of it by clicking is a trap, not a menu.
+- ✅ **The climb was frozen**, and M6l froze it. `climb` was trimmed to its last
+  six frames — a stable band, picked off measurements, in which the arms are
+  already up. On a ladder that is no animation at all. The clip is a full reach
+  cycle and wanted no trim, and the rule that came out of it is now asserted:
+  **a looping animation is never trimmed.** A trim picks the frames a move lives
+  in, which is right for a one-shot; a loop has no moment, it has a cycle, and
+  cutting the cycle leaves the loop replaying an arc of it.
+- ✅ **Bosses faced away through their own entrance.** `_face_target` ran only in
+  `FIGHTING`, and sprites are authored right-facing, so a boss spent its beam,
+  its landing and the entire bar fill turned away from a player who — in every
+  arena in the game — arrives from the left. Several seconds of the one moment
+  the boss is meant to be looked at. It now faces the target from the first
+  frame of `begin_intro` and keeps facing through `ENTERING` and `POSING`.
+
+**On the two that M6l caused:** both were visible on the contact sheet and
+neither was caught there. Six similar poses in a still grid do not say "this will
+look frozen" the way ten seconds on a ladder does, and a facing bug does not
+appear in a sheet at all. The tool is still worth having — it caught a ladder
+baked into a sprite and an attack that was the wrong move — but §6a's rule is
+"look before you animate", not "looking replaces playing".
+
+**Accepted:** 475 tests green. The boss fix is covered by a test verified against
+the bug (it fails without the change and names the entrance); the climb by an
+invariant over `TRIM` and `LOOPING` rather than by a pixel measurement, because
+what makes a clip read as motion is not something a test can judge; the menu
+button and the control list by driving them the way a player does.
+
+**The boss fix is fight-neutral, and this is the run that says so rather than an
+argument that it should be.** Turning during the entrance changes `sprite.flip_h`
+and `Boss.facing()` reads from it, so the change *could* have moved the first
+pattern of every fight. Seeding `Boss._rng` from the bot (`seed_rng` has been
+there since M5 for exactly this) and running all four stages against `main` gives
+**frame-identical** results on all four — same deaths, same HP, same frame
+counts. Facing only ever changes in `ENTERING` and `POSING`, where no pattern
+runs, and `FIGHTING` re-faces every frame regardless.
+
+The same run settles M6l's open question. Unseeded, Breakers came back 18 HP /
+0 deaths and then 28 / 1 within the hour, and Mirror Field 26 / 0, 23 / 0 and
+28 / 1 — **on identical code**. A single bot run is a coin flip, not a
+measurement, and the M6k note that the bot "wins Tide, Arc and Rust buster-only"
+was reading one. Nothing here changes the bot; the seeding was an instrument, not
+a fix. Making it an option (`seed=`, defaulting to unseeded so real variance is
+still visible) is the obvious next step and is deliberately not in this
+milestone.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the
