@@ -1338,6 +1338,75 @@ seed it is now a question somebody can actually work on — pick a seed, watch
 the fight, change one number — rather than a figure that moves when you look
 at it again.
 
+### M6o — Item drops ✅ done
+
+Nothing in the game called `GameState.add_etank()`. The E-TANK row we had just
+put a controls list next to could only ever read `x0`, there was no way to
+recover a single hit point inside a stage, and spent weapon ammo was gone until
+you died. That made the game harder than the design intends **in a way nobody
+chose**, which is the worst kind of difficulty — ARCHITECTURE §5.3 has specified
+"small health pickup 2, large 10" since M0 and §5.5 says the respawn rule "is
+what makes farming health drops possible", a sentence about a feature that did
+not exist.
+
+- ✅ **`Pickup`** — health, weapon energy, a life and an E-tank, on the `pickup`
+  layer that ARCHITECTURE §4 reserved at M0 and nothing had used since. It falls,
+  because half the archetypes fly or hop and a capsule left hanging where a
+  Gullbot was shot is unreachable about as often as it is convenient. It is on
+  **collision layer 0** — it collides with the world without anything colliding
+  with it, so a capsule can never block a jump. And it expires, blinking first:
+  a room that accumulates every capsule ever dropped stops reading as a room,
+  and the blink is the fair-warning half, the same thing `PhaseBlock`'s warn
+  frames are.
+- ✅ **A capsule that cannot be used is refused, not consumed.** Health at full
+  health, weapon energy on the buster or on a full weapon — it stays on the floor
+  for when it is worth something. That is `PauseMenu.use_etank`'s decision about
+  spending a tank at full health, applied to the other end of the transaction.
+  The E-tank capsule is the deliberate exception: a tank is *banked* rather than
+  spent, so it is taken at full health.
+- ✅ **Four silhouettes, not four colours.** Health a square, weapon energy a flat
+  bar, a life a disc, an E-tank a tall canister; size says small or large. Six
+  items told apart only by hue would have undone what `PhaseBlock` was careful
+  about one system earlier — "a shape difference rather than a colour one, which
+  is a down-payment on the colourblind palette M8 names".
+- ✅ **A weighted table, written as percentages.** 55% of kills leave nothing;
+  the two large capsules together are one kill in nine. The numbers sum to 100 so
+  the drop rate can be read without arithmetic, and a test asserts they still do.
+  It is an `@export` on `Enemy` rather than the `EnemyData` resource
+  ARCHITECTURE pencilled in — `resources/enemies/` is empty and every other
+  per-enemy number is an export, so a resource layer for one field would be a
+  second way to configure an enemy rather than a better one.
+- ✅ **The roll is seedable, because M6n's promise depended on it.** `seed=`
+  claims a reproducible run, and it could only deliver that by pinning every
+  source of randomness the run touches. Drops are the second one; a per-enemy
+  RNG would have been randomly seeded by each of the dozens a stage spawns, with
+  nowhere for the bot to reach them, so the RNG is `static` on `Enemy`. Adding a
+  third source later and not wiring it in would fail nothing — runs would simply
+  stop reproducing, quietly — so both halves are asserted.
+
+**The bot found the bug the tests could not.** A capsule is dropped from
+`Enemy._on_died`, which runs inside a `Hitbox` area callback — while the physics
+server is flushing queries — and `_ready` builds two collision shapes there. The
+server refuses to set each new shape's flags in that window and says so, **nine
+errors per capsule**. Every test passed: they all drop capsules from test code,
+which is not inside a physics callback. The playthrough bot killed one enemy.
+
+Measured rather than assumed, because the obvious conclusion is wrong: the
+refused flags default to what they were being set to, so the capsule works
+either way and reverting the fix still passes the whole suite. What it costs is
+a console printing nine errors per death, which is how a real error goes
+unnoticed. The fix is a deferred `add_child`; the test added alongside it covers
+the kill-to-landing path and is honest about **not** catching that particular
+fault.
+
+**Accepted:** 492 tests green, no engine errors in a full bot run, and all six
+capsule kinds looked at in the engine rather than in a test.
+
+**Still open:** the drop rates are playtest numbers. 55/20/12/7/4/1/1 is a guess
+shaped by the original's feel, and the E-tank's 1% is the one that matters most
+because a tank persists across stages. This is exactly the sort of question
+M5b's playtest is for.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the

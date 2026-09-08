@@ -189,9 +189,14 @@ func _initialize() -> void:
 ## `main` came back frame-identical on all four stages, which is a fact no
 ## number of unseeded runs could have established.
 ##
-## Seeding the boss is enough to make a whole run deterministic. It is the only
-## `randomize()` in the game -- the stage backdrops seed their own generators
-## with a written-down constant, and no enemy uses randomness at all.
+## **Every source of randomness the run touches has to be seeded, or the promise
+## is a lie.** There are two: `Boss._rng` picks the pattern order, and
+## `Enemy._drop_rng` rolls what a killed enemy leaves behind. The stage backdrops
+## seed their own generators with a written-down constant and nothing else in the
+## game is random. A third one added later and not wired in here would not fail
+## anything -- runs would simply stop reproducing, quietly -- so
+## `tests/test_pickups.gd` asserts the drop half and `tests/test_boss.gd` the
+## pattern half.
 func _read_seed() -> void:
 	for argument in OS.get_cmdline_user_args():
 		if not argument.begins_with("seed="):
@@ -241,6 +246,10 @@ func _run() -> void:
 	await physics_frame
 	var stage_name := _requested_stage()
 	_read_seed()
+	# Drops are seeded before the stage loads, because the first enemy can die
+	# before the fight loop -- which is where the boss gets seeded -- ever runs.
+	if _seeded:
+		Enemy.seed_drops(_seed)
 	print("stage: %s  seed: %s" % [stage_name, _seed_label()])
 	change_scene_to_file(STAGES[stage_name])
 	for i in 60:

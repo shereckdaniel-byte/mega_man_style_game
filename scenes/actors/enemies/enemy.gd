@@ -24,6 +24,17 @@ signal died(enemy: Enemy)
 ## (ARCHITECTURE section 5.5).
 @export var persistent: bool = false
 
+## What this enemy leaves behind, as `Pickup.Kind -> weight` plus `NO_DROP`.
+## Empty means `DEFAULT_DROPS`; a subclass or a marker can override it.
+##
+## Not an `EnemyData` resource, which is what ARCHITECTURE section 3 pencilled
+## in. `resources/enemies/` is empty and every other per-enemy number here --
+## hp, contact damage, art, gravity -- is an export on this class, so a drop
+## table is one too. Building a resource layer for one field, for the
+## twenty-four enemies that currently exist, would be a second way to configure
+## an enemy rather than a better one.
+@export var drops: Dictionary = {}
+
 ## Art for this enemy, from resources/sprite_frames. Optional: the archetype
 ## tests run without it, and a grey box is a valid placeholder while a stage is
 ## being laid out.
@@ -48,6 +59,41 @@ var tuning: PlayerTuning
 var spawn_marker: Node = null
 
 var _dead := false
+
+## The key for "this enemy left nothing", which most kills do. `Pickup.Kind` is
+## an enum of non-negative ints, so -1 cannot collide with a real kind.
+const NO_DROP := -1
+
+## The shared drop table, **as percentages** -- the weights sum to 100 on
+## purpose, so a reader can see the drop rate without adding anything up.
+##
+## The point of drops is to make attrition recoverable, not to remove it: 55%
+## of kills leave nothing, and the two large capsules together are one kill in
+## nine. The E-tank is what those numbers are really tuned around -- at 1% a
+## stage's worth of enemies is a coin flip for one, which is roughly the
+## original's rate and, unlike everything else here, it *persists across
+## stages*. These are playtest numbers and expected to move; they are written as
+## percentages so moving them needs no arithmetic.
+const DEFAULT_DROPS := {
+	NO_DROP: 55,
+	Pickup.Kind.HEALTH_SMALL: 20,
+	Pickup.Kind.AMMO_SMALL: 12,
+	Pickup.Kind.HEALTH_LARGE: 7,
+	Pickup.Kind.AMMO_LARGE: 4,
+	Pickup.Kind.ONE_UP: 1,
+	Pickup.Kind.ETANK: 1,
+}
+
+## One RNG for every enemy in the run, so a drop roll can be pinned.
+##
+## **It is shared and static because the alternative breaks the playthrough
+## bot.** `tools/playthrough.gd -- seed=<n>` promises a reproducible run, and it
+## can only deliver that by seeding every source of randomness the run touches.
+## A per-enemy RNG would be created fresh -- and randomly seeded -- by each of
+## the dozens of enemies a stage spawns, with nowhere for the bot to reach them.
+## `RandomNumberGenerator` randomises its own seed on construction, so unseeded
+## this is as random as anything else; `seed_drops` is what pins it.
+static var _drop_rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -109,6 +155,9 @@ func _on_died(_info: DamageInfo) -> void:
 	var level := get_parent()
 	if level != null:
 		DeathExplosion.burst(level, global_position)
+		var dropped := roll_drop()
+		if dropped != NO_DROP:
+			Pickup.drop(level, global_position, dropped as Pickup.Kind)
 	# A killed enemy does NOT re-arm its marker: re-arming on death would let a
 	# player farm one enemy by standing still, where the original requires
 	# scrolling it off screen and back. The marker has to be TOLD, because it
@@ -119,6 +168,37 @@ func _on_died(_info: DamageInfo) -> void:
 		spawn_marker.mark_spent()
 	died.emit(self)
 	queue_free()
+
+
+## Pins every enemy's drop roll for the rest of the run. See `_drop_rng`.
+static func seed_drops(seed_value: int) -> void:
+	_drop_rng.seed = seed_value
+
+
+## The table this enemy rolls on.
+func drop_table() -> Dictionary:
+	return drops if not drops.is_empty() else DEFAULT_DROPS
+
+
+## Rolls one drop, returning `NO_DROP` or a `Pickup.Kind`.
+##
+## Weights are summed rather than assumed to total 100, so an override that does
+## not add up still behaves -- a table is a set of relative weights and only
+## reads as percentages because the default happens to sum to a hundred.
+func roll_drop() -> int:
+	var table := drop_table()
+	var total := 0
+	for weight: int in table.values():
+		total += maxi(weight, 0)
+	if total <= 0:
+		return NO_DROP
+	var roll := _drop_rng.randi_range(0, total - 1)
+	for key: int in table:
+		var weight: int = maxi(table[key], 0)
+		if roll < weight:
+			return key
+		roll -= weight
+	return NO_DROP
 
 
 ## Scales the art from what it actually measures rather than from a constant.
