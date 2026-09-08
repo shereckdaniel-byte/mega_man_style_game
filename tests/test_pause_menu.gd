@@ -12,6 +12,7 @@ extends TestCase
 
 const PLAYER_SCENE := preload("res://scenes/actors/player/player.tscn")
 const PauseMenuScript := preload("res://scenes/ui/pause_menu.gd")
+const HudScript := preload("res://scenes/ui/hud.gd")
 
 var root: Node2D
 var menu: PauseMenu
@@ -68,16 +69,84 @@ func test_opening_pauses_the_tree_and_closing_releases_it() -> void:
 	assert_false(tree.paused, "the menu closed and left the tree paused")
 
 
-## With nothing unlocked the list is the buster, the E-tank row and restart --
-## the state a new game is in, so the one most likely to be hit.
+## The HUD's way into this menu.
+##
+## The menu has always been openable, by a key a player has no way of guessing
+## and nothing on screen to suggest. A button is the discoverable half, and it is
+## hidden until it is wired: a visible control that does nothing reads as broken
+## rather than as absent.
+func test_the_huds_menu_button_opens_the_menu() -> void:
+	var hud := HudScript.new()
+	root.add_child(hud)
+	await tree.physics_frame
+	assert_not_null(hud.menu_button, "the HUD built no menu button")
+	assert_false(hud.menu_button.visible, "the button is shown before it is wired")
+
+	hud.use_pause_menu(menu)
+	assert_true(hud.menu_button.visible, "the button stayed hidden after wiring")
+	# Space and Enter activate a focused Button in Godot, and this game binds
+	# them to jump and pause. A button that could take focus would turn the jump
+	# key into a second pause key the moment anything clicked it.
+	assert_eq(hud.menu_button.focus_mode, Control.FOCUS_NONE,
+		"the menu button can take keyboard focus")
+
+	hud.menu_button.pressed.emit()
+	assert_true(menu.is_open, "pressing the button did not open the menu")
+	hud.menu_button.pressed.emit()
+	assert_false(menu.is_open, "pressing the button again did not close it")
+
+
+## The menu can be left without touching the keyboard, which is the whole reason
+## the HUD's menu button is safe to add: opening a screen by clicking and then
+## having no way out of it by clicking is a trap, not a menu.
+func test_resume_closes_the_menu_and_unpauses() -> void:
+	menu.open()
+	menu.selected = menu.rows.find(PauseMenu.RESUME_ROW)
+	assert_true(menu.selected >= 0, "no resume row")
+	assert_true(menu.confirm())
+	assert_false(menu.is_open, "the menu stayed open")
+	assert_false(tree.paused, "the tree stayed paused")
+
+
+## The controls list is generated from the live `InputMap`, so it cannot drift
+## out of step with the bindings the way a hand-written list would. This asserts
+## the reading, not the layout: every listed row names a real key.
+func test_the_controls_list_reads_the_real_bindings() -> void:
+	var lines := menu.control_lines()
+	assert_true(lines.size() >= 6, "only %d control rows" % lines.size())
+	for line in lines:
+		assert_true(String(line["label"]) != "", "a control row has no label")
+		assert_true(String(line["keys"]) != "",
+			"%s lists no key" % line["label"])
+
+	var by_label: Dictionary = {}
+	for line in lines:
+		by_label[String(line["label"])] = String(line["keys"])
+	assert_true(by_label.has("JUMP"), "jump is not listed")
+	assert_true(String(by_label["JUMP"]).contains("SPACE"),
+		"JUMP lists %s, and space is bound to it" % by_label["JUMP"])
+	# The one move that is not an action: down plus jump, as in Mega Man 3. A
+	# list built only from InputMap actions would leave out the move nobody
+	# guesses.
+	assert_true(by_label.has("SLIDE"), "slide is not listed")
+	assert_true(String(by_label["SLIDE"]).contains("+"),
+		"SLIDE lists %s, not a combination" % by_label["SLIDE"])
+	# One key per half. "DOWN, S + Z, SPACE" is a puzzle, not a control.
+	assert_false(String(by_label["SLIDE"]).contains(","),
+		"SLIDE lists alternates too: %s" % by_label["SLIDE"])
+
+
+## With nothing unlocked the list is the buster, the E-tank row, restart and
+## resume -- the state a new game is in, so the one most likely to be hit.
 func test_a_fresh_run_lists_the_buster_and_the_standing_rows() -> void:
 	if weapons == null:
 		return
 	menu.open()
-	assert_eq(menu.rows.size(), 3, "rows were %s" % str(menu.rows))
+	assert_eq(menu.rows.size(), 4, "rows were %s" % str(menu.rows))
 	assert_has(menu.rows, weapons.BUSTER)
 	assert_has(menu.rows, PauseMenu.ETANK_ROW)
 	assert_has(menu.rows, PauseMenu.RESTART_ROW)
+	assert_has(menu.rows, PauseMenu.RESUME_ROW)
 
 
 ## Restart closes the menu before it reports. The stage is about to be rebuilt

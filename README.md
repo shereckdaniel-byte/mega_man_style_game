@@ -3,7 +3,7 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M6l complete** — the player controller, combat, enemies, four bosses with weapon
+**Status: M6m complete** — the player controller, combat, enemies, four bosses with weapon
 gets, and **four stages**: Dawn Boardwalk, Substation, Breakers and Mirror Field, all
 authored as room tables against a shared `AuthoredStage`. Verified on Godot 4.7.stable,
 headless, in CI. Next up is the rest of M6, stages 5–8.
@@ -107,8 +107,13 @@ rather than left to be found:
 - **C** — the sword. 3 damage and no ammo, in exchange for standing still inside an
   enemy's reach for the whole 20-frame swing with no cancel.
 
+The pause menu lists this table itself, and there is a **MENU** button in the top-right
+corner of the screen — so the way in is on screen rather than only in this file. That
+list is generated from the live `InputMap`, so it says what the game actually responds to
+rather than what someone last wrote down.
+
 In the pause menu, ↑/↓ moves and **Z or X** confirms; the rows are the weapons, then
-E-Tank, then Restart. On the game-over screen, **Z or X** continues.
+E-Tank, Restart and Resume. On the game-over screen, **Z or X** continues.
 
 ## Ground rules
 

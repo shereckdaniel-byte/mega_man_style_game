@@ -86,7 +86,6 @@ const TRIM := {
 	"player": {
 		"attack": [14, 24],        # cannon lit, blade forms, sweeps down; 0-13 hold the finished pose
 		"slide": [10, 24],         # the settled low skim; 0-9 dive, and height drops 130 -> 47 at 10
-		"climb": [19, 24],         # the clean vertical reach; 6-18 turn side-on and stop reading
 		"jump_shoot": [0, 5],      # the knees-up tuck with the cannon lit; 7+ splay flat into a dive
 	},
 }
