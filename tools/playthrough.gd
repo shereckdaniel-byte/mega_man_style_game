@@ -65,6 +65,7 @@ const STAGES := {
 	"dawn_boardwalk": "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn",
 	"substation": "res://scenes/stages/substation/substation.tscn",
 	"breakers": "res://scenes/stages/breakers/breakers.tscn",
+	"mirror_field": "res://scenes/stages/mirror_field/mirror_field.tscn",
 }
 const DEFAULT_STAGE := "dawn_boardwalk"
 
@@ -78,6 +79,27 @@ const DECK_DEPTH := 2
 ## the middle. This cost a wrong conclusion once -- the bot fell in, and the
 ## stage looked unfinishable when the bot was simply jumping too soon.
 const LOOKAHEAD := 1
+
+## How a panel path is read, in tiles from the player's feet.
+##
+## `PANEL_NEAR_TILES` is what keeps the panel the bot is standing on out of the
+## answer -- it sits at a dx of about zero and would otherwise be "the next one"
+## forever. The other three are a jump: 3.4 tiles across, 2.89 up, and a drop
+## that is looser than the rise because falling onto a panel is free.
+const PANEL_NEAR_TILES := 0.5
+const PANEL_REACH_TILES := 3.2
+const PANEL_RISE_TILES := 2.6
+const PANEL_DROP_TILES := 4.0
+
+## Frames a panel must have left before the bot commits to it. A jump is airborne
+## about forty (see `PhaseBlock.BEAT_FRAMES`), so anything less is a hop onto
+## something that will not be there.
+const PANEL_LEAD_FRAMES := 40
+
+## Frames `_hop_reach` simulates before giving up on an arc coming back down.
+## A full jump is airborne about forty; 200 is far past any hold this bot uses
+## and is only here so the loop is bounded.
+const HOP_MAX_FRAMES := 200
 
 ## Frames to hold jump, for a full arc.
 ##
@@ -268,7 +290,19 @@ func _run() -> void:
 	quit(0 if reached and won else 1)
 
 
-## Walks into the arena and fights Tide with the buster alone.
+## Walks into the arena and fights the stage's boss with the buster alone.
+##
+## **It used to fight Tide on every stage**, which is to say it printed "TIDE
+## DOWN" and then waited 360 frames for `tide_crawler` to be unlocked. On stage 1
+## that is right. On stages 2-4 the award lands, the wrong id never appears, the
+## wait runs to the end -- long enough for the stage-exit sequence to free the
+## level and its `PlaytestLog` out from under the caller -- and a run that beat
+## the boss and took its weapon is reported as a loss with a script error behind
+## it. The stage was fine every time.
+##
+## Same class of fault as the six enemy skins that never flipped: a thing that
+## was written when there was one stage and was never revisited when there were
+## four. The expected weapon now comes off the boss.
 func _fight() -> bool:
 	var arena: BossArena = _stage.arena()
 	if arena == null:
@@ -286,16 +320,20 @@ func _fight() -> bool:
 			last_phase = arena.phase
 			print("  arena phase -> %s at fight frame %d" % [_phase_name(last_phase), frame])
 		if arena.is_cleared():
-			print("TIDE DOWN at fight frame %d, player hp=%d" % [frame, _player.health.current])
-			# Let the weapon-get screen come and go.
-			for i in 360:
+			print("%s DOWN at fight frame %d, player hp=%d"
+				% [_stage.boss_name().to_upper(), frame, _player.health.current])
+			var expected := _expected_weapon(arena, awarded)
+			# Let the weapon-get screen come and go. Bounded by the award rather
+			# than by the clock: waiting out the full 360 lets the stage exit,
+			# which frees the level and the ledger the caller is about to print.
+			for _i in 360:
 				await physics_frame
-				if weapons != null and weapons.is_unlocked(&"tide_crawler"):
+				if _weapon_landed(weapons, expected):
 					break
-			var got: bool = weapons != null and weapons.is_unlocked(&"tide_crawler")
-			print("awarded=%s  unlocked=%s  ammo=%d"
-				% [str(awarded), got,
-					weapons.get_ammo(&"tide_crawler") if weapons != null else -1])
+			var got := _weapon_landed(weapons, expected)
+			print("awarded=%s  expected=%s  unlocked=%s  ammo=%d"
+				% [str(awarded), expected, got,
+					weapons.get_ammo(expected) if weapons != null else -1])
 			return got
 		if _player.health.is_dead():
 			print("player died during the fight at frame %d" % frame)
@@ -319,6 +357,32 @@ func _fight() -> bool:
 
 ## One frame of fighting: close to range, shoot on a cadence, jump anything low
 ## and incoming.
+## The weapon this stage's boss is meant to hand over.
+##
+## Read from what the arena announced, falling back to the boss itself -- rather
+## than from a copy of the roster kept here, which is the arrangement
+## `StageRoster` was extracted to stop.
+##
+## **Resolved at the moment of the clear, not before it.** Asked at the top of
+## the fight the boss does not exist yet, and the answer comes back `buster` --
+## which is always unlocked, so the check passes for a stage that awarded
+## nothing at all. A test that cannot fail is worse than no test.
+func _expected_weapon(arena: BossArena, awarded: Array[StringName]) -> StringName:
+	if awarded.size() > 0 and awarded[0] != &"":
+		return awarded[0]
+	if arena.boss != null and arena.boss.weapon_id != &"":
+		return arena.boss.weapon_id
+	return &""
+
+
+## `is_unlocked` says yes to the buster unconditionally, so an empty or missing
+## expectation has to be a failure rather than a pass.
+func _weapon_landed(weapons: Node, expected: StringName) -> bool:
+	if weapons == null or expected == &"" or expected == &"buster":
+		return false
+	return weapons.is_unlocked(expected)
+
+
 func _drive_fight(arena: BossArena, frame: int) -> void:
 	_release_move()
 
@@ -525,6 +589,19 @@ func _drive(frame: int = 0) -> void:
 			Input.action_press(&"jump")
 			_jump_left = JUMP_HOLD
 			return
+		# **A panel path is a ferry that does not move.** Instead of waiting for
+		# the platform to come to the lip, you wait for the floor to arrive --
+		# and then the hop is a measured one rather than a full jump, because
+		# the next panel is two cells away and a full jump covers three and a
+		# half. See `_hop_hold`.
+		var panel := _panel_for(heading)
+		if panel != null:
+			if not _panel_is_landable(panel):
+				_release_move()
+				return
+			Input.action_press(&"jump")
+			_jump_left = _hop_hold(panel.global_position - _player.global_position)
+			return
 	if _hole_ahead(heading) or _step_ahead(heading) or _spikes_ahead(heading):
 		Input.action_press(&"jump")
 		_jump_left = JUMP_HOLD
@@ -674,6 +751,108 @@ func _step_ahead(heading: int) -> bool:
 	var deck := _deck_row()
 	var x := _cell_x() + heading
 	return _solid(Vector2i(x, deck - 1)) or _solid(Vector2i(x, deck - 2))
+
+
+## The next panel of a path, within a hop of the player.
+##
+## **Deliberately not filtered by room, unlike `_platform_for`.** That filter
+## exists because a mover four rooms away is a false positive a bot will stand at
+## a lip waiting for; the reach here is already three tiles, which is a tighter
+## bound than a room and cannot pick up anything the player is not about to jump
+## to.
+##
+## Filtering by room also breaks at exactly the place it matters. A room changes
+## when the player crosses its door, and Focus's first panel sits a couple of
+## cells past Tower's -- so a room-filtered lookup goes blind for the few cells
+## either side of the boundary, which is precisely where a path that starts near
+## a room's edge begins. The bot walked off Focus's lip into the spikes because
+## it could not see a panel one cell in front of it.
+##
+## Only panels that are **in front** count -- the one the bot is standing on is
+## at dx of about zero and would otherwise be returned forever. Nearest wins,
+## because a path is crossed a panel at a time and the far one is not the next
+## one.
+func _panel_for(heading: int) -> PhaseBlock:
+	var feet := _player.global_position
+	var best: PhaseBlock = null
+	var best_dx := INF
+	for child in _stage.get_children():
+		if not (child is PhaseBlock):
+			continue
+		var panel := child as PhaseBlock
+		var dx := (panel.global_position.x - feet.x) * float(heading)
+		var dy := panel.global_position.y - feet.y
+		# Ahead by more than a stride, inside a jump across, and inside a jump
+		# up. A panel below the player is still a landing -- falling onto one is
+		# how a descending path is crossed -- so the downward reach is looser.
+		if dx < PANEL_NEAR_TILES * _tile or dx > PANEL_REACH_TILES * _tile:
+			continue
+		if dy < -PANEL_RISE_TILES * _tile or dy > PANEL_DROP_TILES * _tile:
+			continue
+		if dx < best_dx:
+			best_dx = dx
+			best = panel
+	return best
+
+
+## Is the panel worth committing to?
+##
+## **Solid now is not the question.** A jump takes about forty frames, and a
+## panel with ten left is a panel the bot lands through. So the test is whether
+## it will still be there on arrival, which is what `solid_frames_left` is for.
+## A player reads the flicker and makes the same decision by eye.
+func _panel_is_landable(panel: PhaseBlock) -> bool:
+	return panel.is_solid() and panel.solid_frames_left() >= PANEL_LEAD_FRAMES
+
+
+## Frames to hold jump for a hop that lands on `delta` rather than on a lip.
+##
+## **The bot could only make one jump before this, and it was the biggest one.**
+## `JUMP_HOLD` is a full arc: 2.89 tiles up and about 3.4 across. That is the
+## right answer at the lip of a gap, where the landing is a whole room of deck
+## and overshooting costs nothing -- and it is the wrong answer at a panel two
+## cells away, where the arc sails over the target and comes down in the hole
+## past it. The bot cleared Trough's first panel and landed a tile and a half
+## beyond its second, six times running, and the stage looked unfinishable.
+##
+## So the hold is measured: the arc is integrated one frame at a time, exactly
+## as `PlayerTuning.jump_apex_px` does and for exactly the same reason -- the
+## continuous formula is a sixth of a tile out, which here is the difference
+## between landing on a panel and landing past it. The shortest hold that both
+## reaches far enough and gets high enough wins; a full hold is the fallback, so
+## a target out of range is still attempted rather than stood in front of.
+func _hop_hold(delta: Vector2) -> int:
+	var tuning: PlayerTuning = _player.tuning
+	var across := absf(delta.x) / tuning.world_scale
+	var rise := -delta.y / tuning.world_scale  # NES px the target sits above us
+	for hold in range(1, JUMP_HOLD + 1):
+		var reach := _hop_reach(tuning, hold, rise)
+		if reach >= across:
+			return hold
+	return JUMP_HOLD
+
+
+## How far a jump held for `hold` frames travels before it comes back down to
+## `rise` NES px above where it started, or -1 when it never gets that high.
+##
+## Semi-implicit Euler, in the engine's own order (`v += g` then `y += v`), so
+## the answer is the arc the player actually flies rather than the one the
+## textbook describes.
+func _hop_reach(tuning: PlayerTuning, hold: int, rise: float) -> float:
+	var v := -tuning.jump_velocity_pf
+	var y := 0.0
+	var peak := 0.0
+	for frame in range(1, HOP_MAX_FRAMES + 1):
+		if frame > hold and v < 0.0:
+			v = 0.0  # releasing jump cuts the rise outright (states/jump.gd)
+		v = minf(v + tuning.gravity_pf, tuning.terminal_velocity_pf)
+		y += v
+		peak = minf(peak, y)
+		if v > 0.0 and y >= -rise:
+			# Coming down, and level with the landing. It only counts if the arc
+			# ever cleared it.
+			return -1.0 if peak > -rise else float(frame) * tuning.walk_speed_pf
+	return -1.0
 
 
 func _release() -> void:

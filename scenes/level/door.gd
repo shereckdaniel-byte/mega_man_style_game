@@ -95,6 +95,16 @@ func release() -> void:
 	_used = false
 
 
+## Whether this door has been tripped and not yet released.
+##
+## Public because "spent" is a state with a failure mode attached: a door that is
+## marked used and never released is a room silently removed from the stage, and
+## nothing about that is visible from the outside. See
+## `Stage.begin_transition` and `tests/test_vertical_rooms.gd`.
+func is_spent() -> bool:
+	return _used
+
+
 func target_room(from: Node) -> Room:
 	if to_room.is_empty():
 		return null

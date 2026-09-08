@@ -967,6 +967,205 @@ decision rather than guessed at.
 **Accepted:** 417 tests / 10123 assertions. All three stages complete every room;
 stage 1 reaches the boss door on 22 of 28 HP with no traversal deaths, which is
 its recorded baseline.
+### M6k — Mirror Field, Prism, and a room that had gone missing ✅ done
+
+Stage 4, and the first one whose gimmick *is* the terrain rather than sitting on
+top of it.
+
+- ✅ **Mirror Field** — nine rooms in an **L**. Stage 1 is a U, stage 2 a J,
+  stage 3 a staircase that climbs the whole way; this one runs flat across the
+  salt pan for five rooms and then turns up once into the receiver tower. **The
+  flatness is the design.** Stages 1–3 take their variety from the shape of the
+  terrain, and a heliostat field has none — so there is almost no authored
+  vertical geometry here, because the panels are the vertical geometry.
+- ✅ **`PhaseBlock`** — the gimmick, and it is `CrumblingBlock` with the clock
+  swapped rather than a second copy of it. The parent grew exactly two hooks
+  (`triggers_on_contact`, `_tick_solid`); everything else is inherited, which is
+  what PLAN §4 meant by calling the crumbling block "the basis for" these.
+
+  **A block is solid for two beats, and a beat is one jump.** Both halves are
+  derived: a jump is airborne 39.5 frames by `PlayerTuning`'s own integration,
+  and `BEAT_FRAMES` is that plus reaction slack. The consequence is the design —
+  at any instant a path shows you the block you are on and the next one and
+  nothing else, so you cannot stop and you never have to guess. A room may offset
+  a set's phase and nothing else, which is `CrusherPress`'s rule one level up.
+- ✅ **The order is the list.** A path is authored as positions in the order they
+  are crossed, and a block's beat is its index. There is nowhere to write "beat 2
+  is empty" or "two panels on beat 3" — the beats *are* the indices — so a room
+  cannot author an incoherent set.
+- ✅ **The mount is always drawn.** The fairness bound, and the same job Rust's
+  alternate columns do: a gone panel leaves its empty steel mount, so the whole
+  route is legible before it is committed to. It is a shape difference rather
+  than a colour one, which is a down-payment on the colourblind palette M8 names
+  for exactly this gimmick.
+- ✅ **Prism** — three answers that are not Tide's timings, not Arc's positioning
+  and not Rust's three. **Split** casts a beam that reaches the wall and returns
+  as two, low first and high second: the ask is *anticipation*, and it is the
+  first pattern in the game where **not** jumping is an action. **Facets** plants
+  two mirrors and rattles a beam between them: the ask is reading a diagram drawn
+  in full before anything in it can hurt you. **Sweep** walks a focal point
+  across the whole arena with Prism behind it, so backing away spends the floor
+  and ends at a wall: the ask is committing *forward*, at the boss.
+- ✅ **Prism Ray** — archetype 3. It becomes two on the first thing it touches,
+  walls included, so the weapon is about what is behind what you are shooting.
+  Split is the pattern the player had to survive, which is the trade a weapon-get
+  should feel like — the same argument Rust Bloom is built on.
+- ✅ Six enemy skins — **Tracker, Ballast, Fresnel, Glint, Rack, Wiper**.
+- ✅ `StageRoster` index 3 names a scene, so the select screen offers it.
+
+**The bound on Facets is structural, not tuned.** A corridor is at most
+`FACET_SPAN` of `FACET_COLUMNS`, so three columns are outside it whatever the
+pattern picks, and `tests/test_prism.gd` walks every column and every offset
+rather than trusting the numbers.
+
+#### The bot could only make one jump, and it was the biggest one
+
+`tools/playthrough.gd` held jump for a full arc at every gap, which is right at a
+lip — the landing is a whole room of deck and overshooting costs nothing — and
+wrong at a panel two cells away, where a 3.4-tile arc sails over a 2-tile target
+and comes down in the hole past it. The bot cleared Trough's first panel and
+landed a tile and a half beyond its second, six times running, and the stage
+looked unfinishable.
+
+It measures the hop now: the arc is integrated one frame at a time, exactly as
+`PlayerTuning.jump_apex_px` does and for the same reason, and the shortest hold
+that both reaches far enough and gets high enough wins. Same class of gap as the
+spikes and the ceilings before it — **a checker whose vocabulary is narrower than
+the level's measures itself.**
+
+#### Four faults, and two of them predate this stage
+
+1. **A door tripped during another transition was spent forever, and a room went
+   missing.** `Door` marks itself used *before* calling `Stage.begin_transition`,
+   which returns silently when a transition is already running — without
+   releasing it, though the branch immediately below it does exactly that on its
+   own refusal. Mirror Field reached it because a ladder delivers the player four
+   cells from the next door. The stage then ran Tower → Gate with **Focus never
+   entered at all**: its enemies never spawned, its row in the ledger stayed
+   blank, and the bot walked the whole room while the game believed it was
+   somewhere else. Nothing errored, and no test read anything that was wrong.
+2. **The stage caused it, and that is now a rule.** Tower's mirror bank reached
+   across the cells Foot's ladder arrives at, so the player was spawned inside
+   solid terrain and shoved clear — and the shove was the last few pixels into
+   the door. `SHAFT_LANDING_CELLS` had only ever promised the landing was not a
+   *hole*; `test_stage_authoring.gd` now also holds every stage to it not being a
+   *wall*, and the landing belongs to the band above, which is the same
+   distinction the M6i shaft bug turned on.
+3. **The playthrough bot fought Tide on every stage.** It printed "TIDE DOWN" and
+   then waited 360 frames for `tide_crawler` to unlock. On stages 2–4 the award
+   lands, the wrong id never appears, the wait runs long enough for the stage
+   exit to free the level and its ledger, and a run that beat the boss and took
+   its weapon is reported as a **loss** with a script error behind it. Written
+   when there was one stage and never revisited when there were four — the same
+   shape as the six enemy skins that had never flipped. The expected weapon comes
+   off the award now, resolved at the moment of the clear rather than before it:
+   asked earlier the boss does not exist yet and the answer is `buster`, which is
+   always unlocked, so the check passed for a stage that awarded nothing.
+4. **`PrismBeam` redeclared `SIZE_NES` from `EnemyShot`**, and the whole script
+   failed to compile. The symptom was not an error about that line: it was
+   `.new()` "not existing" on a preload, three files away, at runtime — while the
+   fight otherwise ran and the ledger read clean. Worth knowing that a GDScript
+   name collision with a parent surfaces as a missing method somewhere else.
+
+#### Two rooms above a ladder, and only one of them can be a room
+
+The bot entered every room of Mirror Field and spent **1.3 seconds** in the one
+above the ladder — which at the time held two panel paths out of phase, the whole
+point of it.
+
+Two rooms stacked in a column share their x range, so a `shaft_up` at cell N
+leaves the room above only `ROOM_WIDTH - N` cells: the player climbs out and is
+already at its door. Every stage so far puts the ladder at cell 23 of 28, which
+makes the **upper** room the short one — and the upper room is the one the stage
+climbs into, so it tends to be the one carrying the new idea.
+
+The obvious fix is to move the ladder early and spend the length upstairs, and
+that was the first attempt. **It fails for a second reason, and the second reason
+is the useful one.** A room stacked over another cannot have gaps — a hole would
+drop the player past its door into a room the stage does not think they are in —
+and a room with no gaps has a walkable floor from end to end that no authored
+terrain can block, because `MAX_STEP_TILES` guarantees every block is climbable.
+So the panels became an arc over a floor the bot simply walked along, and the
+room asked nothing at all. **A panel path is only the way through if there is a
+hole under it**, so the rooms that carry paths have to be the ones with nothing
+beneath them.
+
+Both facts point the same way: the short room is the one that gets nothing in it.
+Mirror Field's Landing is a checkpoint and a breath, and the two-path idea became
+the exam one column along, where the stage has floor to cut.
+
+**Breakers gets this wrong twice and nobody noticed.** Its Hold has two presses
+out of phase at cells 8 and 14 — the rhythm room, the third of its four press
+ideas — and its Gantry has the stage's only spawner. The bot crosses both in 1.3
+seconds, entering each a cell and a half from its exit. Both rooms are authored,
+tested by `test_breakers.gd`, and never seen. Stages 1 and 2 get away with it by
+luck: the room above their ladder is the empty run-up to the boss.
+
+**This is not a test yet**, deliberately: as a rule it would fail stage 3 on two
+rooms, and redesigning Breakers is its own change rather than a side effect of
+building stage 4. Recorded here so it is a decision rather than a discovery next
+time — and stage 3 is worth revisiting, because two of its nine rooms are
+currently decoration.
+
+#### The split had to be a delay, not a speed difference
+
+Prism's Split returns as two beams, and they must arrive apart: one has to be
+jumped and the other stood under, and no player is both at one instant. The first
+version made the high half slower, which buys `d/v_high − d/v_low` frames — so
+the separation depended on where the player happened to be standing.
+`tests/test_prism.gd` failed it at close range: 33 frames apart against a
+40-frame jump, which is exactly the case the design promised could not happen.
+Slowing the high half enough to fix the near case left it barely outpacing a
+walk.
+
+It is a fixed hold at the wall now. A constant is the same everywhere, and it is
+*visible* — the beam sits at the wall gathering before it sets off, which is a
+tell rather than a surprise.
+
+#### On the art, one thing open
+
+The tileset is generated and paid for and **cannot be downloaded**: PixelLab
+serves tileset spritesheets from `backblaze.pixellab.ai`, which this
+environment's egress policy denies. That is written down in SPRITES.md §8 from
+stage 1 and every alternate route was re-probed here; all still redirect. The
+stage ships greyboxed against stage 3's tiles with the swap marked in one line,
+and the tileset drops in as soon as the host is allowed — a generated tileset
+stays on the server, so nothing has to be paid for twice.
+
+The backdrop is three plates and the sky **came back as a whole scene again** —
+haze bands, a sun, a mountain range and a strip of sand, against a prompt asking
+for an empty banded sky. Cropped above its own horizon, measured rather than
+eyeballed: scanning down from row 100 so the sun at row 53 is not mistaken for
+terrain, the first structured row is 148. Third stage running for that fault and
+the third time the answer was a few lines over the returned PNG rather than
+another generation.
+
+#### Prism was too dense, and the damage numbers were not the reason
+
+The bot beat Prism comfortably before the Split's delay landed and lost to it
+after — 28 HP and a death, where it wins Tide, Arc and Rust buster-only.
+**Halving `BEAM_DAMAGE` from 3 to 2 barely moved it**: the beams went from 18 HP
+to 19, because the bot was taking ten hits instead of six. The problem was never
+the per-hit number.
+
+Prism simply had more live damage in the air than any boss before it. A Split is
+three separate chances to be hit — the cast, the low return, the high return —
+and a Sweep crosses the entire arena; on top of that a Facet was rattling four
+times, which is a beam passing through the player's half of the room five times.
+Two bounces keeps the idea whole (it goes, it comes back, and you must be outside
+the corridor for both) and the fight came back to **21 HP and 0 deaths**, which
+is Breakers' number.
+
+Worth recording that **the bot is a poor judge of this particular boss**, and
+says so structurally rather than by bad luck: its two reflexes are "jump at
+anything coming at it low" and "back off", and Prism's three answers are *stay on
+the ground*, *leave a corridor you can see*, and *jump forward at the boss*. Two
+of the three are the inverse of what it does. A win here means the fight is
+survivable; it does not mean the patterns read, and that still wants a human.
+
+**Accepted:** the bot runs Mirror Field end to end and beats Prism buster-only —
+**21 HP lost, 0 deaths**, against Breakers' 20 and 0. Every one of the four panel
+rooms costs 0 HP, and all nine rooms are entered.
 
 ### M6 — Content build-out (2–3 weeks)
 
@@ -1121,7 +1320,8 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 | Art style drifts between separately generated animations | Inconsistent character | Generate a character's animations in one batch. Regenerating a single animation from the same base image held style fine; a fresh batch weeks later is the untested case |
 | Hand-authoring 8 stages is the schedule | Slips M6 | Build stage 1 fully, then extract a gimmick-block library before stages 2–8 |
 | ~~Tileset art style clashes with the HD character~~ | ~~Looks like two games~~ | **Closed 2026-09-02.** Stage 1 was generated and judged against the player in `art_preview.tscn`: flat banded pixel terrain behind a smooth anti-aliased character reads as deliberate. 16 px tiles fit the 72 px grid exactly at 4.5×, and a per-node `TEXTURE_FILTER_NEAREST` keeps them crisp without touching the project default — SPRITES.md §8b |
-| PixelLab trial is 40 generations | Stops stage art mid-way | **Tighter than it looked.** Stage 1's backdrop and tileset cost 12 of 40 — 2 of those thrown away, and the sky took 4 attempts. 28 left for 7 Robot Master stages plus the fortress, so stage 2 onward has to reuse the technique rather than re-derive it (SPRITES.md §8b–8c), and fortress stages should share a tileset |
+| ~~PixelLab trial is 40 generations~~ | ~~Stops stage art mid-way~~ | **Closed at M6j — the account is a Tier 1 subscription, not a trial.** 2000 generations a cycle, resetting monthly; stage 4's whole art bill was 6. The budget is no longer what shapes stage art, so the advice that came out of the scarcity stands on its own merits instead: reuse the technique rather than re-derive it (SPRITES.md §8b–8f), because a prompt is not repeatable and a few lines over the returned PNG are |
+| **`backblaze.pixellab.ai` is not in the environment's allowed domains** | Blocks every stage tileset | **Open, and it blocked stage 4's tileset.** Tileset *metadata* is served from `api.pixellab.ai` and downloads fine; the spritesheet PNG 302s to `backblaze.pixellab.ai`, which the egress proxy answers 403 to. Every alternate route was re-probed at M6j and all still redirect. A generated tileset stays on PixelLab's server, so opening the host recovers it without paying again — SPRITES.md §8 has had this written down since stage 1 |
 | Pixel-perfect + camera smoothing fight each other | Jitter | Camera snapping off, no position smoothing, integer stretch — settled in ARCHITECTURE §2 and asserted in `tests/test_project_settings.gd` |
 | Continuous-vs-discrete physics maths in level design | Unclearable ledges | **Hit once already at M0.** `jump_apex_px()` integrates for real; a test locks the number |
 | Web export audio latency | Feel | Test the web build from M3, not M8 |

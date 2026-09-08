@@ -36,6 +36,36 @@ const BACKDROPS := {
 		"light_source": "Sky",
 		"paired": "",
 	},
+	# **Two backdrops carry no measurable landmark, and both are legitimate.**
+	# `light_source` empty means "nothing on this backdrop is bright enough to
+	# duplicate", which exempts it from the has-light check below and from
+	# nothing else: every plate is still held to the rule this file exists for.
+	#
+	#   * Breakers' sky was cropped above its own horizon to remove the scene the
+	#     generator put in it (SPRITES.md 8e), and the crop took the sun with it.
+	#     That is a real gap in stage 3's art rather than a gap in this test, and
+	#     it is recorded here because nothing else records it.
+	#   * Mirror Field's sky has a sun and the measure **cannot see it**. The cut
+	#     is the plate's median plus a fixed 0.30, and a bleached noon sky has a
+	#     median luminance of 0.857 -- so the threshold is 1.157 and no pixel in
+	#     any image can reach it. Making the offset relative to the remaining
+	#     headroom instead was measured across all sixteen plates and is much
+	#     worse: it stops finding landmarks and starts finding whole bright
+	#     bands, 47,000 px of sky at a time, which would take the duplication
+	#     rule with it.
+	#
+	# So the measure is right and its blind spot is above a median of about 0.7.
+	# Worth knowing before the next high-key stage.
+	"breakers": {
+		"script": preload("res://scenes/stages/breakers/parallax_background.gd"),
+		"light_source": "",
+		"paired": "",
+	},
+	"mirror_field": {
+		"script": preload("res://scenes/stages/mirror_field/parallax_background.gd"),
+		"light_source": "",
+		"paired": "",
+	},
 }
 
 ## How much brighter than its own plate's median a pixel has to be to count as
@@ -77,9 +107,14 @@ func test_only_one_plate_per_backdrop_carries_the_light() -> void:
 
 ## And the plate that is allowed to have it must actually have it -- a rule that
 ## only ever says "no" would pass just as well against a backdrop with no sky.
+##
+## Skipped for a backdrop that declares no light source, which is a claim about
+## the art rather than a way out of the check: see the note in BACKDROPS.
 func test_the_light_source_plate_actually_has_light_on_it() -> void:
 	for name in BACKDROPS:
 		var entry: Dictionary = BACKDROPS[name]
+		if String(entry["light_source"]).is_empty():
+			continue
 		var script: GDScript = entry["script"]
 		var plate := _plate(script, String(entry["light_source"]))
 		assert_false(plate.is_empty(), "%s has no %s plate" % [name, entry["light_source"]])
@@ -102,11 +137,32 @@ func test_every_named_plate_is_on_disk() -> void:
 # --- Helpers -------------------------------------------------------------------
 
 ## Every plate a backdrop declares, across all of its bands.
+##
+## **Found by shape rather than by a list of names**, which is why stages 3 and 4
+## are covered by this file at all. The list used to be the four constants stages
+## 1 and 2 happened to use, so a backdrop that named its bands anything else --
+## Breakers' `WATER_PLATES`, `HULL_PLATES`, `GANTRY_PLATES` -- was in `BACKDROPS`
+## and checked against nothing. A rule that only recognises the first two
+## implementations of a thing is the same fault `test_stage_authoring.gd` was
+## extracted to fix, one file over.
+##
+## Any constant whose name ends in `_PLATES` is a band, plus a bare `PLATES` for
+## a backdrop that has only one.
 func _plates(script: GDScript) -> Array:
 	var out: Array = []
-	for key in ["PLATES", "YARD_PLATES", "TRENCH_PLATES", "UNDER_PLATES"]:
-		if key in script:
-			out.append_array(script.get(key))
+	var seen := {}
+	for entry in script.get_script_constant_map():
+		var key := String(entry)
+		if key != "PLATES" and not key.ends_with("_PLATES"):
+			continue
+		for plate in script.get(key):
+			# Bands share plates -- every backdrop hangs the same sky behind all
+			# of them -- and a plate checked twice is a plate reported twice.
+			var id := "%s/%s" % [plate.get("name", ""), plate.get("file", "")]
+			if seen.has(id):
+				continue
+			seen[id] = true
+			out.append(plate)
 	return out
 
 

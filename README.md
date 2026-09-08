@@ -3,10 +3,17 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M6f complete** — the player controller, combat, enemies, two bosses with weapon
-gets, and **two stages**: Dawn Boardwalk and Substation, both authored as room tables
-against a shared `AuthoredStage`. Verified on Godot 4.7.stable, headless, in CI. Next up
-is the rest of M6, stages 3–8.
+**Status: M6k complete** — the player controller, combat, enemies, four bosses with weapon
+gets, and **four stages**: Dawn Boardwalk, Substation, Breakers and Mirror Field, all
+authored as room tables against a shared `AuthoredStage`. Verified on Godot 4.7.stable,
+headless, in CI. Next up is the rest of M6, stages 5–8.
+
+| # | Stage | Boss | Weapon | Gimmick |
+| --- | --- | --- | --- | --- |
+| 1 | Dawn Boardwalk | Tide | Tide Crawler | rising tide |
+| 2 | Substation | Arc | Arc Lance | dark room |
+| 3 | Breakers | Rust | Rust Bloom | crusher press |
+| 4 | Mirror Field | Prism | Prism Ray | disappearing panels |
 
 **Stage 1 wants a playtester.** Its difficulty is the one open question in the plan, and
 it is not one more bot run away — see docs/PLAN.md M5b. Run the game (a windowed run drops
@@ -21,10 +28,13 @@ GODOT=/path/to/godot ./tools/check.sh     # import + boot check + tests, same as
 # on physics frames, so a loaded machine gets the same answer as an idle one.
 godot --headless --script res://tools/playthrough.gd
 godot --headless --script res://tools/playthrough.gd -- stage=substation
+godot --headless --script res://tools/playthrough.gd -- stage=mirror_field
 
 # A plain run lands on the stage select. To skip it and open one stage directly:
 godot scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn
 godot scenes/stages/substation/substation.tscn
+godot scenes/stages/breakers/breakers.tscn
+godot scenes/stages/mirror_field/mirror_field.tscn
 
 # A shot of every room, for looking at a whole stage at once. Paste them onto the
 # (col, band) grid the room table declares and the sheet is the stage's shape.
@@ -55,6 +65,9 @@ godot --headless --script res://tests/run_tests.gd -- rising_tide crest_wave
 | `scenes/level/authored_stage.gd` | Everything a stage shares. A stage is a room table plus its differences. |
 | `scenes/stages/dawn_boardwalk/` | Stage 1, Dawn Boardwalk — where a windowed run drops you |
 | `scenes/stages/substation/` | Stage 2, Substation — Arc, and the dark-room gimmick |
+| `scenes/stages/breakers/` | Stage 3, Breakers — Rust, and the crusher press |
+| `scenes/stages/mirror_field/` | Stage 4, Mirror Field — Prism, and the disappearing panels |
+| `scenes/level/phase_block.gd` | The panel. A block is solid for two beats, and a beat is one jump. |
 | `scenes/stages/test_room/` | M1 tuning room, opened directly when reading movement numbers off F3 |
 | `tests/` | Headless suite, including integration tests driving the real `CharacterBody2D` |
 

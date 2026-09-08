@@ -23,6 +23,7 @@ const STAGES := {
 	"dawn_boardwalk": "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn",
 	"substation": "res://scenes/stages/substation/substation.tscn",
 	"breakers": "res://scenes/stages/breakers/breakers.tscn",
+	"mirror_field": "res://scenes/stages/mirror_field/mirror_field.tscn",
 }
 
 ## Frames to let a stage build its deck, rooms and elements.

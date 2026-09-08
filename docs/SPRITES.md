@@ -366,6 +366,40 @@ coherent rust-and-iron palette. Two things in the prompts look like what changed
 `isHumanoid: false` with a one-line `characterDescription` on all six, since none
 of them walks on two legs.
 
+### 6c. Stage 4's six, and the one the look-before-you-animate rule caught
+
+Six characters, one animation each, one batch: **Tracker** (walker, a heliostat
+drive unit on two legs), **Ballast** (hopper, a concrete ballast block on a
+spring), **Fresnel** (turret, a lens head on a pillar), **Glint** (flyer, a
+faceted crystal shard), **Rack** (spawner, a cradle of glass panels) and
+**Wiper** (crawler, a flat panel-cleaning robot). Cost: 21 credits of `pro` bases
+including one redo, plus 48 of animation (8 each).
+
+§6b's two prompt rules held — say what the thing physically is before what it is
+made of, and name the scenery you do not want in the negative every time — and
+five of the six bases came back usable first try.
+
+**The sixth is why §6a's rule exists.** Rack was prompted as "a tall open steel
+frame holding a stack of glass panels" and came back as a steel frame **with legs
+and arms**, mid-stride. It would have animated perfectly well and looked
+completely wrong in the level, because a spawner is *stationary*: it is mounted
+on geometry and never moves, so the one thing its silhouette must not suggest is
+walking. Catching it on the contact sheet cost 3 credits; catching it after
+animating would have cost 11, and catching it in a screenshot would have cost the
+batch's style consistency as well.
+
+The redo added the constraint as a physical fact rather than a style note —
+"bolted in place… it has no legs, no arms and no wheels — it is fixed to the
+spot" — and came back as a squat A-frame cradle tipping a panel out of a chute.
+Which suggests a third prompt rule, consistent with the other two: **say how the
+thing is attached to the world**, because the generator will give a robot legs by
+default and half the enemy archetypes must not have any.
+
+Glint kept a set of spidery landing legs nobody asked for and was **kept anyway**
+— a hovering drone with limbs reads fine, and §6a's warning is about scenery
+baked into a sprite and about the silhouette lying, not about every unrequested
+detail.
+
 ### 8e. Stage 3's art, and a tileset that had to be recoloured rather than reprompted
 
 **The tileset took three generations and shipped as the second one, recoloured.**
@@ -438,6 +472,102 @@ what the thing physically is, then what it is made of.
 of teeth, so the texture is stretched over both. Drawing it to the body alone
 paints the teeth inside the solid box and leaves nothing drawn in the volume that
 actually bites. The stretch is about 17% on a 32 px sprite and is invisible.
+
+### 8g. Stage 4's art, a sky that did it again, and a tileset that cannot be fetched
+
+**The tileset is generated, paid for, and undownloadable.** This is the
+`backblaze.pixellab.ai` problem in the section above, unchanged and still open:
+the metadata comes back from the allowed host and imports fine, and the
+spritesheet PNG 302s to a host the egress policy answers 403 to. Every route was
+re-probed at M6j — `?format=base64`, `/download`, `/spritesheet`, `/png`,
+`?proxy=1` — and they all either 404 or redirect to the same place. Stage 4
+therefore ships greyboxed against stage 3's tiles with the swap marked in one
+line, and the tileset drops in the moment the host is allowed. **A generated
+tileset stays on PixelLab's server**, so this costs nothing to recover and
+nothing has to be regenerated.
+
+**Nothing is committed for it**, deliberately. `tests/test_tilesets.gd` derives
+what it expects from the directories under `assets/tilesets/`, so a directory
+holding metadata and no art is a red build for as long as the host stays closed —
+and the metadata costs nothing to re-fetch, because it comes from the allowed
+host. Both halves are one command each once `backblaze.pixellab.ai` is open:
+
+```sh
+ID=9ce2430f-2e8f-4aef-b342-19098469414d
+mkdir -p assets/tilesets/mirror_field
+curl -fsSL -o assets/tilesets/mirror_field/tileset.png \
+  "https://api.pixellab.ai/mcp/sidescroller-tilesets/$ID/image"
+curl -fsSL -o assets/tilesets/mirror_field/tileset.json \
+  "https://api.pixellab.ai/mcp/sidescroller-tilesets/$ID/metadata"
+godot --headless --script res://tools/pixellab_tileset_import.gd
+```
+
+Then swap the one marked line in `mirror_field.gd` from `breakers.tres` to
+`mirror_field.tres`. The terrain was generated from "pale sandy concrete blocks
+with fine horizontal casting seams, small square bolt plates at the corners, dry
+hairline cracks" under "bleached white salt crust", seed 40401.
+
+**The sky came back as a whole scene for the third stage running.** Asked for an
+empty banded sky with a sun and nothing else, `create_image_pixflux` returned
+haze bands, a sun, a mountain range and a strip of sand — the same failure stage
+1's water and stage 3's sky produced, and the same answer: crop above its own
+horizon and stretch back to full height with NEAREST, because flat bands stay
+flat under nearest-neighbour and only get thicker.
+
+The cut is measured, and stage 4's measurement is not stage 3's. Stage 3 found
+its silhouettes by looking for pixels darker than 120; this plate is pale
+everywhere and that threshold finds nothing. What works here is **horizontal
+uniformity**: the sky is flat left-to-right and terrain is not, so the cut is the
+first row whose longest run of pixels deviating from its own row median by more
+than 25 exceeds 8 px. Scanning has to start **below the sun** — at row 100, with
+the sun at 53 — or the sun is the first thing found and the whole plate is thrown
+away. That puts the horizon at row 148.
+
+| Plate | Notes |
+| --- | --- |
+| `sky.png` | Cropped at row 148 and stretched back to 240. Keeps the sun, which is the only landmark in the backdrop and lives on this plate alone. |
+| `rows.png` | Heliostat rows in the middle distance. **Keyed** and hazed — see below. |
+| `pan.png` | The salt crust. Came back at 217–250 across the whole plate: a white rectangle with cracks nobody can see. Its own range is stretched across a warmer three-stop ramp so the crust reads as ground rather than as a hole in the backdrop. |
+
+**`no_background: true` did not produce transparency, for the third stage
+running** — `rows.png` came back 0% transparent against a prompt that said
+"transparent above the tops". Keyed after the fact by flood-filling from the top
+edge, as §8's note records, with one change worth keeping: the fill compares each
+pixel to its **neighbour** rather than to the seed, because this plate's sky is a
+vertical gradient and a seed-relative tolerance stops halfway down it. 64% of the
+plate came out.
+
+**Hazing is uniform here, not by height, and that is not a detail.** Stage 3's
+hulls plate is hazed with height because in it height *is* distance. In this one
+the nearest mirror is the large one at the **top** left and the far ones recede
+downward and to the right, so a height gradient pushes the near thing back and
+leaves the far ones forward. It is one parallax layer at one distance; it gets
+one blend.
+
+**A bright stage broke the backdrop test's measure, and the measure is right.**
+`tests/test_backdrops.gd` finds a landmark as the largest connected run of pixels
+more than 0.30 above the plate's own median luminance. That works from a dawn sky
+to a night one — and a bleached noon sky has a median of **0.857**, so the cut is
+1.157 and no pixel in any image can reach it. The sun on `sky.png` is real and
+the test cannot see it.
+
+Making the offset relative to the remaining headroom instead was measured across
+all sixteen plates in the game and is much worse: it stops finding landmarks and
+starts finding whole bright bands, 47,000 px of sky at a time, which would take
+the duplication rule down with it. So the measure stays, its blind spot is above
+a median of about 0.7, and a backdrop up there declares no light source rather
+than claiming one the test cannot check. **Widening the test to cover stages 3
+and 4 also found that Breakers' sky has no sun at all** — the §8e crop took it
+with the skyline, which nothing had noticed.
+
+**Why this stage is the bright one.** Three stages so far are a dawn, a blackout
+and a rust yard — all low-key, all warm-to-cold. A fourth in that register reads
+as more of the same world rather than as somewhere new, and a heliostat field at
+noon is the strongest contrast available inside the same drowned coast. It is
+also what makes the gimmick legible: a `PhaseBlock`'s panel is pale glass and its
+mount is dark steel, so **which mounts are full and which are empty** — the one
+thing that has to read from across the room — is light against dark on a bright
+ground, and would be dark against dark on any of the other three.
 
 ## 7. Art direction — settled
 
