@@ -208,17 +208,59 @@ func test_a_fallen_block_is_neither_visible_nor_solid() -> void:
 	assert_eq(block.collision_layer, 0, "it is gone but still on a collision layer")
 
 
+## **A crumbled block stays crumbled.** It used to come back after 90 frames,
+## which read as the level undoing itself: break three planks, turn round, and
+## the first one is whole again while you are still standing on the second.
+##
+## Waited far past the old timer, so this fails loudly if a respawn countdown is
+## ever put back by default.
+func test_a_crumbled_block_does_not_come_back_on_its_own() -> void:
+	var block := _crumble(Vector2(500.0, FLOOR_TOP - 200.0))
+	await _frames(2)
+	block.trigger()
+	await _frames(block.warn_frames + 200)
+	assert_eq(block.phase, CrumblingBlock.Phase.GONE,
+		"the block came back on a timer")
+	assert_false(block.is_solid())
+
+
+## **But it must be able to come back, or a room can be made unfinishable.**
+## Crumble every plank over a pit, fall in, and the checkpoint returns the player
+## to a room with no floor. `AuthoredStage` calls this on `room_changed`, which
+## fires on a door transition and on a respawn -- see the note there.
 func test_a_block_comes_back_where_it_was() -> void:
 	var block := _crumble(Vector2(500.0, FLOOR_TOP - 200.0))
 	await _frames(2)
 	var home := block.global_position
 	block.trigger()
-	await _frames(block.warn_frames + block.respawn_frames + 6)
+	await _frames(block.warn_frames + 6)
+	assert_eq(block.phase, CrumblingBlock.Phase.GONE, "it never fell")
+	block.restore_now()
+	await _frames(2)
 	assert_eq(block.phase, CrumblingBlock.Phase.SOLID)
 	assert_true(block.visible)
 	assert_true(block.is_solid())
 	assert_almost_eq(block.global_position.x, home.x, 0.5,
 		"the shake left it %.1f px off" % (block.global_position.x - home.x))
+
+
+## **A plank opts in to that reset and a panel opts out**, and the difference is
+## the reason the flag exists rather than the stage checking the class. A panel
+## set has no unfinishable state -- every panel returns on its own beat -- and
+## restoring one on a door transition would put every panel of a path back on
+## beat 0 together, which is the arrangement `PhaseBlock._align_to_phase` exists
+## to prevent.
+func test_a_plank_resets_on_a_room_change_and_a_panel_does_not() -> void:
+	var block := _crumble(Vector2(500.0, FLOOR_TOP - 200.0))
+	await _frames(2)
+	assert_true(block.resets_on_room_change(), "a plank must be restorable")
+	var panel := PhaseBlock.new()
+	panel.position = Vector2(700.0, FLOOR_TOP - 200.0)
+	root.add_child(panel)
+	await _frames(2)
+	assert_false(panel.resets_on_room_change(),
+		"a room change would restart the whole panel path on one beat")
+	panel.queue_free()
 
 
 ## Standing on one has to set it off, or the sensor is not wired and the whole

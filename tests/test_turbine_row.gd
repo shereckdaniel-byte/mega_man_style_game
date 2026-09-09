@@ -137,6 +137,39 @@ func test_no_crossing_in_the_stage_needs_the_wind() -> void:
 	zone.free()
 
 
+## **A gap must not sit in a headwind the player entered from a tailwind.**
+##
+## The narrowest rule the evidence supports, and the evidence was expensive.
+## When the wind began reaching a walking player, Crosscut went from zero deaths
+## to the bot dying five and six times and never once reaching the far lip. Two
+## fixes were tried and measured before this one: moving the seam off the gap
+## changed nothing at all, and pointing both zones downwind fixed it outright.
+##
+## The mechanism is the flip, not the headwind alone -- Anemometer is a two-cell
+## gap under a headwind for the whole room and the bot crosses it every run,
+## because the run-up and the jump are in the same wind. Crosscut walked the
+## player up to the lip on a tailwind and then reversed it in the last stride
+## before the jump, which is a run-up whose speed the player cannot read.
+##
+## So a single-zone headwind gap is allowed and a mixed-zone one is not.
+func test_no_gap_sits_in_a_headwind_the_player_walked_into() -> void:
+	for spec in TurbineRow.ROOMS:
+		var zones: Array = spec.get("wind", [])
+		if zones.size() < 2:
+			continue  # a single wind over the whole room is Anemometer's case
+		for gap in spec.get("gaps", []):
+			var from := int(gap[0])
+			var to := int(gap[1])
+			for entry in zones:
+				if int(entry.get("dir", TurbineRow.DOWNWIND)) != TurbineRow.UPWIND:
+					continue
+				var w_from := int(entry.get("from", 0))
+				var w_to := int(entry.get("to", AuthoredStage.ROOM_WIDTH))
+				assert_true(to <= w_from or from >= w_to,
+					"%s: the gap at %d-%d is inside a headwind at %d-%d, and the player reaches it on a tailwind"
+						% [spec["name"], from, to, w_from, w_to])
+
+
 ## Slipstream and Backdraft are **the same room twice with the wind reversed**,
 ## and the pair is the lesson. A second difference between them would make the
 ## comparison say nothing, so there is not allowed to be one.

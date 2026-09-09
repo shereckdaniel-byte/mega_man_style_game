@@ -354,6 +354,7 @@ func _ready() -> void:
 	# upper one's sky. Driven from here because which band a room is in is the
 	# stage's fact, not the backdrop's.
 	room_changed.connect(_on_room_changed_backdrop)
+	room_changed.connect(_on_room_changed_reset_crumbles)
 	# The menu first: the HUD's menu button needs something to open.
 	_add_pause_menu()
 	_add_hud()
@@ -894,6 +895,28 @@ func _on_room_changed_backdrop(room_entered: Room) -> void:
 		if _rooms[index] == room_entered:
 			_backdrop.call(&"show_band", room_band(index))
 			return
+
+
+## Puts every crumbling block back when the player changes room.
+##
+## **A crumbling block no longer comes back on a timer** (see
+## `CrumblingBlock.respawn_frames`), which is what a player expects -- a plank
+## you broke stays broken while you are standing there. The thing that must not
+## happen is a room with no floor left: crumble every plank, fall in the pit,
+## and the checkpoint puts you back in a room you can no longer finish.
+##
+## `room_changed` is the event that makes the reset safe, and it is exactly the
+## right one because `Stage` emits it for both cases that matter -- walking
+## through a door, and respawning after a death. Leave or die and the planks are
+## whole; stay and they are not.
+##
+## `PhaseBlock` opts out through `resets_on_room_change`: its cycle is a clock,
+## and putting a whole panel path back at once would start every panel on beat 0
+## together.
+func _on_room_changed_reset_crumbles(_room_entered: Room) -> void:
+	for child in get_children():
+		if child is CrumblingBlock and (child as CrumblingBlock).resets_on_room_change():
+			(child as CrumblingBlock).restore_now()
 
 
 ## Out of lives. Show the screen, then start the run over.

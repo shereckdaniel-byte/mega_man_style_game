@@ -194,20 +194,41 @@ var wind_drift_pf := 0.0
 
 # --- Shared movement helpers, used by the states ------------------------------
 
-## Adds the world's push to whatever the state decided, **and only in the air.**
+## Adds the world's push to whatever the state decided.
 ##
 ## It has to come after `state_machine.physics_update`, because `apply_walk` sets
 ## `velocity.x` outright rather than accelerating it (ground movement here is
 ## instant-on, instant-off) -- so a wind applied before the state would be
 ## overwritten by it and do nothing at all.
 ##
-## Grounded, the push is zero. That is a design rule and not an omission: a wind
-## that moved a walking player would make the most basic verb in the game
-## unreliable, and a stage built on that is a stage about fighting the controls.
-## In the air it changes the arc, which turns every jump into a decision and is
+## ### It reaches a walking player, and it used to not
+##
+## The first version applied the push **only in the air**, on the argument that a
+## wind which moved a walking player makes the most basic verb in the game
+## unreliable. Playtested, that argument is wrong in an interesting way: a wind
+## you can only feel while airborne is a wind you do not feel at all for most of
+## a room, and the stage reads as still air with occasional odd jumps. Walking
+## into a headwind and feeling the drag is the thing that makes the weather
+## exist.
+##
+## So it applies on the ground too, and the fairness rule moves rather than
+## disappearing. It was **"the wind never touches a walking player"**; it is now
+## **"the wind never stops one"** -- `WindZone.speed_pf` stays under
+## `PlayerTuning.walk_speed_pf` by enough that a headwind leaves the player over
+## half their speed, which `tests/test_wind_zone.gd` checks against the tuning.
+## A wind at or above the walk speed would hold a player still or walk them
+## backwards, and that is the version this rule exists to forbid.
+##
+## ### A standing player is still not pushed
+##
+## The push scales movement; it does not create it. Standing still in a gust and
+## being slid along the floor -- into a pit, while not touching the controls --
+## is a different mechanic from a headwind, and not one anybody asked for. So on
+## the ground the drift is added only to a player who is already moving. In the
+## air it always applies, because an airborne player is committed and the arc is
 ## the thing Turbine Row is actually made of.
 func _apply_wind() -> void:
-	if wind_drift_pf != 0.0 and not is_on_floor():
+	if wind_drift_pf != 0.0 and (not is_on_floor() or not is_zero_approx(velocity.x)):
 		velocity.x += tuning.px_s(wind_drift_pf)
 	wind_drift_pf = 0.0
 

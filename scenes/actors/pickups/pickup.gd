@@ -65,11 +65,17 @@ const BLINK_PERIOD := 6
 ## rather than appearing to be dropped through the floor it was standing on.
 const POP_SPEED_PF := 1.6
 
-const HEALTH_COLOUR := Color(0.42, 0.92, 0.52)
+## The palette, chosen to match the bar each capsule fills rather than to be
+## six distinguishable hues. A weapon capsule is the colour of the weapon bar
+## (`Hud.WEAPON_FILL`), so "this fills that" is legible without a tutorial.
+const HEALTH_COLOUR := Color(0.94, 0.30, 0.32)
 const AMMO_COLOUR := Color(1.0, 0.82, 0.36)
-const ONE_UP_COLOUR := Color(0.55, 0.80, 1.0)
-const ETANK_COLOUR := Color(1.0, 0.55, 0.62)
+const ONE_UP_COLOUR := Color(0.36, 0.62, 0.96)
+const ETANK_COLOUR := Color(0.94, 0.30, 0.32)
 const SHELL_COLOUR := Color(0.10, 0.12, 0.18)
+## The white every capsule carries: the classic items are two-tone, and the
+## light half is what makes them read against a dark stage.
+const HIGHLIGHT := Color(0.98, 0.98, 1.0)
 
 ## Emitted when a player takes it. `kind` rather than the node, because by the
 ## time a listener runs the node is on its way out.
@@ -307,43 +313,124 @@ func colour() -> Color:
 	return HEALTH_COLOUR
 
 
-## **Four silhouettes, not four colours.** Size says small or large and shape
-## says which kind: health is a square, weapon energy a wide flat bar, a life a
-## disc, an E-tank a tall canister. Colour agrees with the shape and carries
-## nothing on its own.
+## **The classic four shapes.** Size says small or large and shape says which
+## kind, so colour still carries nothing on its own -- the rule `PhaseBlock` set
+## for the disappearing blocks, and a down-payment on the colourblind palette
+## PLAN.md M8 names.
 ##
-## That is the rule `PhaseBlock` set for the disappearing blocks -- "a shape
-## difference rather than a colour one, which is a down-payment on the
-## colourblind palette M8 names" -- and six capsules told apart only by hue
-## would have been the same mistake one system later. It costs four lines here
-## and nothing at M8.
+## What changed from the first version is which shapes: it was a square, a bar, a
+## disc and a canister, which are distinguishable and mean nothing. These are the
+## genre's own vocabulary, and a player who has met them before knows what each
+## one does before it lands:
+##
+##   * **health** -- the two-tone capsule, white over red, lying flat;
+##   * **weapon energy** -- the square cell with a bite out of one side;
+##   * **1-Up** -- a helmet in silhouette, dome and visor;
+##   * **E-tank** -- the can, with a lid band and an E on the front.
+##
+## All four are drawn rather than textured, so they scale with `world_scale` and
+## cost no art. When the real sprites land this function is what they replace.
 func _draw() -> void:
 	if is_blinking() and (_frames / BLINK_PERIOD) % 2 == 1:
 		return
 	var scale := _tuning.world_scale
 	var unit := BODY_NES.x * scale
 	var large := kind in [Kind.HEALTH_LARGE, Kind.AMMO_LARGE, Kind.ONE_UP, Kind.ETANK]
-	var body := unit * (1.0 if large else 0.66)
+	var body := unit * (1.0 if large else 0.68)
 	var tint := colour()
-	var edge := maxf(body * 0.16, 1.5)
+	var edge := maxf(body * 0.14, 1.5)
 
 	match kind:
-		Kind.ONE_UP:
-			# A disc: the one that is neither health nor ammo, and the only
-			# round thing on screen.
-			draw_circle(Vector2.ZERO, body * 0.5, SHELL_COLOUR)
-			draw_circle(Vector2.ZERO, body * 0.5 - edge, tint)
-		Kind.ETANK:
-			# Tall and narrow, like the canister it is.
-			_capsule(Vector2(body * 0.62, body * 1.15), tint, edge)
+		Kind.HEALTH_SMALL, Kind.HEALTH_LARGE:
+			_health_capsule(body, tint, edge)
 		Kind.AMMO_SMALL, Kind.AMMO_LARGE:
-			# Wide and flat, so it is not a health square seen in bad light.
-			_capsule(Vector2(body * 1.25, body * 0.55), tint, edge)
-		_:
-			_capsule(Vector2(body, body), tint, edge)
+			_weapon_cell(body, tint, edge)
+		Kind.ONE_UP:
+			_helmet(body, tint, edge)
+		Kind.ETANK:
+			_tank(body, tint, edge)
 
 
-func _capsule(size: Vector2, tint: Color, edge: float) -> void:
+## The health capsule: a flat two-tone pill, white above and coloured below.
+## Wider than it is tall, which is what separates it at a glance from the
+## weapon cell's square.
+func _health_capsule(body: float, tint: Color, edge: float) -> void:
+	var size := Vector2(body * 1.3, body * 0.78)
 	var rect := Rect2(-size * 0.5, size)
 	draw_rect(rect, SHELL_COLOUR)
-	draw_rect(rect.grow(-edge), tint)
+	var inner := rect.grow(-edge)
+	draw_rect(inner, tint)
+	# The light half, on top: the capsule is white over colour, not colour alone.
+	draw_rect(Rect2(inner.position, Vector2(inner.size.x, inner.size.y * 0.46)),
+		HIGHLIGHT)
+
+
+## The weapon cell: a square with a notch cut out of its leading edge. The notch
+## is the whole silhouette -- a plain square is a health pickup in bad light.
+func _weapon_cell(body: float, tint: Color, edge: float) -> void:
+	var half := body * 0.5
+	# Shallow. Drafted at 0.34 and the cell read as a "C" rather than a square
+	# with a corner taken out of it -- at 8 NES px a deep notch is most of the
+	# silhouette, and the shape stopped being square, which is the half of it
+	# that separates the cell from the health capsule.
+	var bite := body * 0.22
+	# Drawn as a polygon so the notch is part of the shape rather than a hole
+	# painted over it -- a painted hole shows the stage through it at the wrong
+	# moments and reads as a rendering fault.
+	var outline := PackedVector2Array([
+		Vector2(-half, -half),
+		Vector2(half, -half),
+		Vector2(half, -bite * 0.5),
+		Vector2(half - bite, 0.0),
+		Vector2(half, bite * 0.5),
+		Vector2(half, half),
+		Vector2(-half, half),
+	])
+	draw_colored_polygon(outline, SHELL_COLOUR)
+	var inner := PackedVector2Array()
+	for point in outline:
+		inner.append(point * (1.0 - edge / half * 0.5))
+	draw_colored_polygon(inner, tint)
+	# A bright core bar, so the cell reads as something charged.
+	draw_rect(Rect2(Vector2(-half * 0.44, -half * 0.2),
+		Vector2(half * 0.88, half * 0.4)), HIGHLIGHT)
+
+
+## The 1-Up: a helmet. A dome with a flat brow and a visor slot -- the only
+## rounded silhouette in the set, which is what makes it findable in a pile.
+func _helmet(body: float, tint: Color, edge: float) -> void:
+	var half := body * 0.5
+	draw_circle(Vector2(0.0, -half * 0.1), half, SHELL_COLOUR)
+	draw_circle(Vector2(0.0, -half * 0.1), half - edge, tint)
+	# The jaw: a flat base, so it is a helmet rather than a ball.
+	draw_rect(Rect2(Vector2(-half, half * 0.2), Vector2(half * 2.0, half * 0.5)),
+		SHELL_COLOUR)
+	draw_rect(Rect2(Vector2(-half + edge, half * 0.2),
+		Vector2(half * 2.0 - edge * 2.0, half * 0.5 - edge)), tint)
+	# The visor.
+	draw_rect(Rect2(Vector2(-half * 0.62, -half * 0.24),
+		Vector2(half * 1.24, half * 0.38)), HIGHLIGHT)
+
+
+## The E-tank: a can with a lid band and an E on the front. The tallest thing in
+## the set, and the only one with a letter on it -- which is fair, because it is
+## the only one that is banked rather than spent.
+func _tank(body: float, tint: Color, edge: float) -> void:
+	var size := Vector2(body * 0.74, body * 1.2)
+	var rect := Rect2(-size * 0.5, size)
+	draw_rect(rect, SHELL_COLOUR)
+	var inner := rect.grow(-edge)
+	draw_rect(inner, tint)
+	# The lid band across the top.
+	draw_rect(Rect2(inner.position, Vector2(inner.size.x, inner.size.y * 0.2)),
+		HIGHLIGHT)
+
+	# The E: three bars and a spine, drawn rather than typed so it scales.
+	var stroke := maxf(size.x * 0.13, 1.5)
+	var left := -size.x * 0.19
+	var right := size.x * 0.2
+	var top := -size.y * 0.06
+	var bottom := size.y * 0.3
+	draw_rect(Rect2(Vector2(left, top), Vector2(stroke, bottom - top)), HIGHLIGHT)
+	for y in [top, (top + bottom) * 0.5 - stroke * 0.5, bottom - stroke]:
+		draw_rect(Rect2(Vector2(left, y), Vector2(right - left, stroke)), HIGHLIGHT)

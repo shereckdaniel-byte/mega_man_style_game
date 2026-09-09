@@ -308,24 +308,52 @@ const ROOMS := [
 		"name": "Crosscut", "col": 8, "band": BAND_SEA,
 		# **The exam: two zones blowing at each other, half a cycle apart.**
 		#
-		# The seam between them sits over the gap, so a jump taken from the left
-		# leaves in a headwind and lands in a tailwind -- or the reverse, half a
-		# cycle later. The player cannot answer it by picking a direction; they
-		# have to notice that the two halves are never gusting at once, which is
-		# what `HALF_CYCLE` guarantees and what makes the room solvable at all.
+		# The player cannot answer it by picking a direction; they have to notice
+		# that the two halves are never gusting at once, which is what
+		# `HALF_CYCLE` guarantees and what makes the room solvable at all.
+		#
+		# **The seam sits on solid ground at cell 11, not over the gap**, and it
+		# used to sit over it -- a jump that left in a tailwind and landed in a
+		# headwind. That was survivable while the wind only applied in the air,
+		# and it stopped being survivable the moment the push reached a walking
+		# player: the run-up is now in one wind and the flight is in two, over a
+		# two-cell hole with spikes in it. The bot died six times and never once
+		# reached the far lip.
+		#
+		# It is the third time this stage has taught the same lesson -- Kite's
+		# relay and Gantry's hole were the other two: **a lethal gap under a
+		# cyclic force is a crossing whose difficulty depends on when you arrive
+		# at it.** The seam on solid ground keeps the room's whole idea (two
+		# halves, never gusting together, and you have to read which) and makes
+		# the jump happen in one wind. Walking through the seam and feeling the
+		# direction flip is also a better tell than crossing it mid-air, where
+		# the player has no way to attribute what just happened.
 		#
 		# Two cells wide, like Anemometer. This room is about reading, not about
 		# reach, and a long gap would have made it about both.
-		"gaps": [[13, 15]], "blocks": [],
+		# **The gap is in the downwind half**, and that is the rule the stage now
+		# runs on: a headwind may drag a walk, it may not blow across a hole. It
+		# was at cell 13, inside the upwind half, and the bot died five and six
+		# times there and never reached the far lip -- in a room that had zero
+		# deaths before the wind reached the ground.
+		#
+		# Isolated rather than guessed: moving the seam off the gap changed
+		# nothing, and pointing both zones downwind fixed it outright. The
+		# arithmetic says why no retuning would have saved it. A full-gust
+		# headwind costs `speed_pf * airtime` of reach, so for a two-cell gap to
+		# keep the margin it has in still air the drift would have to be about
+		# 0.015 px/frame -- a wind that does nothing. A headwind over a hole is
+		# either invisible or unfair, with no setting in between.
+		"gaps": [[6, 8]], "blocks": [],
 		"enemies": [
-			[WALKER, SKIN_WALKER, &"walk", 5.0, 0.0],
+			[WALKER, SKIN_WALKER, &"walk", 16.0, 0.0],
 			[TURRET, SKIN_TURRET, &"idle", 24.0, 2.0],
 		],
-		"pit_spikes": [[13, 3, 2]],
+		"pit_spikes": [[6, 3, 2]],
 		"checkpoint": 2.0,
 		"wind": [
-			{"dir": DOWNWIND, "from": 0, "to": 14, "phase": 0},
-			{"dir": UPWIND, "from": 14, "to": 28, "phase": HALF_CYCLE},
+			{"dir": DOWNWIND, "from": 0, "to": 11, "phase": 0},
+			{"dir": UPWIND, "from": 11, "to": 28, "phase": HALF_CYCLE},
 		],
 	},
 	{
