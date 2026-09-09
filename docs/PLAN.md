@@ -1550,9 +1550,12 @@ non-boss situations; password round-trips full progress state.
   and the act is what the attack is, so scaling either would make a reprise a
   different fight wearing the first one's sprite rather than the same fight with
   fewer openings.
-- 4 fortress stages, boss-rush teleporter room, two-phase final boss. **Outfall
-  (F1), Caisson (F2) and Switchgear (F3) are built**; Keep is declared in
-  `StageRoster` and not yet on disk, which the stage select reports by name.
+- 4 fortress stages, boss-rush teleporter room, two-phase final boss. **All four
+  are built**: Outfall, Caisson, Switchgear and Keep. The two-phase boss is
+  `Boss.forms()` on the base class rather than machinery inside the one boss that
+  needs it — a subclass says "there are two of me" and reads `form()` in
+  `build_patterns`, and the base handles the refilled bar, the rebuilt patterns
+  and the beat between.
 - Rival duel encounter and whistle-cue setpiece. **Built**, as Caisson's boss.
   The plan asked for a *mid-stage* duel and this is at the end of one: what makes
   a duel a set piece rather than an encounter is that the room shuts and the
@@ -1561,7 +1564,10 @@ non-boss situations; password round-trips full progress state.
   training — the player knows exactly what that door means, and this one opens
   onto a fight with no bar, no weapon and a whistle first.
 
-**Accept:** the game is completable start to finish without dev tools.
+**Accept:** the game is completable start to finish without dev tools. **Met**, with one
+qualification worth stating: the *ending* is a fallback. `SceneRouter.goto_ending()`
+routes a finished run to the stage select until M8 writes an ending screen, and
+says so on the console rather than doing it quietly.
 
 **Decided at M7a: the fortress is derived, not stored.** `GameState.fortress_open()`
 walks the eight boss bits rather than setting a ninth flag, so the gate cannot
@@ -1570,6 +1576,12 @@ disagree with the thing it gates on. Progress *through* the fortress is stored
 `fortress_stage()` returns the lowest uncleared rather than the highest cleared
 plus one — the two rules agree while progress is contiguous, and only the first
 can never skip a stage.
+
+**Decided at M7e: the last stage introduces nothing.** Outfall paired the two
+waters, Caisson the belt and the press, Switchgear had no gimmick because the
+eight fights were the stage. Keep has the M5a kit and only that — a gimmick in
+the last stage is a thing to learn on the way to the thing you came to do, and
+the fortress has already asked twice whether the player learned anything.
 
 **Decided at M7d: the boss rush is a resource problem.** The refights are the
 fights as shipped -- no `aggression` -- because eight fights on one health bar in

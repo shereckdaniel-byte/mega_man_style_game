@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DamageTable" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/damage_table.gd" id="1_table"]
+
+[resource]
+script = ExtResource("1_table")
+entity_id = &"bulwark_shell"
+by_weapon = {
+&"arc_lance": 2,
+&"buster_charged": 3,
+&"cinder_spray": 2,
+&"contact": 0,
+&"frost_lock": 1,
+&"gale_cutter": 1,
+&"prism_ray": 2,
+&"quarry_bore": 4,
+&"rust_bloom": 2,
+&"sword": 3,
+&"tide_crawler": 1
+}
+immune_to = Array[StringName]([])

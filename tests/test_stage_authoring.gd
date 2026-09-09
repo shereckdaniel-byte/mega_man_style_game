@@ -35,6 +35,7 @@ const STAGES := {
 	"outfall": preload("res://scenes/stages/outfall/outfall.gd"),
 	"caisson": preload("res://scenes/stages/caisson/caisson.gd"),
 	"switchgear": preload("res://scenes/stages/switchgear/switchgear.gd"),
+	"keep": preload("res://scenes/stages/keep/keep.gd"),
 }
 
 ## A spiked slide tunnel is at most this wide, in cells.
@@ -345,6 +346,53 @@ func test_every_change_of_band_has_a_ladder() -> void:
 				"%s: %s goes %s into %s and has no `%s`"
 					% [name, here["name"], "down" if d_band > 0 else "up",
 						next["name"], key])
+
+
+## **A crumbling block is a floor, and a floor is in the deck.**
+##
+## `crumbles` is `[x, rows_above_deck]`, and every one of the fifty-odd in the
+## game is at 0 -- they *are* the deck across a hole, which is the only thing
+## they have ever been used for. Authored at rise 2 they become one-tile blocks
+## floating two rows up, and the gap they leave under themselves is one tile
+## against a standing player who is a tile and a half: a ceiling nothing can
+## walk under and nothing marked as a ceiling.
+##
+## Keep shipped three of them that way and the bot stood in front of the first
+## for 900 frames. Nothing objected, because a crumble is not a `block`, not a
+## `ceiling` and not a `gap`, so every existing rule looked straight past it.
+func test_every_crumble_is_in_the_deck() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for block in spec.get("crumbles", []):
+				assert_eq(block.size(), 2,
+					"%s/%s: a crumble is [x, rows_above_deck] and this has %d entries"
+						% [name, spec["name"], block.size()])
+				assert_eq(int(block[1]), 0,
+					"%s/%s: a crumble %d rows above the deck is a low ceiling"
+						% [name, spec["name"], int(block[1])])
+
+
+## **A moving platform the jump cannot reach is a ride you watch go past.**
+##
+## `movers` is `[x, rows_above_deck, dx, dy, frames]`, and a jump clears 2.89
+## tiles. Keep authored one at four rows up: the bot walked to the lip of the
+## hole it was meant to cross and waited there for 900 frames for a platform it
+## could never board, which from the outside looks exactly like a bot that has
+## stopped working.
+##
+## Measured against the real apex rather than a number, so a change to the jump
+## fails the stages rather than quietly stranding one.
+func test_every_mover_is_within_a_jump_of_the_deck() -> void:
+	var reach := PlayerTuning.new().jump_apex_tiles()
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for mover in spec.get("movers", []):
+				var rows := float(mover[1])
+				assert_true(rows <= reach,
+					"%s/%s: a mover %.0f rows up, and a jump reaches %.2f tiles"
+						% [name, spec["name"], rows, reach])
 
 
 ## A ceiling in a shaft's column hangs over the spot the ladder delivers to.

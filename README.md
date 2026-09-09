@@ -3,10 +3,10 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: all eight stages built, and the fortress has opened.** The player controller,
-combat, enemies, eight bosses with weapon gets, eight stages of nineteen rooms each, and
-the first of the four fortress stages behind the centre cell — all authored as room
-tables against a shared `AuthoredStage`. Both weakness cycles close, no boss is weak to
+**Status: the game is completable start to finish.** The player controller, combat,
+enemies, eight bosses with weapon gets, eight stages of nineteen rooms each, and all four
+fortress stages behind the centre cell, ending in a two-form final boss — all authored as
+room tables against a shared `AuthoredStage`. Both weakness cycles close, no boss is weak to
 the weapon it drops, and every one of the eight weapon archetypes is used exactly once.
 Verified on Godot 4.7.stable, headless, in CI.
 
@@ -28,14 +28,14 @@ and simply will not stop you, and water is the only one that helps.**
 ## The fortress
 
 The centre cell of the stage select opens when the eighth Robot Master falls, and holds
-four stages played **in order** rather than chosen from. Three of the four are built:
+four stages played **in order** rather than chosen from. All four are built:
 
 | # | Stage | Boss | What it is |
 | --- | --- | --- | --- |
 | F1 | Outfall | Tide, rebuilt | the drain the sea comes back through |
 | F2 | Caisson | **Ward** | the pressure chamber, and whoever is waiting in it |
 | F3 | Switchgear | **all eight** | eight pads, and everything you already beat |
-| F4 | Keep | — | the core |
+| F4 | Keep | **Bulwark** | the core |
 
 **A fortress stage has no gimmick of its own, and that is the design.** Each master stage
 contains exactly one idea and deliberately none of the others, because a stage that mixes
@@ -81,6 +81,25 @@ ladder, so eight bands is eight islands for free.
 last-room boss, and a route that is not a walk. `tests/test_switchgear.gd` builds it for
 real and takes the route instead, so the bot's silence about this stage is written down
 rather than mistaken for a pass.
+
+**Keep** is the shortest stage in the game, on purpose: what is at the end of it is the
+only thing anyone is there for. It has no gimmick of its own and does not borrow one
+either — just the shared kit the player has been reading since the first room they ever
+played, because a gimmick in the last stage is a thing to learn on the way to the thing
+you came to do.
+
+**Bulwark** is the only fight with two forms, and they are opposites. The shell never
+leaves the ground and never chases: everything it does travels along the floor or falls
+from the ceiling, so the answer is *where you stand*. Then it breaks, and what is inside
+never touches the ground: it hovers, aims at where you are, and closes — so the answer
+becomes *when you jump*. Eight stages of Robot Masters are one or the other; the last one
+is both, and the transition is where everything the player worked out stops applying.
+
+The shell is weak to the **Quarry Bore** — the piercing drill against the armoured wall,
+the one weakness in the game you could guess from the fiction rather than a chart. The
+core is weak to nothing, so **the last blow of the game is always the buster**: nobody
+arrives at the end of the fortress dry and stuck, and the weapon you have had since the
+first frame is the one that finishes it.
 
 At the end of Caisson, **the boss door opens onto someone who is not a boss.** Ward
 whistles first, fights with the player's own three verbs — shoot, jump, slide, nothing you

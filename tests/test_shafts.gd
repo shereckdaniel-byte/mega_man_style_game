@@ -34,6 +34,7 @@ const STAGES := {
 	"outfall": "res://scenes/stages/outfall/outfall.tscn",
 	"caisson": "res://scenes/stages/caisson/caisson.tscn",
 	"switchgear": "res://scenes/stages/switchgear/switchgear.tscn",
+	"keep": "res://scenes/stages/keep/keep.tscn",
 }
 
 ## Frames to let a stage build its deck, rooms and elements.
