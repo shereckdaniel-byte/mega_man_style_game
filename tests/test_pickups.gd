@@ -137,13 +137,52 @@ func test_an_etank_capsule_banks_a_tank_even_at_full_health() -> void:
 ## Weapon energy on the buster is refused, not swallowed. The buster never runs
 ## dry, so a capsule spent on it is a capsule thrown away -- it waits for the
 ## player to switch to the weapon that needs it.
-func test_weapon_energy_is_refused_while_the_buster_is_equipped() -> void:
+## **A capsule dropped before the player owns any weapon is not a weapon
+## capsule.** Weapon energy is 16% of the drop table and nothing can hold it
+## until the first boss falls, so for a whole first stage one drop in six was a
+## thing the player could walk over forever with no way to tell why. It arrives
+## as health instead.
+##
+## This test replaces one that asserted the opposite -- that the capsule sat
+## there untaken -- which was the shipped behaviour and was the bug.
+func test_a_weapon_capsule_is_health_before_any_weapon_is_won() -> void:
 	if weapons == null:
 		return
+	weapons.reset()
 	weapons.select(weapons.BUSTER)
+	player.health.take(DamageInfo.new(6, Vector2.ZERO, &"test", DamageInfo.NONE))
+	var before: int = player.health.current
 	var item := Pickup.drop(root, player.global_position, Pickup.Kind.AMMO_SMALL)
 	await _frames(6)
-	assert_true(is_instance_valid(item), "the buster ate a weapon capsule")
+	assert_false(is_instance_valid(item),
+		"a capsule nobody can use was left on the floor")
+	assert_eq(player.health.current, before + Pickup.SMALL_AMOUNT,
+		"the substituted capsule did not heal")
+
+
+## **The buster is not a reason to refuse a capsule.** It has no bar to fill, so
+## the capsule feeds the unlocked weapon that needs it most rather than waiting
+## for the player to guess that they have to switch first. The player is holding
+## the buster for most of the game and all of it before the first weapon-get.
+func test_a_weapon_capsule_feeds_the_neediest_weapon_from_the_buster() -> void:
+	if weapons == null:
+		return
+	weapons.unlock(&"tide_crawler")
+	weapons.unlock(&"arc_lance")
+	# The Arc Lance is emptier, so it is the one that should be fed -- even
+	# though neither is equipped.
+	weapons.consume(&"tide_crawler", 4)
+	weapons.consume(&"arc_lance", 16)
+	assert_true(weapons.select(weapons.BUSTER))
+	var crawler: int = weapons.get_ammo(&"tide_crawler")
+	var lance: int = weapons.get_ammo(&"arc_lance")
+	var item := Pickup.drop(root, player.global_position, Pickup.Kind.AMMO_LARGE)
+	await _frames(6)
+	assert_false(is_instance_valid(item), "the buster ate a weapon capsule")
+	assert_eq(weapons.get_ammo(&"arc_lance"), lance + Pickup.LARGE_AMOUNT,
+		"the emptier weapon was not the one filled")
+	assert_eq(weapons.get_ammo(&"tide_crawler"), crawler,
+		"the fuller weapon was filled as well")
 
 
 func test_weapon_energy_refills_the_equipped_weapon() -> void:

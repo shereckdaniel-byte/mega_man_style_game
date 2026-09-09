@@ -110,12 +110,36 @@ static func drop(parent: Node, at: Vector2, of_kind: Kind) -> Pickup:
 	if parent == null:
 		return null
 	var item := Pickup.new()
-	item.kind = of_kind
+	item.kind = _usable_kind(of_kind, parent)
 	# Carried rather than assigned, because a node outside the tree has no global
 	# position to set. Same shape as `FacetMirror.plant` and `FocusSpot.sweep`.
 	item._spawn_position = at
 	parent.add_child.call_deferred(item)
 	return item
+
+
+## A weapon capsule dropped before the player owns a weapon, turned into health.
+##
+## **A capsule nobody can use is not a capsule, it is litter that looks like a
+## reward.** Weapon energy is 16% of the drop table and there is nothing at all
+## for it to fill until the first boss falls -- so for the whole of a player's
+## first stage, one drop in six was a thing that could be walked over and never
+## picked up. `_refill` fixes the case where a weapon exists and a different one
+## is equipped; this fixes the case where none exists yet.
+##
+## Health rather than nothing, and the small/large size is kept: the roll said
+## "this kill was worth something", and the fix should not quietly make the
+## early game stingier than the drop table says it is.
+static func _usable_kind(of_kind: Kind, parent: Node) -> Kind:
+	if of_kind != Kind.AMMO_SMALL and of_kind != Kind.AMMO_LARGE:
+		return of_kind
+	var weapons := parent.get_node_or_null(^"/root/WeaponManager")
+	if weapons == null:
+		return of_kind
+	for id: StringName in weapons.unlocked():
+		if id != weapons.BUSTER:
+			return of_kind
+	return Kind.HEALTH_SMALL if of_kind == Kind.AMMO_SMALL else Kind.HEALTH_LARGE
 
 
 func _ready() -> void:
@@ -218,22 +242,52 @@ func _apply(player: Player) -> bool:
 	return false
 
 
-## Tops up the equipped weapon.
+## Tops up the weapon that needs it most.
 ##
-## The buster has no ammo and never runs dry, so a weapon capsule on the buster
-## is refused rather than swallowed: it waits for the player to switch to the
-## weapon that needs it, which is the choice the capsule is there to offer.
+## **It used to top up only the *equipped* weapon, and that was a bug that made
+## a sixth of all drops uncollectable.** The buster has no ammo and never runs
+## dry, so a capsule touched while the buster is equipped was refused -- and the
+## buster is what the player is holding for most of the game, and all of it
+## before the first weapon-get. A player walked over yellow capsules and nothing
+## happened, forever, with no way to tell why.
+##
+## The old behaviour had an argument -- the capsule waits for you to switch to
+## the weapon that needs it, so *which* weapon it feeds is a choice you make.
+## That is a real choice and it is not worth the cost: the player has to already
+## know the rule to see the choice, and if they do not, the game looks broken.
+## So the capsule feeds whichever unlocked weapon has the least energy, which is
+## what a player switching deliberately would almost always have picked anyway.
+##
+## Ties go to the earliest in `unlocked()` order, which is boss order, so the
+## result is stable rather than dependent on dictionary iteration.
 func _refill(amount: int) -> bool:
 	var weapons := get_node_or_null(^"/root/WeaponManager")
 	if weapons == null:
 		return false
-	var current: StringName = weapons.current
-	if current == weapons.BUSTER:
+	var wanted := _neediest_weapon(weapons)
+	if wanted == &"":
 		return false
-	if weapons.get_ammo(current) >= weapons.max_ammo(current):
-		return false
-	weapons.refill(current, amount)
+	weapons.refill(wanted, amount)
 	return true
+
+
+## The unlocked weapon furthest from full, or `&""` when every weapon is full
+## and there is nothing for a capsule to do.
+##
+## The buster is skipped because it has no bar to fill. It is in `unlocked()` --
+## it is a weapon the player has -- so this is a real exclusion rather than an
+## accident of the list.
+func _neediest_weapon(weapons: Node) -> StringName:
+	var best: StringName = &""
+	var lowest := 0
+	for id: StringName in weapons.unlocked():
+		if id == weapons.BUSTER:
+			continue
+		var room: int = weapons.max_ammo(id) - weapons.get_ammo(id)
+		if room > lowest:
+			lowest = room
+			best = id
+	return best
 
 
 func _game_state() -> Node:
