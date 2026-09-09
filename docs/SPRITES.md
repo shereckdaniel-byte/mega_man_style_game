@@ -547,6 +547,30 @@ actually bites. The stretch is about 17% on a 32 px sprite and is invisible.
 
 ### 8g. Stage 4's art, a sky that did it again, and a tileset that cannot be fetched
 
+**Closed at M7d: the host was allowed and the tileset came down on the first
+try.** 2648 bytes of art, 20747 of metadata, sixteen Wang tiles at 64x64, and
+`mirror_field.gd` now preloads its own `.tres` instead of stage 3's. Nothing was
+regenerated. The account was never billed twice. The section below is kept as it
+was written, because the thing it argues -- greybox the layout, buy the art
+second -- is what made a two-milestone outage cost nothing, and that is worth
+more than a tidy document.
+
+**One step was missing from the recipe this document carried since stage 1**, and
+it surfaced on the day the host opened: a PNG that has just appeared on disk has
+no `.import` file, so `load()` fails with "No loader found for resource" and the
+tileset importer reports a missing texture -- which looks exactly like a bad
+download and is not one. `godot --headless --import` has to run first, and
+`tools/fetch_tilesets.sh` now does it.
+
+**The host check was also wrong in the other direction.** The script listed the
+status codes it thought a bucket root could return -- 200, 404, 403 -- and the
+day the domain was opened it returned **301**, so the script reported the host
+still blocked while it was working. A refused CONNECT never becomes an HTTP
+response at all; curl reports `000` for it. The test is "did we get a status
+code", not "did we get one from a list somebody guessed".
+
+---
+
 **The tileset is generated, paid for, and undownloadable.** This is the
 `backblaze.pixellab.ai` problem in the section above, unchanged and still open:
 the metadata comes back from the allowed host and imports fine, and the

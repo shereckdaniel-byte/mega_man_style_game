@@ -95,12 +95,14 @@ backdrops drawn in code rather than loaded. The layouts were driven by the bot b
 art was paid for, which is PLAN.md's own rule — layout first, art second. Each stage's
 docstring names the six enemies it actually wants.
 
-**Stage 4's terrain is a separate problem and a smaller one.** It is generated and paid
-for and sitting on PixelLab's server; the spritesheet is served from
-`backblaze.pixellab.ai`, which this environment's egress policy blocks, while the metadata
-comes from an allowed host. `tools/fetch_tilesets.sh` is the whole recovery once the host
-is opened — see docs/SPRITES.md §8g, which now also lists every route that was probed and
-does not work, so nobody probes them again.
+**Stage 4 has its own terrain again.** It was generated at M6k and then undownloadable
+for two milestones — the spritesheet is served from `backblaze.pixellab.ai` and this
+environment's egress policy refused the host, while the metadata came from an allowed one.
+The host was opened and `tools/fetch_tilesets.sh` recovered it on the first run; nothing
+was regenerated and nothing was paid for twice, because a generated tileset sits on
+PixelLab's server indefinitely. That is the argument for greyboxing written out in full:
+Mirror Field was authored, bot-driven and shipped for two milestones without its art, and
+the art dropped in on one line.
 
 Progress persists two ways, both writing the same struct: a **save slot** at
 `user://save_0.json`, written when a stage is cleared and read at boot, and an

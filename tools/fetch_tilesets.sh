@@ -47,8 +47,15 @@ fi
 # The blocked host, checked once and up front. A tileset download that fails
 # because of the egress policy looks identical to one that fails because the
 # service is down, and only one of those is worth reporting to PixelLab.
+#
+# **Any HTTP status at all means the host answered.** A CONNECT the egress proxy
+# refuses never becomes an HTTP response, and curl reports `000` for it -- so the
+# test is "did we get a status code", not "did we get a good one". The first
+# version of this listed the codes it thought a bucket root could return (200,
+# 404, 403) and was wrong on the day the host was opened: it returns **301**, and
+# the script reported the domain still blocked while it was working.
 probe=$(curl -sS -o /dev/null -w '%{http_code}' "https://backblaze.pixellab.ai/" 2>&1 || true)
-if [ "$probe" != "200" ] && [ "$probe" != "404" ] && [ "$probe" != "403" ]; then
+if [ "$probe" = "000" ] || [ -z "$probe" ]; then
   echo "backblaze.pixellab.ai is not reachable from this session."
   echo "The spritesheets live there and the egress policy has to allow the host."
   echo "See docs/SPRITES.md section 8. Nothing has been downloaded."
@@ -85,6 +92,15 @@ if [ "$failed" -ne 0 ]; then
   exit 1
 fi
 
+# **Godot's own import first.** A PNG that has just appeared on disk has no
+# `.import` file, so `load()` on it fails with "No loader found for resource"
+# and the tileset importer reports a missing texture -- which looks exactly like
+# a bad download and is not one. This is the step the four hand-typed curl lines
+# in SPRITES.md never had, and it cost a confusing run on the day the host was
+# finally opened.
 echo
-echo "importing"
+echo "importing the art"
+"$GODOT" --headless --import >/dev/null 2>&1
+
+echo "building the tilesets"
 "$GODOT" --headless --script res://tools/pixellab_tileset_import.gd
