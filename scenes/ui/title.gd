@@ -27,7 +27,8 @@ const SEA_LOW := Color(0.07, 0.14, 0.24)
 const ROW_CONTINUE := 0
 const ROW_NEW := 1
 const ROW_PASSWORD := 2
-const ROWS := 3
+const ROW_OPTIONS := 3
+const ROWS := 4
 
 var cursor := ROW_CONTINUE
 
@@ -72,6 +73,10 @@ func confirm() -> bool:
 			return true
 		ROW_PASSWORD:
 			open_password()
+			return true
+		ROW_OPTIONS:
+			Sfx.play(&"confirm")
+			OptionsScreen.open(self)
 			return true
 	return false
 
@@ -165,7 +170,7 @@ func _build() -> void:
 	subtitle.position.y = 296.0
 	panel.add_child(subtitle)
 
-	var names := ["CONTINUE", "NEW GAME", "PASSWORD"]
+	var names := ["CONTINUE", "NEW GAME", "PASSWORD", "OPTIONS"]
 	for i in ROWS:
 		var row := Label.new()
 		row.name = names[i].replace(" ", "")
@@ -204,7 +209,7 @@ func _refresh() -> void:
 func _row_text(index: int) -> String:
 	if index == ROW_CONTINUE and not _has_save:
 		return "CONTINUE — NO SAVE"
-	return ["CONTINUE", "NEW GAME", "PASSWORD"][index]
+	return ["CONTINUE", "NEW GAME", "PASSWORD", "OPTIONS"][index]
 
 
 func _say(message: String) -> void:

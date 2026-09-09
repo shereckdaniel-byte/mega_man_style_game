@@ -30,6 +30,9 @@ const DIM_COLOUR := Color(0.45, 0.52, 0.64)
 
 ## The E-tank row sits after the weapons and is selected like one of them.
 const ETANK_ROW := &"__etank"
+## The options row. Prefixed like the others so it can never collide with a
+## weapon id, which is what the double underscore is for.
+const OPTIONS_ROW := &"__options"
 ## And a restart row after that.
 ##
 ## Not in the original, and not pretending to be. It is here because there is no
@@ -172,6 +175,13 @@ func confirm() -> bool:
 		else:
 			_report("ALREADY AT FULL HEALTH")
 		return used
+	if row == OPTIONS_ROW:
+		# Over the pause menu rather than replacing it: the player asked to
+		# change a setting mid-run, and coming back to a closed menu in a
+		# running stage is not what they asked for.
+		var options := OptionsScreen.open(self)
+		options.closed.connect(_report.bind("OPTIONS SAVED"))
+		return true
 	if row == RESUME_ROW:
 		close()
 		return true
@@ -386,6 +396,7 @@ func _refresh_rows() -> void:
 		for id: StringName in _weapons.unlocked():
 			rows.append(id)
 	rows.append(ETANK_ROW)
+	rows.append(OPTIONS_ROW)
 	rows.append(RESTART_ROW)
 	rows.append(RESUME_ROW)
 	# Open on whatever is equipped, so the common case -- open, switch back,
@@ -430,6 +441,8 @@ func _row_text(id: StringName) -> String:
 		return "RESUME"
 	if id == RESTART_ROW:
 		return "RESTART STAGE"
+	if id == OPTIONS_ROW:
+		return "OPTIONS"
 	if id == ETANK_ROW:
 		var count: int = _state.etanks if _state != null else 0
 		return "E-TANK   x%d" % count

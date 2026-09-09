@@ -249,7 +249,19 @@ func _draw() -> void:
 	if phase == Phase.WARNING:
 		alpha = 0.85 if _frames % 8 < 4 else 0.30
 	var glass := Rect2(Vector2.ZERO, Vector2(size.x, size.y - post * 0.5))
-	draw_rect(glass, Color(GLASS, alpha))
+	draw_rect(glass, Color(Settings.panel_colour(GLASS), alpha))
+	# **The colourblind cue is a hatch, not another colour.** A player who
+	# cannot separate this blue from the backdrop is helped by a paler blue; a
+	# player who cannot separate any two hues is helped by nothing that is only
+	# a hue. Redundant encoding -- colour *and* shape -- is the rule, and the
+	# hatch is a pattern the backdrop never has. See `Settings.panel_hatched`.
+	if Settings.panel_hatched():
+		var step := maxf(size.x * 0.22, 6.0)
+		var x := -glass.size.y
+		while x < glass.size.x:
+			draw_line(Vector2(x, glass.size.y), Vector2(x + glass.size.y, 0.0),
+				Color(0.16, 0.20, 0.28, alpha * 0.8), maxf(edge, 2.0))
+			x += step
 	# A diagonal catch of light, so a panel reads as glass rather than as a
 	# coloured slab -- and so the flicker has something to flicker.
 	draw_colored_polygon(PackedVector2Array([

@@ -136,17 +136,24 @@ func test_the_controls_list_reads_the_real_bindings() -> void:
 		"SLIDE lists alternates too: %s" % by_label["SLIDE"])
 
 
-## With nothing unlocked the list is the buster, the E-tank row, restart and
-## resume -- the state a new game is in, so the one most likely to be hit.
+## With nothing unlocked the list is the buster and the standing rows -- the
+## state a new game is in, so the one most likely to be hit.
+##
+## **Counted from the constants rather than from a literal.** This asserted `4`
+## and failed the day M8 added an options row, which is a test failing because
+## the thing it describes got better. What it is actually for is that a fresh run
+## lists the buster and *nothing else that is a weapon*.
 func test_a_fresh_run_lists_the_buster_and_the_standing_rows() -> void:
 	if weapons == null:
 		return
 	menu.open()
-	assert_eq(menu.rows.size(), 4, "rows were %s" % str(menu.rows))
+	var standing := [PauseMenu.ETANK_ROW, PauseMenu.OPTIONS_ROW,
+		PauseMenu.RESTART_ROW, PauseMenu.RESUME_ROW]
+	assert_eq(menu.rows.size(), standing.size() + 1,
+		"rows were %s" % str(menu.rows))
 	assert_has(menu.rows, weapons.BUSTER)
-	assert_has(menu.rows, PauseMenu.ETANK_ROW)
-	assert_has(menu.rows, PauseMenu.RESTART_ROW)
-	assert_has(menu.rows, PauseMenu.RESUME_ROW)
+	for row in standing:
+		assert_has(menu.rows, row)
 
 
 ## Restart closes the menu before it reports. The stage is about to be rebuilt

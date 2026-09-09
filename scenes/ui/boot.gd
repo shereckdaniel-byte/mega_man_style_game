@@ -30,6 +30,10 @@ const FIRST_SCENE := "res://scenes/ui/intro.tscn"
 
 
 func _ready() -> void:
+	# Before anything is drawn or heard: a window that resizes after the first
+	# frame and a volume that corrects itself after the first sound are both
+	# things a player notices and neither is worth noticing.
+	Settings.load_settings()
 	_load_progress()
 	var report := _self_check()
 	for line in report:
