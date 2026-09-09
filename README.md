@@ -29,6 +29,13 @@ code rather than loaded. The layouts were driven by the bot before any art was p
 which is PLAN.md's own rule — layout first, art second. Each stage's docstring names the
 six enemies it actually wants.
 
+Progress persists two ways, both writing the same struct: a **save slot** at
+`user://save_0.json`, written when a stage is cleared and read at boot, and an
+MM3-style **password grid** — five by five, one dot per cell, reachable with
+**Pause** on the stage select. The slot carries your life count; the password
+deliberately does not, because a password that restored lives would let you farm
+one, write it down and come back topped up.
+
 **Every stage wants a playtester.** The bot completes all eight from spawn to a dead
 boss, but it is not a player: it dodges low projectiles better than a human and it never
 gets bored, curious or greedy. Cold Store is the clearest case — the bot beats Frost

@@ -101,9 +101,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		move_cursor(Vector2i(0, 1))
 	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"shoot"):
 		confirm()
+	elif event.is_action_pressed(&"pause"):
+		open_password()
 	else:
 		return
 	get_viewport().set_input_as_handled()
+
+
+## Opens the password screen over the grid.
+##
+## `pause` because it is the one action with nothing to do on this screen, and
+## because "the menu key opens the menu" is a guess a player can make. There is
+## no title screen yet -- `SceneRouter.TITLE` points at a scene M8 will write --
+## so the select is where a password has to be enterable from, and it is not a
+## bad home for it: it is the screen a run returns to.
+func open_password() -> PasswordScreen:
+	var screen := PasswordScreen.open(self)
+	screen.finished.connect(_on_password_finished)
+	return screen
+
+
+## A loaded password changes which stages are cleared, so the grid is rebuilt.
+func _on_password_finished(loaded: bool) -> void:
+	if loaded:
+		_refresh()
+		_report("PASSWORD LOADED")
 
 
 func _report(message: String) -> void:

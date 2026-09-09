@@ -362,6 +362,7 @@ func _ready() -> void:
 	_add_overlay()
 	_player.game_over.connect(_on_game_over)
 	stage_cleared.connect(_print_ledger.bind("stage cleared"))
+	stage_cleared.connect(_save_progress)
 	begin(_player, _rooms[0])
 
 
@@ -988,3 +989,28 @@ func _on_stage_exited() -> void:
 	var router := get_node_or_null(^"/root/SceneRouter")
 	if router != null:
 		router.goto_stage_select()
+
+
+## Writes the run to slot 0.
+##
+## **Connected to `stage_cleared` rather than called from the exit handler**, so
+## the save is a consequence of the stage being cleared rather than of one
+## particular route out of it. That is also what makes it testable: the
+## playthrough bot stops as soon as the weapon lands and never reaches the
+## victory pose, so a save wired into the exit path had no coverage at all and
+## no way to get any.
+##
+## **On stage clear and nowhere else in a stage.** It is the only moment in a
+## run where the player has unambiguously gained something that should survive
+## being closed -- a checkpoint has not, and saving at one would mean a death
+## loop writes to disk every few seconds. docs/ARCHITECTURE.md section 8 says
+## "on stage clear and on quit"; this is the first half, and quit is the pause
+## menu's to own.
+##
+## A failed write is reported by `SaveGame` and not swallowed here: a save that
+## silently did not happen is worse than one that visibly failed.
+func _save_progress() -> void:
+	var state := get_node_or_null(^"/root/GameState")
+	if state == null:
+		return
+	SaveGame.write(0, state.to_dict())

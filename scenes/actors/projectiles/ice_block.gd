@@ -85,7 +85,13 @@ func _ready() -> void:
 	hurtbox.name = "Hurtbox"
 	hurtbox.collision_layer = Layers.bit(Layers.ENEMY_HURTBOX)
 	hurtbox.collision_mask = 0
-	hurtbox.health = health
+	# Found by sibling search rather than assigned: `Hurtbox.health` is a
+	# *getter*, and `hurtbox.health = health` is assigning to a method -- which
+	# GDScript reports as "cannot assign a new value to a constant", three words
+	# away from anything that would make you look here. It compiled against a
+	# cached build for a whole milestone and only failed once the class cache was
+	# rebuilt. `_resolve_health` walks the parent's children, and the Health is
+	# added above, so there is nothing to wire.
 	var hurt_shape := CollisionShape2D.new()
 	var hurt_rect := RectangleShape2D.new()
 	hurt_rect.size = SIZE_NES * _tuning.world_scale
