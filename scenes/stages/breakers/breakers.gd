@@ -507,16 +507,3 @@ func place_stage_elements(spec: Dictionary, _index: int, origin: int, deck: int,
 		add_child(press)
 
 
-## How far a press travels, from the room ceiling to `clearance` rows above the
-## deck. Exposed rather than inlined so `tests/test_breakers.gd` can check the
-## arithmetic against the real geometry instead of restating it.
-func press_drop_rows(height_rows: float, clearance_rows: float) -> float:
-	return float(ceiling_to_deck_rows()) - height_rows - clearance_rows
-
-
-## Rows of open air between a room's ceiling and its deck. A room is exactly one
-## screen tall by AuthoredStage's construction, so this is that height and not a
-## number of this stage's own -- derived rather than restated, because a press
-## hung from a ceiling that had moved would hang in mid-air.
-func ceiling_to_deck_rows() -> int:
-	return DECK_ROW - ROOM_TOP

@@ -55,6 +55,14 @@ func take(info: DamageInfo) -> int:
 		return 0
 
 	var taken := mini(amount, current)
+	if info.has_flag(DamageInfo.NON_LETHAL):
+		# One point is always left. `taken` can go to zero here, which is a
+		# refused hit and reported as one -- a player already on 1 HP takes
+		# nothing at all from a non-lethal source, rather than taking damage
+		# that does not land.
+		taken = mini(taken, current - 1)
+		if taken <= 0:
+			return 0
 	current -= taken
 	_invulnerable_left = invulnerable_frames
 	damaged.emit(info, taken)

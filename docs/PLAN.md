@@ -1551,9 +1551,15 @@ non-boss situations; password round-trips full progress state.
   different fight wearing the first one's sprite rather than the same fight with
   fewer openings.
 - 4 fortress stages, boss-rush teleporter room, two-phase final boss. **Outfall
-  (F1) is built**; Caisson, Switchgear and Keep are declared in `StageRoster` and
-  not yet on disk, which the stage select reports by name.
-- Rival duel encounter and whistle-cue setpiece.
+  (F1) and Caisson (F2) are built**; Switchgear and Keep are declared in
+  `StageRoster` and not yet on disk, which the stage select reports by name.
+- Rival duel encounter and whistle-cue setpiece. **Built**, as Caisson's boss.
+  The plan asked for a *mid-stage* duel and this is at the end of one: what makes
+  a duel a set piece rather than an encounter is that the room shuts and the
+  player cannot walk away, and `BossArena` is the thing in this project that
+  shuts a room. Putting Ward behind a boss door also spends eight stages of
+  training — the player knows exactly what that door means, and this one opens
+  onto a fight with no bar, no weapon and a whistle first.
 
 **Accept:** the game is completable start to finish without dev tools.
 
@@ -1564,6 +1570,16 @@ disagree with the thing it gates on. Progress *through* the fortress is stored
 `fortress_stage()` returns the lowest uncleared rather than the highest cleared
 plus one — the two rules agree while progress is contiguous, and only the first
 can never skip a stage.
+
+**Decided at M7c: unbeatable and non-lethal are the same design.** Ward's health
+floors above the biggest single hit in the game, so he stops and leaves rather
+than ever reaching zero; his attacks carry `DamageInfo.NON_LETHAL`, a flag on the
+hit rather than a mode on the target, so they leave the player on at least one
+point. Neither of you can finish it, and what is left is a conversation — the
+only fight in the game with no stake in it, which is why it can afford to be the
+one that says something. He also has a clock: a player who hides behind a block
+still gets to leave, because the one fight with no reward is the worst possible
+place to put a wall.
 
 **Decided at M7b: a fortress stage has no gimmick of its own.** Each master stage
 contains exactly one idea and deliberately none of the others, because a stage

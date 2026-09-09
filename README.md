@@ -28,12 +28,12 @@ and simply will not stop you, and water is the only one that helps.**
 ## The fortress
 
 The centre cell of the stage select opens when the eighth Robot Master falls, and holds
-four stages played **in order** rather than chosen from. The first is built:
+four stages played **in order** rather than chosen from. The first two are built:
 
 | # | Stage | Boss | What it is |
 | --- | --- | --- | --- |
 | F1 | Outfall | Tide, rebuilt | the drain the sea comes back through |
-| F2 | Caisson | — | the pressure chamber, and whoever is waiting in it |
+| F2 | Caisson | **Ward** | the pressure chamber, and whoever is waiting in it |
 | F3 | Switchgear | — | eight pads, and everything you already beat |
 | F4 | Keep | — | the core |
 
@@ -44,12 +44,28 @@ Outfall puts stage 8's pool and stage 1's tide in one stage, the two waters, one
 is a floor and the other instant death. They never share a room: the tell is motion, and
 *if the line is moving, it kills.*
 
-Its boss is Tide again, faster. `Boss.aggression` shortens a boss's **recovery** and
-nothing else — never the tell, which is the fairness contract, and never the act, which
-is what the attack *is* — so a reprise is the same fight with fewer openings rather than
-a different fight wearing the first one's sprite. It is Tide specifically because the
-fortress is a chain with no stage select in between and therefore no refill, and Tide is
-the boss the roster already names as the buster-only one.
+**Outfall** takes stage 8's pool and stage 1's tide. Its boss is Tide again, faster:
+`Boss.aggression` shortens a boss's **recovery** and nothing else — never the tell, which
+is the fairness contract, and never the act, which is what the attack *is* — so a reprise
+is the same fight with fewer openings rather than a different fight wearing the first
+one's sprite. It is Tide specifically because the fortress is a chain with no stage select
+in between, and Tide is the boss the roster already names as the buster-only one.
+
+**Caisson** takes stage 6's conveyor and stage 3's crusher, which go together because
+neither is dangerous and both are about *when*: **the belt decides when you arrive, and
+the press decides whether that was a good time.** They never share cells, and that is
+arithmetic rather than taste — the press's 36-frame tell is a walking budget sized to let
+you clear the widest legal column, and walking out against a belt spends most of it
+(1.74 tiles of a possible 3). The stage's test computes both numbers from `CrusherPress`
+and `ConveyorBelt` rather than restating them.
+
+At the end of Caisson, **the boss door opens onto someone who is not a boss.** Ward
+whistles first, fights with the player's own three verbs — shoot, jump, slide, nothing you
+have not had since M1 — and **cannot win or lose**: every hit he lands carries
+`DamageInfo.NON_LETHAL` and leaves you on at least one point, and hitting him past a floor
+makes him stop, salute and leave rather than explode. There is no bar to empty and no
+weapon at the end of it. Eight stages have taught the player exactly what a boss door
+means, which is what makes it worth spending one on this.
 
 **Stages 5–8 are greyboxed**: stage 3's tileset and enemy skins, and backdrops drawn in
 code rather than loaded. The layouts were driven by the bot before any art was paid for,

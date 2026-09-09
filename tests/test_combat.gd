@@ -79,6 +79,47 @@ func test_health_clamps_rather_than_going_negative() -> void:
 	health.free()
 
 
+## **A non-lethal hit always leaves one point.** The rival duel is a set piece
+## and a rival who can end the run turns it into a boss fight with no reward.
+func test_a_non_lethal_hit_never_takes_the_last_point() -> void:
+	var health := Health.new()
+	health.max_hp = 28
+	health.current = 3
+	var info := DamageInfo.new(99, Vector2.ZERO, &"rival", DamageInfo.NON_LETHAL)
+	assert_eq(health.take(info), 2, "reports what it actually took")
+	assert_eq(health.current, 1)
+	assert_false(health.is_dead())
+	health.free()
+
+
+## And on 1 HP it takes nothing at all, rather than taking damage that does not
+## land -- a hit reported as 0 is a hit the rest of the game already knows how
+## to treat as refused.
+func test_a_non_lethal_hit_on_one_point_is_refused_outright() -> void:
+	var health := Health.new()
+	health.max_hp = 28
+	health.current = 1
+	var died := false
+	health.died.connect(func(_i: DamageInfo) -> void: died = true)
+	var info := DamageInfo.new(4, Vector2.ZERO, &"rival", DamageInfo.NON_LETHAL)
+	assert_eq(health.take(info), 0)
+	assert_eq(health.current, 1)
+	assert_false(died, "a non-lethal hit reported a death")
+	health.free()
+
+
+## The flag changes nothing about a hit that was never going to kill, so a
+## non-lethal source is an ordinary source right up until the last point.
+func test_a_non_lethal_hit_is_ordinary_until_the_last_point() -> void:
+	var health := Health.new()
+	health.max_hp = 28
+	health.current = 28
+	var info := DamageInfo.new(4, Vector2.ZERO, &"rival", DamageInfo.NON_LETHAL)
+	assert_eq(health.take(info), 4)
+	assert_eq(health.current, 24)
+	health.free()
+
+
 func test_healing_stops_at_full() -> void:
 	var health := Health.new()
 	health.max_hp = 28

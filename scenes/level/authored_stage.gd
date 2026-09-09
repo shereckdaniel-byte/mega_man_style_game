@@ -316,6 +316,26 @@ func band_surface_row(band: int) -> float:
 	return float(band_deck_row(band)) + deck_surface_offset()
 
 
+## Rows of open air between a room's ceiling and its deck.
+##
+## A room is exactly one screen tall by this class's own construction, so this
+## is that height rather than a number any stage gets to restate -- a press hung
+## from a ceiling that had moved would hang in mid-air.
+##
+## Written for stage 3's crushers and moved up here when the fortress's Caisson
+## wanted the same presses: two copies of a derived constant is one copy that
+## does not get updated.
+func ceiling_to_deck_rows() -> int:
+	return DECK_ROW - ROOM_TOP
+
+
+## How far a press travels, from the room ceiling to `clearance` rows above the
+## deck. Exposed rather than inlined so a stage's tests can check the arithmetic
+## against the real geometry instead of restating it.
+func press_drop_rows(height_rows: float, clearance_rows: float) -> float:
+	return float(ceiling_to_deck_rows()) - height_rows - clearance_rows
+
+
 func rooms() -> Array[Room]:
 	return _rooms
 
@@ -841,9 +861,13 @@ func _add_hud() -> void:
 	hud.track(_player)
 	if _pause_menu != null:
 		hud.use_pause_menu(_pause_menu)
-	var arena_node := arena()
-	if arena_node != null:
-		arena_node.use_hud(hud)
+	# **Every arena, not only the stage's own.** A stage may hold more than one
+	# -- the fortress's duel is a sealed room mid-stage with its own -- and a bar
+	# that appeared for one sealed fight and not the other would read as the
+	# second one being unimportant.
+	for child in get_children():
+		if child is BossArena:
+			(child as BossArena).use_hud(hud)
 
 
 func _add_pause_menu() -> void:

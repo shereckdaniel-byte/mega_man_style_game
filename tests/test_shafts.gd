@@ -32,6 +32,7 @@ const STAGES := {
 	# same rules -- a ladder that hangs over a pit does it whichever half of the
 	# game it is in.
 	"outfall": "res://scenes/stages/outfall/outfall.tscn",
+	"caisson": "res://scenes/stages/caisson/caisson.tscn",
 }
 
 ## Frames to let a stage build its deck, rooms and elements.

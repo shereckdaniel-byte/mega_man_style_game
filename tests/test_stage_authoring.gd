@@ -33,6 +33,7 @@ const STAGES := {
 	# gap the jump cannot clear, and the last quarter of the game is not where
 	# the fairness rules get to relax.
 	"outfall": preload("res://scenes/stages/outfall/outfall.gd"),
+	"caisson": preload("res://scenes/stages/caisson/caisson.gd"),
 }
 
 ## A spiked slide tunnel is at most this wide, in cells.
