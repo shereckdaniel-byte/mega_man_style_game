@@ -263,6 +263,54 @@ func test_a_nonsense_aggression_is_ignored() -> void:
 		await tree.physics_frame
 
 
+## **Setting aggression twice does not compound.** The arena builds a boss and
+## the stage then configures it, so this happens on every fortress fight: a
+## reprise set to 2.0 and then to 2.0 again has to come out at 2.0, not 4.0,
+## and nothing on screen would have said otherwise.
+func test_setting_aggression_twice_lands_on_the_same_numbers() -> void:
+	var once := TideScript.new() as Boss
+	var twice := TideScript.new() as Boss
+	root.add_child(once)
+	root.add_child(twice)
+	await _frames(1)
+	once.aggression = 2.0
+	twice.aggression = 2.0
+	twice.aggression = 2.0
+	for i in once.patterns().size():
+		assert_eq(twice.patterns()[i].recover_frames,
+			once.patterns()[i].recover_frames,
+			"%s compounded" % once.patterns()[i].id)
+
+
+## And it can be set back: aggression is a knob, not a one-way door, so a boss
+## returned to 1.0 is the boss its author wrote.
+func test_aggression_can_be_turned_back_down() -> void:
+	var keen := TideScript.new() as Boss
+	root.add_child(keen)
+	await _frames(1)
+	keen.aggression = 3.0
+	keen.aggression = 1.0
+	for i in keen.patterns().size():
+		assert_eq(keen.patterns()[i].recover_frames,
+			boss.patterns()[i].recover_frames,
+			"%s did not come back" % keen.patterns()[i].id)
+
+
+## **Aggression below 1.0 changes nothing.** It is a knob for making a boss
+## harder; letting it hand a boss a *longer* opening than its author gave it
+## would be a difficulty setting hiding inside a reprise knob, and the place to
+## make the game easier is not here.
+func test_aggression_below_one_does_not_soften_a_boss() -> void:
+	var mild := TideScript.new() as Boss
+	root.add_child(mild)
+	await _frames(1)
+	mild.aggression = 0.25
+	for i in mild.patterns().size():
+		assert_eq(mild.patterns()[i].recover_frames,
+			boss.patterns()[i].recover_frames,
+			"%s was softened" % mild.patterns()[i].id)
+
+
 func test_a_fighting_boss_picks_a_pattern_and_runs_it_in_order() -> void:
 	boss.begin_intro(Vector2(600.0, FLOOR_TOP), null)
 	await _frames(INTRO_FRAMES)

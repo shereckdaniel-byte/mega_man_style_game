@@ -37,6 +37,25 @@ func fortress_index() -> int:
 	return -1
 
 
+## Turns a Robot Master's script into the fortress's version of it.
+##
+## **The fight is the same fight.** Same patterns, same tells, same acts, same
+## art -- what changes is that the openings are shorter, there is no weapon at
+## the end of it, and beating it does not claim a master the player already
+## beat. That is M7's first bullet ("mini-bosses reusing earlier boss AI at
+## higher aggression") in four lines, and it is four lines because `aggression`
+## was built to only ever shorten recovery: see `Boss.aggression` for why
+## touching the tell instead would have made this a different fight in the same
+## sprite.
+##
+## Subclasses call it from `configure_boss`.
+func as_reprise(boss: Boss, at_aggression: float, called: String) -> void:
+	boss.boss_index = -1
+	boss.weapon_id = &""
+	boss.display_name = called
+	boss.aggression = at_aggression
+
+
 ## Clearing a fortress stage leads into the next one, or out of the game.
 ##
 ## **The bit is set before `stage_cleared` is emitted**, deliberately, because

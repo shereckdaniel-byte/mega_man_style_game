@@ -1545,10 +1545,31 @@ non-boss situations; password round-trips full progress state.
 ### M7 — Endgame (1–2 weeks)
 
 - Revisit stages with mini-bosses reusing earlier boss AI at higher aggression.
-- 4 fortress stages, boss-rush teleporter room, two-phase final boss.
+  **Built as `Boss.aggression`** — one property, which shortens *recovery* and
+  nothing else. The tell is the fairness contract `BossPattern` exists to enforce
+  and the act is what the attack is, so scaling either would make a reprise a
+  different fight wearing the first one's sprite rather than the same fight with
+  fewer openings.
+- 4 fortress stages, boss-rush teleporter room, two-phase final boss. **Outfall
+  (F1) is built**; Caisson, Switchgear and Keep are declared in `StageRoster` and
+  not yet on disk, which the stage select reports by name.
 - Rival duel encounter and whistle-cue setpiece.
 
 **Accept:** the game is completable start to finish without dev tools.
+
+**Decided at M7a: the fortress is derived, not stored.** `GameState.fortress_open()`
+walks the eight boss bits rather than setting a ninth flag, so the gate cannot
+disagree with the thing it gates on. Progress *through* the fortress is stored
+(four bits, in the save and in four of the password's five reserved cells), and
+`fortress_stage()` returns the lowest uncleared rather than the highest cleared
+plus one — the two rules agree while progress is contiguous, and only the first
+can never skip a stage.
+
+**Decided at M7b: a fortress stage has no gimmick of its own.** Each master stage
+contains exactly one idea and deliberately none of the others, because a stage
+that mixes two teaches neither (Sinkhole's docstring argues it at length). The
+fortress can mix, because there is nothing left to teach — it is the second
+examination, and the only new thing in it is that two answers are wanted at once.
 
 ### M8 — Polish & ship (1–2 weeks)
 

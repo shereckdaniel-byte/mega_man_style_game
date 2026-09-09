@@ -28,6 +28,10 @@ const STAGES := {
 	"stack": "res://scenes/stages/stack/stack.tscn",
 	"cold_store": "res://scenes/stages/cold_store/cold_store.tscn",
 	"sinkhole": "res://scenes/stages/sinkhole/sinkhole.tscn",
+	# The fortress. Its stages are authored from the same table and held to the
+	# same rules -- a ladder that hangs over a pit does it whichever half of the
+	# game it is in.
+	"outfall": "res://scenes/stages/outfall/outfall.tscn",
 }
 
 ## Frames to let a stage build its deck, rooms and elements.
@@ -163,7 +167,13 @@ func test_every_stage_is_registered_here() -> void:
 	var found := 0
 	var dir := DirAccess.open("res://scenes/stages")
 	for folder in dir.get_directories():
+		# `test_room` is the M1 tuning room, and `fortress` holds the backdrop
+		# the four fortress stages share rather than a stage of its own -- it has
+		# no `<name>/<name>.tscn`, which is what makes a folder here a stage.
 		if folder == "test_room":
+			continue
+		if not ResourceLoader.exists("res://scenes/stages/%s/%s.tscn"
+				% [folder, folder]):
 			continue
 		found += 1
 		assert_has(STAGES, folder, "%s is not in this test's STAGES" % folder)

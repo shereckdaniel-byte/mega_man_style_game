@@ -160,6 +160,8 @@ var _pause_menu: PauseMenu = null
 var _holes: Dictionary = {}
 ## Cached deck surface offset in tiles; negative means "not measured yet".
 var _surface_offset := -1.0
+## Rising tides by the index of the room they fill. See `_on_room_changed_tide`.
+var _tides: Dictionary = {}
 
 
 # --- What a subclass supplies -------------------------------------------------
@@ -200,6 +202,13 @@ func boss_name() -> String:
 ## fight starts at a readable distance rather than in the player's face.
 func boss_offset_tiles() -> Vector2:
 	return Vector2(16.0, 0.0)
+
+
+## Anything this stage wants changed about its boss, once the arena has built
+## it. The eight need nothing here -- a Robot Master's script already says what
+## it is -- and the fortress needs it for every fight it has.
+func configure_boss(_boss: Boss) -> void:
+	pass
 
 
 ## Anything this stage has that the shared kit does not: stage 1's tide, stage
@@ -355,6 +364,7 @@ func _ready() -> void:
 	# stage's fact, not the backdrop's.
 	room_changed.connect(_on_room_changed_backdrop)
 	room_changed.connect(_on_room_changed_reset_crumbles)
+	room_changed.connect(_on_room_changed_tide)
 	# The menu first: the HUD's menu button needs something to open.
 	_add_pause_menu()
 	_add_hud()
@@ -819,6 +829,7 @@ func _add_arena(tile: float) -> void:
 	arena_node.position = Vector2(float(room_origin(index)) + 4.0,
 		band_surface_row(room_band(index))) * tile
 	arena_node.boss_offset_tiles = boss_offset_tiles()
+	arena_node.boss_built.connect(configure_boss)
 	add_child(arena_node)
 	arena_node.cleared.connect(_on_boss_cleared)
 
@@ -914,6 +925,49 @@ func _on_room_changed_backdrop(room_entered: Room) -> void:
 ## `PhaseBlock` opts out through `resets_on_room_change`: its cycle is a clock,
 ## and putting a whole panel path back at once would start every panel on beat 0
 ## together.
+## The tide runs in its own room and nowhere else.
+##
+## **Nothing started it for two milestones.** `RisingTide` has been complete and
+## unit-tested since M5a -- it rises in steps, stops at its ceiling, recedes when
+## told -- and `running` defaults to false because a tide that climbed from the
+## moment the stage loaded would top out before the player reached the room. The
+## piece nobody wrote was the one that turns it on, so stage 1's headline gimmick
+## was a blue rectangle sitting still. The unit tests all passed: every one of
+## them calls `begin()` itself, which is exactly the shape of a test that cannot
+## see the bug.
+##
+## **Reset, then begin.** `room_changed` fires on a respawn as well as on a door,
+## so a bare `begin()` would put a player who just drowned back at the checkpoint
+## with the water already at their neck -- the soft lock `RisingTide`'s docstring
+## says it exists to make impossible. Entering the room is entering the room,
+## however you got there, and the water starts from the bottom every time.
+func _on_room_changed_tide(room_entered: Room) -> void:
+	if _tides.is_empty():
+		return
+	var index := _rooms.find(room_entered)
+	for key: int in _tides:
+		var water: RisingTide = _tides[key]
+		if not is_instance_valid(water):
+			continue
+		if key == index:
+			water.reset()
+			water.begin()
+		else:
+			water.recede()
+
+
+## Called by a stage that places a tide, so this file can run it. The stage owns
+## where the water goes; when it moves is the same answer for every stage that
+## has one, so it is answered once here.
+func register_tide(room_index: int, water: RisingTide) -> void:
+	_tides[room_index] = water
+
+
+## Every tide in the stage, by the room it is in. For the tests.
+func tides() -> Dictionary:
+	return _tides
+
+
 func _on_room_changed_reset_crumbles(_room_entered: Room) -> void:
 	for child in get_children():
 		if child is CrumblingBlock and (child as CrumblingBlock).resets_on_room_change():

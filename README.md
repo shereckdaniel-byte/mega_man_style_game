@@ -3,10 +3,11 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: all eight stages built** — the player controller, combat, enemies, eight bosses
-with weapon gets, and eight stages of nineteen rooms each, all authored as room tables
-against a shared `AuthoredStage`. Both weakness cycles close, no boss is weak to the
-weapon it drops, and every one of the eight weapon archetypes is used exactly once.
+**Status: all eight stages built, and the fortress has opened.** The player controller,
+combat, enemies, eight bosses with weapon gets, eight stages of nineteen rooms each, and
+the first of the four fortress stages behind the centre cell — all authored as room
+tables against a shared `AuthoredStage`. Both weakness cycles close, no boss is weak to
+the weapon it drops, and every one of the eight weapon archetypes is used exactly once.
 Verified on Godot 4.7.stable, headless, in CI.
 
 | # | Stage | Boss | Weapon | Gimmick |
@@ -23,6 +24,32 @@ Verified on Godot 4.7.stable, headless, in CI.
 The four movement gimmicks are deliberately four different ideas rather than four
 forces: **wind is a cycle you time, the belt is a constant you fight, ice moves nobody
 and simply will not stop you, and water is the only one that helps.**
+
+## The fortress
+
+The centre cell of the stage select opens when the eighth Robot Master falls, and holds
+four stages played **in order** rather than chosen from. The first is built:
+
+| # | Stage | Boss | What it is |
+| --- | --- | --- | --- |
+| F1 | Outfall | Tide, rebuilt | the drain the sea comes back through |
+| F2 | Caisson | — | the pressure chamber, and whoever is waiting in it |
+| F3 | Switchgear | — | eight pads, and everything you already beat |
+| F4 | Keep | — | the core |
+
+**A fortress stage has no gimmick of its own, and that is the design.** Each master stage
+contains exactly one idea and deliberately none of the others, because a stage that mixes
+two teaches neither. The fortress can mix, because there is nothing left to teach — so
+Outfall puts stage 8's pool and stage 1's tide in one stage, the two waters, one of which
+is a floor and the other instant death. They never share a room: the tell is motion, and
+*if the line is moving, it kills.*
+
+Its boss is Tide again, faster. `Boss.aggression` shortens a boss's **recovery** and
+nothing else — never the tell, which is the fairness contract, and never the act, which
+is what the attack *is* — so a reprise is the same fight with fewer openings rather than
+a different fight wearing the first one's sprite. It is Tide specifically because the
+fortress is a chain with no stage select in between and therefore no refill, and Tide is
+the boss the roster already names as the buster-only one.
 
 **Stages 5–8 are greyboxed**: stage 3's tileset and enemy skins, and backdrops drawn in
 code rather than loaded. The layouts were driven by the bot before any art was paid for,
@@ -52,10 +79,31 @@ gets bored, curious or greedy. Cold Store is the clearest case — the bot beats
 without taking a hit, because that fight's two answers happen to be the bot's two
 strongest reflexes.
 
-**Stage 1 wants one most.** Its difficulty is the one open question in the plan, and
-it is not one more bot run away — see docs/PLAN.md M5b. Run the game (a windowed run drops
-straight into stage 1), press **F3** for the running ledger, and play it through; the same
-breakdown prints to the console on a game over or a stage clear.
+**Stage 1 wants one most, and M7b sharpened why.** Its difficulty is the one open
+question in the plan (docs/PLAN.md M5b), and building the fortress produced the clearest
+measurement of it yet: **the bot loses the Tide fight about as often as it wins it.** The
+unseeded run that has been quoted for milestones — "TIDE DOWN, player hp=6" — is one
+sample of a coin flip; asked for seeds 1 and 2 it died in the arena both times, and it
+does the same in Outfall at every reprise speed from 1.0 to 1.6. Its death frame moves 4%
+across a 60% change in the boss's aggression, which is what a measurement with no
+headroom looks like. Two things follow: stage 1's boss is much closer to the edge than
+anyone thought, and **the bot cannot be used to tune Tide or anything built on it.**
+
+Run the game (a windowed run drops straight into stage 1), press **F3** for the running
+ledger, and play it through; the same breakdown prints to the console on a game over or a
+stage clear.
+
+**The tide was inert until M7b, in every build that has ever existed.** `RisingTide` has
+been complete and unit-tested since M5a — it climbs in steps, stops at its ceiling,
+recedes when told, kills through i-frames — and `running` defaults to false, correctly,
+because water that climbed from the moment the stage loaded would top out before the
+player arrived. Nothing was ever written to turn it on. Every one of its nine unit tests
+calls `begin()` itself, which is the exact shape of a test that cannot see this: it checks
+that a thing works when switched on and never asks who switches it on. Stage 1's headline
+gimmick was a blue rectangle sitting still. It now starts when the player enters the room
+and resets when they re-enter it — including when "re-entering" means respawning after
+drowning in it — and `tests/test_gimmicks_in_play.gd` builds the real stage and watches
+the real water. **Stage 1 is harder than it was**: the bot now drowns there once a run.
 
 ```sh
 GODOT=/path/to/godot ./tools/check.sh     # import + boot check + tests, same as CI

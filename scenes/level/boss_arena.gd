@@ -18,6 +18,15 @@ signal sealed()
 signal fight_started(boss: Boss)
 ## The boss is gone and the weapon (if any) has been awarded.
 signal cleared(boss_index: int, weapon_id: StringName)
+## The boss exists and is in the tree, and its entrance has not started.
+##
+## The one place a stage can change what it is fighting. Emitted *after* the
+## node is in the tree, deliberately: a boss sets its own index, weapon and
+## display name in `_ready`, so anything handed one before that would be
+## overwritten by the boss itself a frame later. A fortress reprise is exactly
+## this -- Tide's script, Tide's patterns, a different name, no weapon, and
+## half the openings.
+signal boss_built(built: Boss)
 
 enum Phase { WAITING, SEALING, ENTERING, FILLING, FIGHTING, CLEARED }
 
@@ -136,6 +145,7 @@ func _start_entrance() -> void:
 	boss.name = "Boss"
 	var level := get_parent()
 	level.add_child(boss)
+	boss_built.emit(boss)
 
 	var landing := global_position + boss_offset_tiles * _tile
 	if boss.has_method("set_arena_span"):

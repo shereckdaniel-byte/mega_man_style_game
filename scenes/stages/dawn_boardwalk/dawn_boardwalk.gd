@@ -68,9 +68,19 @@ const CRAWLER := preload("res://scenes/actors/enemies/wall_crawler.gd")
 const BAND_DECK := 0
 const BAND_UNDER := 1
 
-## How far above the under-deck the tide is allowed to climb, in rows. The
-## highest block in the Tide room stands 6 above the deck, so 8 leaves the top
-## of it dry with a tile to spare.
+## How far above the under-deck the tide is allowed to climb, in rows.
+##
+## **The blocks are a staircase toward the ladder, not a refuge**, and this
+## number is what makes that true: the highest of them stands 6 rows above the
+## deck and the water tops out at 8, so the top of it goes under. A player who
+## climbs the staircase and stops has done half of the thing the room is asking
+## for. The escape is the `shaft_up` at cell 23, whose top is a full band -- 15
+## rows -- above the deck, seven clear of the water.
+##
+## The previous comment here read "8 leaves the top of it dry with a tile to
+## spare", which is the arithmetic backwards: rows count downward, so row
+## deck-8 is *above* row deck-6, and the water covers it. Nothing noticed
+## because until M7b nothing ever started the tide.
 const TIDE_CEILING_ABOVE_DECK := 8
 
 ## One row per room, in the order the player meets them.
@@ -520,10 +530,10 @@ func boss_name() -> String:
 
 
 ## The stage's own element: the water that comes up.
-func place_stage_elements(spec: Dictionary, _index: int, origin: int, deck: int,
+func place_stage_elements(spec: Dictionary, index: int, origin: int, deck: int,
 		tile: float) -> void:
 	if spec.get("tide", false):
-		_add_tide(origin, deck, tile)
+		_add_tide(index, origin, deck, tile)
 
 
 ## The rising tide, filling the room from below.
@@ -533,7 +543,7 @@ func place_stage_elements(spec: Dictionary, _index: int, origin: int, deck: int,
 ## line covers the only footing there is, and the section becomes unwinnable
 ## with nothing on screen to say why -- which is the failure RisingTide exists
 ## to make impossible rather than merely unlikely.
-func _add_tide(origin: int, deck: int, tile: float) -> void:
+func _add_tide(index: int, origin: int, deck: int, tile: float) -> void:
 	var water := RisingTide.new()
 	water.name = "RisingTide"
 	water.width_tiles = float(ROOM_WIDTH)
@@ -542,3 +552,7 @@ func _add_tide(origin: int, deck: int, tile: float) -> void:
 	water.position = Vector2(float(origin), 0.0) * tile
 	add_child(water)
 	_tide = water
+	# Registered with the base class, which starts it when the player enters this
+	# room and sends it back down when they leave -- including when "entering"
+	# means respawning after drowning in it.
+	register_tide(index, water)

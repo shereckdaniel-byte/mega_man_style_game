@@ -29,6 +29,10 @@ const STAGES := {
 	"stack": preload("res://scenes/stages/stack/stack.gd"),
 	"cold_store": preload("res://scenes/stages/cold_store/cold_store.gd"),
 	"sinkhole": preload("res://scenes/stages/sinkhole/sinkhole.gd"),
+	# The fortress. Held to every rule above: a gap the jump cannot clear is a
+	# gap the jump cannot clear, and the last quarter of the game is not where
+	# the fairness rules get to relax.
+	"outfall": preload("res://scenes/stages/outfall/outfall.gd"),
 }
 
 ## A spiked slide tunnel is at most this wide, in cells.
@@ -286,6 +290,54 @@ func test_a_spike_bed_is_no_wider_than_a_jump_and_has_a_run_up() -> void:
 							"%s/%s: a %s ending at %d leaves %d cells before the spikes at %d, and a jump off it needs %d"
 								% [name, spec["name"], key.trim_suffix("s"),
 									ends, from - ends, from, needed])
+
+
+## **A room that changes band needs a ladder, and this is the third time.**
+##
+## The room table is a sequence: room *i* and room *i+1* are consecutive rooms
+## the player walks between. Two of them in the same band and adjacent columns
+## are joined by a door, which `AuthoredStage` hangs automatically. Two of them
+## in the same column and adjacent bands are joined by a **ladder**, which it
+## does not -- a `shaft` on the upper room or a `shaft_up` on the lower one, and
+## if the table does not say so there is nothing there.
+##
+## What that looks like in play is the room simply ending. The player walks to
+## the far side of the last room in the band and falls off the deck into the
+## pit plane, over and over, and the stage is unfinishable from that room on.
+##
+## Cold Store shipped it at M6 -- Rail had no `shaft` and stage 7 stopped at
+## room 3 -- and Outfall shipped it again in the first hour of M7, with Head
+## missing the `shaft_up` out of the works. Both were found by running the bot,
+## which is the wrong way round: the bot tells you *a* room is broken, and only
+## after a full run. This asks the table directly, for every stage at once, and
+## it would have caught both before either was ever built.
+func test_every_change_of_band_has_a_ladder() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for i in range(script.ROOMS.size() - 1):
+			var here: Dictionary = script.ROOMS[i]
+			var next: Dictionary = script.ROOMS[i + 1]
+			var d_band := int(next["band"]) - int(here["band"])
+			var d_col := int(next["col"]) - int(here["col"])
+			if d_band == 0:
+				assert_eq(absi(d_col), 1,
+					"%s: %s -> %s stays in band %d and jumps %d columns"
+						% [name, here["name"], next["name"], int(here["band"]), d_col])
+				continue
+			# A change of band is a change of band only: the ladder is vertical.
+			assert_eq(d_col, 0,
+				"%s: %s -> %s changes band and column at once"
+					% [name, here["name"], next["name"]])
+			assert_eq(absi(d_band), 1,
+				"%s: %s -> %s skips %d bands"
+					% [name, here["name"], next["name"], absi(d_band)])
+			# Down is a `shaft` on the room being left; up is a `shaft_up` on it.
+			# The other spelling is not a near miss -- it holes the wrong deck.
+			var key := "shaft" if d_band > 0 else "shaft_up"
+			assert_true(here.has(key),
+				"%s: %s goes %s into %s and has no `%s`"
+					% [name, here["name"], "down" if d_band > 0 else "up",
+						next["name"], key])
 
 
 ## A ceiling in a shaft's column hangs over the spot the ladder delivers to.

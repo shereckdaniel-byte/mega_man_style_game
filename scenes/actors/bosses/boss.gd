@@ -93,7 +93,14 @@ const DEATH_BURST_INTERVAL := 9
 ##
 ## `MIN_RECOVER_FRAMES` is the floor, because a recovery of zero is a boss with
 ## no counterplay at all and there would then be no way to hurt it.
-@export var aggression: float = 1.0
+@export var aggression: float = 1.0:
+	set(value):
+		aggression = value
+		# Applied on assignment as well as on ready, because the arena hands the
+		# boss over *after* its `_ready` has run -- a fortress reprise sets this
+		# on a boss that has already built its patterns.
+		if not _patterns.is_empty():
+			_apply_aggression()
 
 ## The shortest recovery any aggression may leave. Two tenths of a second: long
 ## enough to land a tapped pellet, which is the smallest useful turn.
@@ -105,6 +112,9 @@ var phase: Phase = Phase.DORMANT
 var target: Node2D = null
 
 var _patterns: Array[BossPattern] = []
+## Every pattern's recovery as its author wrote it, so `aggression` is always
+## applied to the original rather than to whatever it was last set to.
+var _base_recover := PackedInt32Array()
 var _pattern_index := -1
 var _phase_frames := 0
 ## 0 tell, 1 act, 2 recover.
@@ -165,13 +175,28 @@ func build_patterns() -> Array[BossPattern]:
 ## After `build_patterns()` rather than inside it, so the eight write their
 ## numbers once, at the speed they were designed at, and a reprise is a property
 ## on the node rather than a parameter threaded through every subclass.
+##
+## **Recomputed from the pattern's original recovery every time**, never from
+## the current one. Setting aggression twice is a thing that happens -- the
+## arena builds a boss and the stage then configures it -- and scaling in place
+## would compound, so a reprise set to 2.0 and then to 2.0 again would come out
+## at 4.0 and nothing would say so.
 func _apply_aggression() -> void:
-	if is_equal_approx(aggression, 1.0) or aggression <= 0.0:
-		return
-	for pattern in _patterns:
-		pattern.recover_frames = maxi(
-			int(round(float(pattern.recover_frames) / aggression)),
-			MIN_RECOVER_FRAMES)
+	if _base_recover.size() != _patterns.size():
+		_base_recover.resize(_patterns.size())
+		for i in _patterns.size():
+			_base_recover[i] = _patterns[i].recover_frames
+	# A nonsense factor is ignored rather than obeyed: the safe reading of "I do
+	# not know how fast this should be" is the speed it was written at.
+	var factor := aggression if aggression > 0.0 else 1.0
+	for i in _patterns.size():
+		var scaled := int(round(float(_base_recover[i]) / factor))
+		# Never below the floor, and never *above* what the subclass wrote --
+		# aggression is a knob for making a boss harder, and a value under 1.0
+		# handing a boss a longer opening than its author gave it would be a
+		# difficulty setting hiding in a reprise knob.
+		_patterns[i].recover_frames = mini(_base_recover[i],
+			maxi(scaled, MIN_RECOVER_FRAMES))
 
 
 ## Subclass hook: one frame of windup. `frame` counts from 0.
