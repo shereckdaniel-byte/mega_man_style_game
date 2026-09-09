@@ -191,6 +191,19 @@ func _physics_process(delta: float) -> void:
 ## no wind in it after a mistimed transition.
 var wind_drift_pf := 0.0
 
+## Horizontal drift the **floor** is putting under the player, in NES px/frame.
+##
+## Separate from `wind_drift_pf` rather than sharing it, because the two obey
+## opposite rules and a single field could only obey one. The wind pushes an
+## airborne player always and a walking one only while they are moving; a
+## conveyor pushes a *standing* player always and an airborne one never. Sharing
+## the channel would have meant a belt that let go the moment you stood still,
+## which is not a belt.
+##
+## Same contract otherwise: written every frame by whatever is carrying and
+## cleared every frame by the player, so nothing has to remember to switch off.
+var carry_drift_pf := 0.0
+
 
 # --- Shared movement helpers, used by the states ------------------------------
 
@@ -231,6 +244,21 @@ func _apply_wind() -> void:
 	if wind_drift_pf != 0.0 and (not is_on_floor() or not is_zero_approx(velocity.x)):
 		velocity.x += tuning.px_s(wind_drift_pf)
 	wind_drift_pf = 0.0
+	_apply_carry()
+
+
+## Adds the floor's own movement, **and only while the player is standing on it.**
+##
+## The mirror of the wind and deliberately not the same rule. A conveyor carries
+## a player who is doing nothing -- that is what a conveyor is, and it is what
+## makes a belt running at a pit a decision rather than scenery. In the air it
+## does nothing at all, which is the rule that keeps it from ever shortening a
+## jump: stage 5 learned the hard way that a ground force which reaches the arc
+## can make authored gaps uncrossable, and a belt structurally cannot.
+func _apply_carry() -> void:
+	if carry_drift_pf != 0.0 and is_on_floor():
+		velocity.x += tuning.px_s(carry_drift_pf)
+	carry_drift_pf = 0.0
 
 ## Applies gravity for one frame and clamps to terminal velocity.
 func apply_gravity(delta: float) -> void:

@@ -26,6 +26,7 @@ const STAGES := {
 	"breakers": preload("res://scenes/stages/breakers/breakers.gd"),
 	"mirror_field": preload("res://scenes/stages/mirror_field/mirror_field.gd"),
 	"turbine_row": preload("res://scenes/stages/turbine_row/turbine_row.gd"),
+	"stack": preload("res://scenes/stages/stack/stack.gd"),
 }
 
 ## A spiked slide tunnel is at most this wide, in cells.
@@ -247,6 +248,42 @@ func test_a_gap_does_not_start_within_a_jump_of_a_drop() -> void:
 							"%s/%s: a %s ending at %d leaves %d cells before the gap at %d, and a jump off it needs %d"
 								% [name, spec["name"], key.trim_suffix("s"),
 									ends, start - ends, start, needed])
+
+
+## **A floor-spike bed is a gap you cannot fall into, so it is bounded like one.**
+##
+## The route goes *over* a bed of spikes, which means its width is limited by
+## what a jump covers -- exactly as a hole is by `MAX_GAP_TILES` -- and it needs
+## the same `RUN_UP_CELLS` of still deck to leave from.
+##
+## Stack shipped the game's first floor-spike bed at four cells wide with a
+## conveyor running into it. Nothing here knew about floor spikes, so nothing
+## objected: the room had no gap, no step and no tunnel, and every existing rule
+## passed it. The bot walked into the teeth five times a run and never got past.
+## A hole that wide would have been caught by the rule directly above this one.
+func test_a_spike_bed_is_no_wider_than_a_jump_and_has_a_run_up() -> void:
+	for name in STAGES:
+		var script: GDScript = STAGES[name]
+		for spec in script.ROOMS:
+			for bed in spec.get("spikes", []):
+				var from := int(bed[0])
+				var width := int(bed[2])
+				assert_true(width <= AuthoredStage.MAX_GAP_TILES,
+					"%s/%s: a %d-cell spike bed, and a jump clears %d"
+						% [name, spec["name"], width, AuthoredStage.MAX_GAP_TILES])
+				# The same clearance a gap gets, measured against the same things
+				# a gap is measured against.
+				for key in ["blocks", "one_ways", "ceilings"]:
+					for entry in spec.get(key, []):
+						var ends: int = int(entry[0]) + int(entry[2])
+						var rise: int = int(entry[1]) if key == "blocks" else 0
+						var needed: int = RUN_UP_CELLS + rise
+						if ends <= from - needed or ends > from:
+							continue
+						assert_true(false,
+							"%s/%s: a %s ending at %d leaves %d cells before the spikes at %d, and a jump off it needs %d"
+								% [name, spec["name"], key.trim_suffix("s"),
+									ends, from - ends, from, needed])
 
 
 ## A ceiling in a shaft's column hangs over the spot the ladder delivers to.

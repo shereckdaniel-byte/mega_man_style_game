@@ -25,6 +25,7 @@ const STAGES := {
 	"breakers": "res://scenes/stages/breakers/breakers.tscn",
 	"mirror_field": "res://scenes/stages/mirror_field/mirror_field.tscn",
 	"turbine_row": "res://scenes/stages/turbine_row/turbine_row.tscn",
+	"stack": "res://scenes/stages/stack/stack.tscn",
 }
 
 ## Frames to let a stage build its deck, rooms and elements.

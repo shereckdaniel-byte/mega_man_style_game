@@ -8,6 +8,7 @@ entity_id = &"arc"
 by_weapon = {
 &"arc_lance": 1,
 &"buster_charged": 3,
+&"cinder_spray": 2,
 &"contact": 0,
 &"gale_cutter": 2,
 &"prism_ray": 2,

@@ -51,7 +51,7 @@ const ENTRIES := [
 		"index": 5, "boss": "Cinder", "stage": "Stack",
 		"weapon": "Cinder Spray",
 		"frames": "res://resources/sprite_frames/cinder.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/stack/stack.tscn",
 	},
 	{
 		"index": 6, "boss": "Frost", "stage": "Cold Store",

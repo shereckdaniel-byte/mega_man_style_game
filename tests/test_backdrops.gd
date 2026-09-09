@@ -81,6 +81,17 @@ const BACKDROPS := {
 		"light_source": "",
 		"paired": "",
 	},
+	# Stack's plates are drawn in code too, and it declares no light source for
+	# a reason of its own: it is the one stage lit from **below**, so the bright
+	# thing is the ground plate rather than the sky. That inverts what this
+	# file's duplication rule is usually protecting -- there is no sun to
+	# duplicate -- and the rule still applies unchanged to the chimney row,
+	# which carries no bright pixels at all.
+	"stack": {
+		"script": preload("res://scenes/stages/stack/parallax_background.gd"),
+		"light_source": "",
+		"paired": "",
+	},
 }
 
 ## How much brighter than its own plate's median a pixel has to be to count as

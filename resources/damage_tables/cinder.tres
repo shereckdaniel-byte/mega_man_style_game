@@ -4,16 +4,17 @@
 
 [resource]
 script = ExtResource("1_table")
-entity_id = &"gale"
+entity_id = &"cinder"
 by_weapon = {
 &"arc_lance": 2,
 &"buster_charged": 3,
-&"cinder_spray": 2,
+&"cinder_spray": 1,
 &"contact": 0,
-&"gale_cutter": 1,
+&"frost_lock": 4,
+&"gale_cutter": 2,
 &"prism_ray": 2,
 &"rust_bloom": 2,
 &"sword": 3,
-&"tide_crawler": 4
+&"tide_crawler": 2
 }
 immune_to = Array[StringName]([])

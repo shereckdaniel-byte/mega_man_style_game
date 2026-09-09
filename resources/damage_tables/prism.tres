@@ -8,6 +8,7 @@ entity_id = &"prism"
 by_weapon = {
 &"arc_lance": 2,
 &"buster_charged": 3,
+&"cinder_spray": 2,
 &"contact": 0,
 &"gale_cutter": 4,
 &"prism_ray": 1,
