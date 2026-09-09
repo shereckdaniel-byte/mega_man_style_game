@@ -3,10 +3,11 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M6q complete** — the player controller, combat, enemies, four bosses with weapon
-gets, and **four stages**: Dawn Boardwalk, Substation, Breakers and Mirror Field, all
-authored as room tables against a shared `AuthoredStage`. Verified on Godot 4.7.stable,
-headless, in CI. Next up is the rest of M6, stages 5–8.
+**Status: all eight stages built** — the player controller, combat, enemies, eight bosses
+with weapon gets, and eight stages of nineteen rooms each, all authored as room tables
+against a shared `AuthoredStage`. Both weakness cycles close, no boss is weak to the
+weapon it drops, and every one of the eight weapon archetypes is used exactly once.
+Verified on Godot 4.7.stable, headless, in CI.
 
 | # | Stage | Boss | Weapon | Gimmick |
 | --- | --- | --- | --- | --- |
@@ -14,8 +15,27 @@ headless, in CI. Next up is the rest of M6, stages 5–8.
 | 2 | Substation | Arc | Arc Lance | dark room |
 | 3 | Breakers | Rust | Rust Bloom | crusher press |
 | 4 | Mirror Field | Prism | Prism Ray | disappearing panels |
+| 5 | Turbine Row | Gale | Gale Cutter | wind |
+| 6 | Stack | Cinder | Cinder Spray | conveyors |
+| 7 | Cold Store | Frost | Frost Lock | ice |
+| 8 | Sinkhole | Quarry | Quarry Bore | water |
 
-**Stage 1 wants a playtester.** Its difficulty is the one open question in the plan, and
+The four movement gimmicks are deliberately four different ideas rather than four
+forces: **wind is a cycle you time, the belt is a constant you fight, ice moves nobody
+and simply will not stop you, and water is the only one that helps.**
+
+**Stages 5–8 are greyboxed**: stage 3's tileset and enemy skins, and backdrops drawn in
+code rather than loaded. The layouts were driven by the bot before any art was paid for,
+which is PLAN.md's own rule — layout first, art second. Each stage's docstring names the
+six enemies it actually wants.
+
+**Every stage wants a playtester.** The bot completes all eight from spawn to a dead
+boss, but it is not a player: it dodges low projectiles better than a human and it never
+gets bored, curious or greedy. Cold Store is the clearest case — the bot beats Frost
+without taking a hit, because that fight's two answers happen to be the bot's two
+strongest reflexes.
+
+**Stage 1 wants one most.** Its difficulty is the one open question in the plan, and
 it is not one more bot run away — see docs/PLAN.md M5b. Run the game (a windowed run drops
 straight into stage 1), press **F3** for the running ledger, and play it through; the same
 breakdown prints to the console on a game over or a stage clear.

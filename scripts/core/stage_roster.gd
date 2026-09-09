@@ -7,7 +7,9 @@
 ## is a roster that disagrees in two of them the first time a stage is renamed.
 ##
 ## **`scene` empty means the stage is not built.** That is a first-class state
-## rather than an omission: six of the eight are unbuilt today, the select screen
+## rather than an omission. All eight are built now, but the state has to stay: a
+## stage whose scene is renamed or deleted should grey out on the select screen
+## rather than crash it, which is what `is_built` is for. The select screen
 ## has to show them as coming rather than pretend they are not in the game, and
 ## the alternative — listing only what exists — makes the screen silently change
 ## shape as stages land, which is exactly when a 3×3 grid should not move.
