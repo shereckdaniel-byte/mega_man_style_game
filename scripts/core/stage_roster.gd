@@ -45,7 +45,7 @@ const ENTRIES := [
 		"index": 4, "boss": "Gale", "stage": "Turbine Row",
 		"weapon": "Gale Cutter",
 		"frames": "res://resources/sprite_frames/gale.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/turbine_row/turbine_row.tscn",
 	},
 	{
 		"index": 5, "boss": "Cinder", "stage": "Stack",

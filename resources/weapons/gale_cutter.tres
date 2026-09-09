@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/weapon_data.gd" id="1_data"]
+[ext_resource type="Script" path="res://scenes/actors/projectiles/cutter_shot.gd" id="2_shot"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"gale_cutter"
+display_name = "Gale Cutter"
+projectile_script = ExtResource("2_shot")
+ammo_max = 28
+ammo_cost = 1
+max_on_screen = 2
+fire_cooldown_frames = 16
+damage = 2
+flags = 0
+palette = Array[Color]([Color(0.42, 0.72, 0.86, 1), Color(0.86, 0.96, 1, 1)])
+tuning = {
+"lift_pf": 0.9,
+"range_nes": 150.0,
+"return_speed_pf": 5.5,
+"speed_pf": 4.5
+}

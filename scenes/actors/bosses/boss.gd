@@ -399,6 +399,18 @@ func arena_centre() -> float:
 	return (span.x + span.y) * 0.5
 
 
+## The y the arena's floor sits at -- where the entrance beam stopped.
+##
+## Public because a boss that leaves the ground needs it and cannot use its own
+## position for it. The first four never did: Tide leaps and comes back down
+## under gravity, and the other three keep their feet on the floor, so
+## `global_position.y` *was* the floor line and nothing had to say so. Gale
+## hovers, and for a hovering boss that identity is quietly false -- its
+## patterns would place a floor slab at whatever height the boss happened to be.
+func arena_floor_y() -> float:
+	return _floor_y
+
+
 ## Keeps the boss in the room, whatever a pattern asks for.
 ##
 ## **A bound, not a tuned number, and that distinction is the lesson from M5.**
