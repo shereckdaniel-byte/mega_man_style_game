@@ -36,6 +36,16 @@ MM3-style **password grid** — five by five, one dot per cell, reachable with
 deliberately does not, because a password that restored lives would let you farm
 one, write it down and come back topped up.
 
+Three bosses drop a **utility item** as well as a weapon — Rust the **Rush Coil**,
+Gale the **Rush Jet**, Quarry the **Rush Marine**. They ride the weapon system rather
+than a menu of their own: they cost ammo, sit on the pause menu and the weapon cycle,
+and are selected and fired like anything else, which is how MM3 does it. The Coil is a
+spring you land on for a jump you cannot otherwise make; the Jet is a board that flies a
+straight line until its fuel runs out; the Marine is the same board, underwater only.
+Firing an item spawns the machine beside you rather than a projectile — see
+`scenes/actors/items/item_courier.gd`, which is the one place the weapon system is told
+that not every shot is a shot.
+
 **Every stage wants a playtester.** The bot completes all eight from spawn to a dead
 boss, but it is not a player: it dodges low projectiles better than a human and it never
 gets bored, curious or greedy. Cold Store is the clearest case — the bot beats Frost
@@ -110,6 +120,7 @@ godot --headless --script res://tests/run_tests.gd -- rising_tide crest_wave
 | `scenes/stages/substation/` | Stage 2, Substation — Arc, and the dark-room gimmick |
 | `scenes/stages/breakers/` | Stage 3, Breakers — Rust, and the crusher press |
 | `scenes/stages/mirror_field/` | Stage 4, Mirror Field — Prism, and the disappearing panels |
+| `scenes/actors/items/` | The dog. Coil, Jet and Marine, spawned by a courier so they can be bodies rather than shots. |
 | `scenes/level/phase_block.gd` | The panel. A block is solid for two beats, and a beat is one jump. |
 | `scenes/stages/test_room/` | M1 tuning room, opened directly when reading movement numbers off F3 |
 | `tests/` | Headless suite, including integration tests driving the real `CharacterBody2D` |

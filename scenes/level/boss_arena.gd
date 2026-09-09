@@ -184,8 +184,32 @@ func _on_boss_defeated(defeated_boss: Boss) -> void:
 	var weapons := get_node_or_null(^"/root/WeaponManager")
 	if weapons != null and weapon != &"":
 		weapons.unlock(weapon)
+	_award_item(index, state, weapons)
 
 	cleared.emit(index, weapon)
+
+
+## Three of the eight also hand over a utility item.
+##
+## **Which three is `StageRoster`'s business, not this file's.** The roster is
+## already the single source of truth for what a boss is and what it drops, and
+## a second table here is a second table to disagree with it the first time an
+## award moves.
+##
+## The item is recorded twice on purpose, and the two records answer different
+## questions. `GameState.items_unlocked` is the *progress* bit -- it is what the
+## password carries and what a save round-trips. `WeaponManager.unlock` is what
+## puts the item on the weapon menu, because a utility item is selected, spends
+## ammo and shows a bar exactly like a weapon does; that is how MM3 does it and
+## it is why the items needed no new UI at all.
+func _award_item(index: int, state: Node, weapons: Node) -> void:
+	var row := StageRoster.entry(index)
+	if not row.has("item"):
+		return
+	if state != null:
+		state.unlock_item(int(row["item"]))
+	if weapons != null:
+		weapons.unlock(StageRoster.item_weapon_id(int(row["item"])))
 
 
 ## Shuts the room, physically.

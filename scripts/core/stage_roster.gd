@@ -18,6 +18,15 @@ class_name StageRoster
 
 ## Boss index -> the stage that boss owns. Index is the bit position in
 ## `GameState.bosses_defeated`, so these must not be reordered.
+##
+## `item` is the utility item that boss also hands over, or absent for the five
+## that hand over nothing. It lives here rather than in a second table for the
+## reason this file exists at all: a roster kept in two places is a roster that
+## disagrees in one of them the first time an award moves.
+##
+## The three are spread across the run and chosen so the theme does the
+## explaining -- the scrapyard gives you a spring, the wind farm gives you
+## flight, and the flooded mine gives you the sub.
 const ENTRIES := [
 	{
 		"index": 0, "boss": "Tide", "stage": "Dawn Boardwalk",
@@ -34,6 +43,7 @@ const ENTRIES := [
 	{
 		"index": 2, "boss": "Rust", "stage": "Breakers",
 		"weapon": "Rust Bloom",
+		"item": GameState.Item.COIL,
 		"frames": "res://resources/sprite_frames/rust.tres",
 		"scene": "res://scenes/stages/breakers/breakers.tscn",
 	},
@@ -46,6 +56,7 @@ const ENTRIES := [
 	{
 		"index": 4, "boss": "Gale", "stage": "Turbine Row",
 		"weapon": "Gale Cutter",
+		"item": GameState.Item.JET,
 		"frames": "res://resources/sprite_frames/gale.tres",
 		"scene": "res://scenes/stages/turbine_row/turbine_row.tscn",
 	},
@@ -64,6 +75,7 @@ const ENTRIES := [
 	{
 		"index": 7, "boss": "Quarry", "stage": "Sinkhole",
 		"weapon": "Quarry Bore",
+		"item": GameState.Item.MARINE,
 		"frames": "res://resources/sprite_frames/quarry.tres",
 		"scene": "res://scenes/stages/sinkhole/sinkhole.tscn",
 	},
@@ -82,6 +94,34 @@ const GRID := [
 	Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2),
 ]
 const CENTRE := Vector2i(1, 1)
+
+
+## The weapon id a utility item is selected as.
+##
+## Utility items ride the weapon system -- they are picked from the same menu,
+## spend the same ammo and draw the same bar -- so each one needs an id in
+## `resources/weapons/`. The mapping lives here because the roster is where the
+## award is declared, and a mapping kept anywhere else is one more place for the
+## two to disagree.
+const ITEM_WEAPONS := {
+	GameState.Item.COIL: &"rush_coil",
+	GameState.Item.JET: &"rush_jet",
+	GameState.Item.MARINE: &"rush_marine",
+}
+
+
+static func item_weapon_id(item: int) -> StringName:
+	return ITEM_WEAPONS.get(item, &"")
+
+
+## Every utility item the roster awards, in boss order. For the tests, and for
+## anything that wants to show what is still out there.
+static func items() -> Array[int]:
+	var out: Array[int] = []
+	for row in ENTRIES:
+		if row.has("item"):
+			out.append(int(row["item"]))
+	return out
 
 
 static func entry(index: int) -> Dictionary:

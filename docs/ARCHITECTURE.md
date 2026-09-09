@@ -25,8 +25,8 @@ res://
 │   ├── enemies/                # empty: see the note under 5.3 on where enemy stats live
 │   └── damage_tables/          # weapon -> entity damage overrides
 ├── scenes/
-│   ├── actors/{player,bosses,enemies}/
-│   ├── projectiles/
+│   ├── actors/{player,bosses,enemies,projectiles,pickups,items}/
+│   ├── projectiles/          # shared base shots; per-actor shots live under actors/
 │   ├── level/                  # Room, Door, Checkpoint, Ladder, MovingPlatform, gimmicks
 │   ├── ui/                     # HUD, WeaponMenu, StageSelect, Title, WeaponGet
 │   └── stages/<stage>/

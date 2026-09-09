@@ -1532,7 +1532,9 @@ they are worth completing.
   original list here named seven gimmicks for seven *remaining* stages, which left stage 1
   with none — section 4's roster adds **rising tide** for Dawn Boardwalk and moves
   **water** (swim physics) to the Sinkhole, so all eight stages have one.
-- Utility-dog items, unlocked by beating specific bosses.
+- Utility-dog items, unlocked by beating specific bosses. **Built** — Coil (Rust), Jet
+  (Gale), Marine (Quarry), carried on the weapon system so they inherit selection,
+  ammo, the pause menu and the HUD bar.
 - Item drops (health/ammo/1UP/E-tank) with weighted tables.
 - Password/save: MM3 used a password grid; ship a save slot **and** a password so the
   retro flow is intact.
