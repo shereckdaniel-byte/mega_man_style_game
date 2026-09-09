@@ -90,10 +90,17 @@ makes him stop, salute and leave rather than explode. There is no bar to empty a
 weapon at the end of it. Eight stages have taught the player exactly what a boss door
 means, which is what makes it worth spending one on this.
 
-**Stages 5–8 are greyboxed**: stage 3's tileset and enemy skins, and backdrops drawn in
-code rather than loaded. The layouts were driven by the bot before any art was paid for,
-which is PLAN.md's own rule — layout first, art second. Each stage's docstring names the
-six enemies it actually wants.
+**Stages 5–8 and the fortress are greyboxed**: stage 3's tileset and enemy skins, and
+backdrops drawn in code rather than loaded. The layouts were driven by the bot before any
+art was paid for, which is PLAN.md's own rule — layout first, art second. Each stage's
+docstring names the six enemies it actually wants.
+
+**Stage 4's terrain is a separate problem and a smaller one.** It is generated and paid
+for and sitting on PixelLab's server; the spritesheet is served from
+`backblaze.pixellab.ai`, which this environment's egress policy blocks, while the metadata
+comes from an allowed host. `tools/fetch_tilesets.sh` is the whole recovery once the host
+is opened — see docs/SPRITES.md §8g, which now also lists every route that was probed and
+does not work, so nobody probes them again.
 
 Progress persists two ways, both writing the same struct: a **save slot** at
 `user://save_0.json`, written when a stage is cleared and read at boot, and an
