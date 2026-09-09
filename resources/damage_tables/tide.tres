@@ -8,9 +8,12 @@ entity_id = &"tide"
 by_weapon = {
 &"arc_lance": 4,
 &"buster_charged": 3,
+&"cinder_spray": 2,
 &"contact": 0,
+&"frost_lock": 2,
 &"gale_cutter": 2,
 &"prism_ray": 2,
+&"quarry_bore": 2,
 &"rust_bloom": 2,
 &"sword": 3,
 &"tide_crawler": 1

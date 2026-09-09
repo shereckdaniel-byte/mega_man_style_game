@@ -191,31 +191,181 @@ func _physics_process(delta: float) -> void:
 ## no wind in it after a mistimed transition.
 var wind_drift_pf := 0.0
 
+## Horizontal drift the **floor** is putting under the player, in NES px/frame.
+##
+## Separate from `wind_drift_pf` rather than sharing it, because the two obey
+## opposite rules and a single field could only obey one. The wind pushes an
+## airborne player always and a walking one only while they are moving; a
+## conveyor pushes a *standing* player always and an airborne one never. Sharing
+## the channel would have meant a belt that let go the moment you stood still,
+## which is not a belt.
+##
+## Same contract otherwise: written every frame by whatever is carrying and
+## cleared every frame by the player, so nothing has to remember to switch off.
+var carry_drift_pf := 0.0
+
+## How much of the player's asked-for ground speed actually arrives this frame,
+## 0..1. 1.0 is ordinary floor; anything less is ice.
+##
+## A third field rather than a third force, because ice is not a force. The wind
+## and the belt both add to `velocity.x`; this one **scales how fast the player's
+## own input reaches it**, which is the thing no push can express: nothing moves
+## the player anywhere they did not ask to go, they simply arrive after they
+## stopped asking.
+##
+## Same contract as the other two: written every frame by whatever is under the
+## player and reset every frame here, so a sheet that stops overlapping stops
+## mattering with nothing having to remember to switch it off.
+var ground_grip := 1.0
+
+## How much of normal gravity the player is under, 0..1. 1.0 is air; anything
+## less is water.
+##
+## The fourth and last of the world-writes-the-player fields, and the only one
+## that touches the vertical axis. Same contract as the other three -- written
+## every frame by whatever the player is standing in, reset every frame here --
+## so a volume that stops overlapping stops mattering with nothing having to
+## remember to switch it off.
+##
+## **It scales gravity and nothing else.** Jump velocity is untouched, so the
+## player's leap is the same push against a weaker pull: they go higher and come
+## down slower out of one number. Scaling the jump as well was tried on paper
+## and rejected -- it makes the entry and exit of a pool feel like two different
+## characters, and it puts a second number in the way of the arithmetic that
+## says water can only ever make a gap easier.
+var buoyancy := 1.0
+
+## The ground speed the player actually had last frame, which is what ice blends
+## *from*. Kept here rather than read back from `velocity` because the states
+## overwrite `velocity.x` outright every frame -- by the time the blend runs, the
+## previous value is already gone.
+var _last_ground_speed := 0.0
+
+## Frames of ice left on the player's own feet, and how much grip it leaves.
+##
+## Frost's Lock coats the player rather than freezing them. **Taking control
+## away is the one thing a stun must not do to the player**: a boss that can
+## stop your inputs is a boss that can kill you while you watch, and every
+## fairness rule in this game is about the player always having an answer.
+## Degrading grip keeps every input working and makes them all arrive late,
+## which is the same idea expressed as a cost instead of a confiscation.
+var _slip_frames := 0
+var _slip_grip := 1.0
+
 
 # --- Shared movement helpers, used by the states ------------------------------
 
-## Adds the world's push to whatever the state decided, **and only in the air.**
+## Adds the world's push to whatever the state decided.
 ##
 ## It has to come after `state_machine.physics_update`, because `apply_walk` sets
 ## `velocity.x` outright rather than accelerating it (ground movement here is
 ## instant-on, instant-off) -- so a wind applied before the state would be
 ## overwritten by it and do nothing at all.
 ##
-## Grounded, the push is zero. That is a design rule and not an omission: a wind
-## that moved a walking player would make the most basic verb in the game
-## unreliable, and a stage built on that is a stage about fighting the controls.
-## In the air it changes the arc, which turns every jump into a decision and is
+## ### It reaches a walking player, and it used to not
+##
+## The first version applied the push **only in the air**, on the argument that a
+## wind which moved a walking player makes the most basic verb in the game
+## unreliable. Playtested, that argument is wrong in an interesting way: a wind
+## you can only feel while airborne is a wind you do not feel at all for most of
+## a room, and the stage reads as still air with occasional odd jumps. Walking
+## into a headwind and feeling the drag is the thing that makes the weather
+## exist.
+##
+## So it applies on the ground too, and the fairness rule moves rather than
+## disappearing. It was **"the wind never touches a walking player"**; it is now
+## **"the wind never stops one"** -- `WindZone.speed_pf` stays under
+## `PlayerTuning.walk_speed_pf` by enough that a headwind leaves the player over
+## half their speed, which `tests/test_wind_zone.gd` checks against the tuning.
+## A wind at or above the walk speed would hold a player still or walk them
+## backwards, and that is the version this rule exists to forbid.
+##
+## ### A standing player is still not pushed
+##
+## The push scales movement; it does not create it. Standing still in a gust and
+## being slid along the floor -- into a pit, while not touching the controls --
+## is a different mechanic from a headwind, and not one anybody asked for. So on
+## the ground the drift is added only to a player who is already moving. In the
+## air it always applies, because an airborne player is committed and the arc is
 ## the thing Turbine Row is actually made of.
 func _apply_wind() -> void:
-	if wind_drift_pf != 0.0 and not is_on_floor():
+	if wind_drift_pf != 0.0 and (not is_on_floor() or not is_zero_approx(velocity.x)):
 		velocity.x += tuning.px_s(wind_drift_pf)
 	wind_drift_pf = 0.0
+	_apply_carry()
+	_apply_grip()
+
+
+## Adds the floor's own movement, **and only while the player is standing on it.**
+##
+## The mirror of the wind and deliberately not the same rule. A conveyor carries
+## a player who is doing nothing -- that is what a conveyor is, and it is what
+## makes a belt running at a pit a decision rather than scenery. In the air it
+## does nothing at all, which is the rule that keeps it from ever shortening a
+## jump: stage 5 learned the hard way that a ground force which reaches the arc
+## can make authored gaps uncrossable, and a belt structurally cannot.
+func _apply_carry() -> void:
+	if carry_drift_pf != 0.0 and is_on_floor():
+		velocity.x += tuning.px_s(carry_drift_pf)
+	carry_drift_pf = 0.0
+
+
+## Blends this frame's asked-for ground speed toward the last one, so ice
+## arrives late and leaves late.
+##
+## **Last of the three, and it has to be.** The states write `velocity.x`
+## outright and the wind and the belt add to it; ice is a statement about how
+## much of *all* of that reaches the floor this frame, so it can only be applied
+## once the rest of the frame's answer is known. Running it earlier would blend
+## a number that a later line then overwrites.
+##
+## Grounded only. In the air the player already has no grip to lose -- air
+## control is full strength by design -- and blending there would make ice
+## change the shape of a jump, which is exactly the fault stage 5 paid for.
+## Coats the player's feet for `frames`, leaving `grip` of their control.
+##
+## Takes the *worse* of this and whatever floor they are on, so standing on ice
+## while iced does not cancel out.
+func slip(frames: int, grip: float) -> void:
+	if frames <= 0:
+		return
+	_slip_frames = maxi(_slip_frames, frames)
+	_slip_grip = minf(_slip_grip, clampf(grip, 0.01, 1.0))
+
+
+func is_slipping() -> bool:
+	return _slip_frames > 0
+
+
+func _apply_grip() -> void:
+	if _slip_frames > 0:
+		_slip_frames -= 1
+		ground_grip = minf(ground_grip, _slip_grip)
+		if _slip_frames == 0:
+			_slip_grip = 1.0
+	if ground_grip < 1.0 and is_on_floor():
+		velocity.x = lerpf(_last_ground_speed, velocity.x, clampf(ground_grip, 0.0, 1.0))
+	_last_ground_speed = velocity.x if is_on_floor() else 0.0
+	ground_grip = 1.0
+	# Buoyancy is reset here rather than in `apply_gravity`, because gravity is
+	# applied by the states and this runs once a frame whatever state is live --
+	# resetting it there would clear the value before a state that does not fall
+	# had a chance to be under water at all.
+	buoyancy = 1.0
 
 ## Applies gravity for one frame and clamps to terminal velocity.
+##
+## Scaled by `buoyancy` while the player is in water, which is the whole of
+## stage 8's gimmick and is deliberately the *only* thing it touches. Weaker
+## gravity means a higher jump and a slower fall out of one motion, which is
+## what water feels like in this genre -- and it means water can never make an
+## authored gap harder to cross, only easier. That is the opposite of stage 5's
+## wind, which reached the arc and made two-cell gaps uncrossable, and it is why
+## water is allowed next to holes without a margin rule.
 func apply_gravity(delta: float) -> void:
 	velocity.y = minf(
-		velocity.y + tuning.px_s2(tuning.gravity_pf) * delta,
-		tuning.px_s(tuning.terminal_velocity_pf))
+		velocity.y + tuning.px_s2(tuning.gravity_pf * buoyancy) * delta,
+		tuning.px_s(tuning.terminal_velocity_pf * buoyancy))
 
 
 ## -1, 0 or +1. Uses raw actions rather than get_axis so that holding both

@@ -48,8 +48,17 @@ func _run_all() -> void:
 	var ran_files := 0
 	for path in files:
 		var script: GDScript = load(path)
-		if script == null:
-			push_error("could not load %s" % path)
+		# **`can_instantiate` as well as null**, because a test file with a
+		# parse error in it loads to a non-null GDScript that cannot be built.
+		# Calling `new()` on one raises "Nonexistent function 'new' in base
+		# 'GDScript'" from inside this loop, the loop never reaches `quit()`,
+		# and the whole run hangs until something kills it -- which reads
+		# exactly like a test that loops forever and has been chased as one
+		# more than once. Two typed-inference mistakes in `test_switchgear.gd`
+		# cost twenty minutes this way before anyone thought to run without
+		# piping the output through `tail`.
+		if script == null or not script.can_instantiate():
+			push_error("could not load %s -- parse error?" % path)
 			_failed += 1
 			continue
 		var instance: Variant = script.new()
@@ -87,7 +96,11 @@ func _run_all() -> void:
 	# for it is the failure mode this whole project keeps running into: a green
 	# result that means nothing was checked. So it exits 1 and says so.
 	if _total == 0 and not _filters.is_empty():
-		printerr("no test matches %s" % " ".join(_filters))
+		# A file that failed to load is counted, so a parse error in the one
+		# file a filter names reports as a parse error rather than as a typo in
+		# the filter -- and either way the run exits 1.
+		printerr("no test matches %s%s" % [" ".join(_filters),
+			" (%d file(s) failed to load)" % _failed if _failed > 0 else ""])
 		quit(1)
 		return
 	# The filter is printed with the count so a narrowed run can never be read

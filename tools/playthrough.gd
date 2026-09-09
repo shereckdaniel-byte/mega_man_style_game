@@ -68,6 +68,11 @@ const STAGES := {
 	"breakers": "res://scenes/stages/breakers/breakers.tscn",
 	"mirror_field": "res://scenes/stages/mirror_field/mirror_field.tscn",
 	"turbine_row": "res://scenes/stages/turbine_row/turbine_row.tscn",
+	"stack": "res://scenes/stages/stack/stack.tscn",
+	"cold_store": "res://scenes/stages/cold_store/cold_store.tscn",
+	"sinkhole": "res://scenes/stages/sinkhole/sinkhole.tscn",
+	"outfall": "res://scenes/stages/outfall/outfall.tscn",
+	"caisson": "res://scenes/stages/caisson/caisson.tscn",
 }
 const DEFAULT_STAGE := "dawn_boardwalk"
 
@@ -409,9 +414,19 @@ func _fight() -> bool:
 			print("%s DOWN at fight frame %d, player hp=%d"
 				% [_stage.boss_name().to_upper(), frame, _player.health.current])
 			var expected := _expected_weapon(arena, awarded)
+			if expected == &"":
+				# **A fight that awards nothing is finished the moment it is
+				# won.** The fortress has two of these -- a reprise and the
+				# rival -- and waiting for a weapon that is never coming runs
+				# out the clock below, which lets the stage exit, which frees
+				# the level and the ledger this function is about to print.
+				# Caisson crashed the tool with a segfault the first time it was
+				# driven, at `_log.report()`, three lines after the tree it
+				# reads had been swapped out from under it.
+				print("no weapon to award -- this fight drops nothing")
+				return true
 			# Let the weapon-get screen come and go. Bounded by the award rather
-			# than by the clock: waiting out the full 360 lets the stage exit,
-			# which frees the level and the ledger the caller is about to print.
+			# than by the clock, for the same reason.
 			for _i in 360:
 				await physics_frame
 				if _weapon_landed(weapons, expected):

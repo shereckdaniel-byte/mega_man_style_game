@@ -13,8 +13,10 @@
 ## have a cell from the start; the six without a level read as unavailable and
 ## refuse to be entered, which is honest and keeps the layout still.
 ##
-## The centre cell is the fortress slot. Locked until M7, and locked visibly for
-## the same reason.
+## The centre cell is the fortress slot. It stays on the grid whatever state it
+## is in, for the same reason: the player's memory of where a thing *is* is the
+## interface, and a cell that appears only once the fortress opens is a cell
+## they have to find at the moment they most want to press it.
 extends CanvasLayer
 
 ## Emitted when the player picks a stage that exists. The scene change goes
@@ -73,8 +75,7 @@ func selected_index() -> int:
 func confirm() -> bool:
 	var index := selected_index()
 	if index < 0:
-		_report("THE FORTRESS IS SEALED")
-		return false
+		return _confirm_fortress()
 	var row := StageRoster.entry(index)
 	if not StageRoster.is_built(index):
 		_report("%s — NOT BUILT YET" % String(row["stage"]).to_upper())
@@ -82,6 +83,48 @@ func confirm() -> bool:
 	if _state != null:
 		_state.current_stage = index
 	stage_chosen.emit(index)
+	var router := get_node_or_null(^"/root/SceneRouter")
+	if router != null:
+		router.goto(String(row["scene"]))
+	else:
+		get_tree().call_deferred("change_scene_to_file", String(row["scene"]))
+	return true
+
+
+## Why the centre cell will not open, or "" if it will.
+##
+## **Split out from the confirm so the decision can be read without taking it.**
+## Confirming changes the scene, which makes the successful branch the one
+## branch a test cannot exercise -- so the branch that will still be live when
+## every fortress stage is on disk was the branch nothing checked. A query that
+## returns the reason answers the same question and is safe to ask.
+##
+## Four answers rather than one, because "sealed" answered four different
+## questions with the same word and only one of them was actionable. A player
+## who has beaten six masters and a player who has finished the whole fortress
+## are both being told no, and the useful part of the answer is the *reason*.
+func fortress_refusal() -> String:
+	if _state == null or not bool(_state.fortress_open()):
+		return "THE FORTRESS IS SEALED — EIGHT MASTERS FIRST"
+	var stage: int = int(_state.fortress_stage())
+	if stage < 0:
+		return "THE FORTRESS IS DOWN"
+	if not StageRoster.fortress_is_built(stage):
+		return "%s — NOT BUILT YET" % String(
+			StageRoster.fortress_entry(stage)["name"]).to_upper()
+	return ""
+
+
+func _confirm_fortress() -> bool:
+	var refusal := fortress_refusal()
+	if not refusal.is_empty():
+		_report(refusal)
+		return false
+	var row := StageRoster.fortress_entry(int(_state.fortress_stage()))
+	# The fortress is not one of the eight, and `current_stage` is a boss index.
+	# -1 is what the rest of the game already reads as "not in a master's stage".
+	_state.current_stage = -1
+	stage_chosen.emit(-1)
 	var router := get_node_or_null(^"/root/SceneRouter")
 	if router != null:
 		router.goto(String(row["scene"]))
@@ -101,9 +144,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		move_cursor(Vector2i(0, 1))
 	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"shoot"):
 		confirm()
+	elif event.is_action_pressed(&"pause"):
+		open_password()
 	else:
 		return
 	get_viewport().set_input_as_handled()
+
+
+## Opens the password screen over the grid.
+##
+## `pause` because it is the one action with nothing to do on this screen, and
+## because "the menu key opens the menu" is a guess a player can make. There is
+## no title screen yet -- `SceneRouter.TITLE` points at a scene M8 will write --
+## so the select is where a password has to be enterable from, and it is not a
+## bad home for it: it is the screen a run returns to.
+func open_password() -> PasswordScreen:
+	var screen := PasswordScreen.open(self)
+	screen.finished.connect(_on_password_finished)
+	return screen
+
+
+## A loaded password changes which stages are cleared, so the grid is rebuilt.
+func _on_password_finished(loaded: bool) -> void:
+	if loaded:
+		_refresh()
+		_report("PASSWORD LOADED")
 
 
 func _report(message: String) -> void:
@@ -223,6 +288,34 @@ func _build_cell(cell: Vector2i) -> Control:
 ## cropped by `BossPortrait` so a character framed small inside its 256 px cell
 ## is not drawn smaller than the ones framed large — see that class for the
 ## measurements. Returns null for the fortress and for art that is not on disk.
+## The centre cell's two lines: what the fortress is, and how far into it you are.
+##
+## It reads "FORTRESS / SEALED" until the eighth master falls and then names the
+## stage you are up to, which is the only thing the grid ever tells a player
+## they have not already been told -- the other eight cells describe what the
+## player chose; this one describes what is left.
+func _refresh_fortress_cell(name_label: Label, stage_label: Label) -> void:
+	name_label.text = "FORTRESS"
+	var open: bool = _state != null and bool(_state.fortress_open())
+	var colour := NAME_COLOUR if open else DIM_COLOUR
+	if not open:
+		stage_label.text = "SEALED"
+	else:
+		var stage: int = int(_state.fortress_stage())
+		if stage < 0:
+			colour = DEFEATED
+			stage_label.text = "CLEARED"
+		elif not StageRoster.fortress_is_built(stage):
+			colour = DIM_COLOUR
+			stage_label.text = "NOT BUILT"
+		else:
+			stage_label.text = "%d/%d — %s" % [stage + 1,
+				GameState.FORTRESS_COUNT,
+				String(StageRoster.fortress_entry(stage)["name"]).to_upper()]
+	name_label.add_theme_color_override(&"font_color", colour)
+	stage_label.add_theme_color_override(&"font_color", colour)
+
+
 func _portrait_for(index: int) -> Texture2D:
 	if index < 0:
 		return null
@@ -242,16 +335,15 @@ func _refresh() -> void:
 		var beaten: bool = index >= 0 and _state != null \
 			and bool(_state.is_boss_defeated(index))
 
+		if index < 0:
+			built = _state != null and bool(_state.fortress_open())
 		box.color = CELL if built else CELL_LOCKED
 		var name_label: Label = box.get_node(^"Name")
 		var stage_label: Label = box.get_node(^"Stage")
 		var portrait: TextureRect = _portraits[key]
 
 		if index < 0:
-			name_label.text = "FORTRESS"
-			stage_label.text = "SEALED"
-			name_label.add_theme_color_override(&"font_color", DIM_COLOUR)
-			stage_label.add_theme_color_override(&"font_color", DIM_COLOUR)
+			_refresh_fortress_cell(name_label, stage_label)
 		else:
 			var row := StageRoster.entry(index)
 			name_label.text = String(row["boss"]).to_upper()

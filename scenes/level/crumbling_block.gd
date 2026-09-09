@@ -38,9 +38,24 @@ enum Phase { SOLID, WARNING, GONE }
 ## Frames between being stood on and giving way. About a third of a second --
 ## long enough to read and react, short enough to feel urgent.
 @export var warn_frames: int = 22
-## Frames it stays gone. Long enough that a player cannot simply wait on the
-## spot for it, short enough that a missed jump is not a long walk back.
-@export var respawn_frames: int = 90
+## Frames it stays gone, or **0 for "not on a timer"**, which is the default.
+##
+## It was 90, and a plank popping back while the player was still working
+## through the run read as the level undoing itself -- you break three, turn
+## round, and the first one is whole again. A crumbling block should stay broken
+## for as long as you are standing in front of it.
+##
+## **It cannot stay broken forever, though, and that is the trap.** A player who
+## crumbles every plank in a room and then falls in the pit respawns at the
+## checkpoint with no floor left and the room is unfinishable -- a soft lock the
+## timer was accidentally preventing. So the reset moved from a timer to the
+## event that makes it safe: `resets_on_room_change`, driven by the stage's
+## `room_changed`, which fires on a door transition and on a respawn. Leave the
+## room or die and the planks are whole; stay and they are not.
+##
+## A positive value still means a timer, which is what `PhaseBlock` runs its
+## cycle on.
+@export var respawn_frames: int = 0
 ## How far it shakes while warning, in px.
 @export var shake_px := 2.5
 
@@ -141,7 +156,7 @@ func _physics_process(_delta: float) -> void:
 			if _frames >= warn_frames:
 				_fall()
 		Phase.GONE:
-			if _frames >= respawn_frames:
+			if respawn_frames > 0 and _frames >= respawn_frames:
 				_restore()
 		Phase.SOLID:
 			_tick_solid()
@@ -173,6 +188,24 @@ func _fall() -> void:
 	_set_collision(false)
 	visible = false
 	crumbled.emit()
+
+
+## Whether the stage should put this block back when the player leaves the room
+## or respawns.
+##
+## True here and false in `PhaseBlock`, which is driven by a clock the room does
+## not get to interrupt -- resetting a panel set on a door transition would put
+## every panel of a path back on beat 0 together, which is the one arrangement
+## `_align_to_phase` exists to prevent.
+func resets_on_room_change() -> bool:
+	return true
+
+
+## Puts the block back, whatever phase it is in. For the stage's room-change
+## reset; the timer path calls it too.
+func restore_now() -> void:
+	if phase != Phase.SOLID:
+		_restore()
 
 
 func _restore() -> void:

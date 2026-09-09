@@ -25,6 +25,15 @@ const STAGES := {
 	"breakers": "res://scenes/stages/breakers/breakers.tscn",
 	"mirror_field": "res://scenes/stages/mirror_field/mirror_field.tscn",
 	"turbine_row": "res://scenes/stages/turbine_row/turbine_row.tscn",
+	"stack": "res://scenes/stages/stack/stack.tscn",
+	"cold_store": "res://scenes/stages/cold_store/cold_store.tscn",
+	"sinkhole": "res://scenes/stages/sinkhole/sinkhole.tscn",
+	# The fortress. Its stages are authored from the same table and held to the
+	# same rules -- a ladder that hangs over a pit does it whichever half of the
+	# game it is in.
+	"outfall": "res://scenes/stages/outfall/outfall.tscn",
+	"caisson": "res://scenes/stages/caisson/caisson.tscn",
+	"switchgear": "res://scenes/stages/switchgear/switchgear.tscn",
 }
 
 ## Frames to let a stage build its deck, rooms and elements.
@@ -160,7 +169,13 @@ func test_every_stage_is_registered_here() -> void:
 	var found := 0
 	var dir := DirAccess.open("res://scenes/stages")
 	for folder in dir.get_directories():
+		# `test_room` is the M1 tuning room, and `fortress` holds the backdrop
+		# the four fortress stages share rather than a stage of its own -- it has
+		# no `<name>/<name>.tscn`, which is what makes a folder here a stage.
 		if folder == "test_room":
+			continue
+		if not ResourceLoader.exists("res://scenes/stages/%s/%s.tscn"
+				% [folder, folder]):
 			continue
 		found += 1
 		assert_has(STAGES, folder, "%s is not in this test's STAGES" % folder)
@@ -217,16 +232,37 @@ func test_the_deck_surface_is_measured_from_the_tiles() -> void:
 		await _drop(stage)
 
 
-func test_a_boss_lands_on_the_floor_it_was_given() -> void:
-	# The arena used to hand the boss `band_deck_row * tile`, which is half a
-	# tile above the collision surface: the boss finished its entrance in the
-	# air and dropped 36 px the moment gravity started at the bar fill.
+## **Every arena in every stage**, not the stage's own one.
+##
+## The arena used to hand the boss `band_deck_row * tile`, which is half a tile
+## above the collision surface: the boss finished its entrance in the air and
+## dropped 36 px the moment gravity started at the bar fill.
+##
+## This asked `stage.arena()` until the fortress arrived, which was the same
+## thing right up until a stage had more than one. Switchgear has eight and no
+## `arena()` at all -- the test read as "switchgear has no arena", which is true
+## and is not a fault -- and Caisson's duel is a second sealed room in a stage
+## that also has a first. Walking the built nodes asks the question that was
+## always meant: wherever a boss is going to land, is there floor at that line.
+func test_every_arena_stands_on_the_deck_surface() -> void:
 	for name in STAGES:
 		var stage: AuthoredStage = await _build(name)
-		var arena := stage.arena()
-		assert_not_null(arena, "%s has no arena" % name)
-		var row := stage.band_surface_row(
-			stage.room_band(stage.arena_room_index()))
-		assert_almost_eq(arena.global_position.y, row * stage.tile_size(), 0.5,
-			"%s: the arena is not on the deck surface" % name)
+		var found := 0
+		for child in stage.get_children():
+			if not (child is BossArena):
+				continue
+			var arena := child as BossArena
+			found += 1
+			var arena_room := stage.get_node_or_null(arena.arena_room) as Room
+			assert_not_null(arena_room,
+				"%s: %s names no room" % [name, arena.name])
+			if arena_room == null:
+				continue
+			var index := stage.rooms().find(arena_room)
+			assert_true(index >= 0,
+				"%s: %s names a room that is not in the stage" % [name, arena.name])
+			var row := stage.band_surface_row(stage.room_band(index))
+			assert_almost_eq(arena.global_position.y, row * stage.tile_size(), 0.5,
+				"%s: %s is not on the deck surface" % [name, arena.name])
+		assert_true(found > 0, "%s builds no arena at all" % name)
 		await _drop(stage)

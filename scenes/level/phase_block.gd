@@ -176,6 +176,16 @@ func triggers_on_contact() -> bool:
 	return false
 
 
+## And a clock the room does not get to interrupt. A crumbling plank is reset
+## when the player leaves or dies, because a room of broken planks is a room
+## with no floor; a panel set has no such failure -- every panel comes back on
+## its own beat -- and resetting one on a door transition would put every panel
+## of a path back on beat 0 together, which is exactly what `_align_to_phase`
+## exists to prevent.
+func resets_on_room_change() -> bool:
+	return false
+
+
 ## The beat. `_frames` is counting up through the solid window; the tell begins
 ## when the untriggered part of it is spent, and `trigger()` does the rest
 ## through the inherited machinery.

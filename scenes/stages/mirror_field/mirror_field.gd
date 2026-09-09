@@ -88,11 +88,17 @@
 extends AuthoredStage
 
 const BACKGROUND := preload("res://scenes/stages/mirror_field/parallax_background.gd")
-## TODO(art): swap to res://resources/tilesets/mirror_field.tres once generated.
-## Greyboxed against stage 3's tiles so the layout and the pacing can be driven
-## by the bot before any generation is paid for -- PLAN.md's own rule, layout
-## first and art second.
-const TILESET := preload("res://resources/tilesets/breakers.tres")
+## Its own terrain at last: pale sandy concrete with casting seams and bolt
+## plates, under the salt crust the backdrop paints.
+##
+## **Generated at M6k and undownloadable until M7d.** The sheet is served from
+## `backblaze.pixellab.ai`, which this environment's egress policy refused, so
+## the stage shipped greyboxed against stage 3's tiles with the swap marked on
+## this line for two milestones -- which was the right call and is why the delay
+## cost nothing: the layout and the pacing were driven by the bot before any
+## generation was paid for, PLAN.md's own rule of layout first and art second.
+## `tools/fetch_tilesets.sh` is what recovered it.
+const TILESET := preload("res://resources/tilesets/mirror_field.tres")
 const PRISM := preload("res://scenes/actors/bosses/prism.gd")
 const PANEL := preload("res://scenes/level/phase_block.gd")
 ## Prism's art. By path rather than preloaded so the stage still opens if the

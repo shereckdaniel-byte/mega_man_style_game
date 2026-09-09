@@ -547,31 +547,69 @@ actually bites. The stretch is about 17% on a 32 px sprite and is invisible.
 
 ### 8g. Stage 4's art, a sky that did it again, and a tileset that cannot be fetched
 
+**Closed at M7d: the host was allowed and the tileset came down on the first
+try.** 2648 bytes of art, 20747 of metadata, sixteen Wang tiles at 64x64, and
+`mirror_field.gd` now preloads its own `.tres` instead of stage 3's. Nothing was
+regenerated. The account was never billed twice. The section below is kept as it
+was written, because the thing it argues -- greybox the layout, buy the art
+second -- is what made a two-milestone outage cost nothing, and that is worth
+more than a tidy document.
+
+**One step was missing from the recipe this document carried since stage 1**, and
+it surfaced on the day the host opened: a PNG that has just appeared on disk has
+no `.import` file, so `load()` fails with "No loader found for resource" and the
+tileset importer reports a missing texture -- which looks exactly like a bad
+download and is not one. `godot --headless --import` has to run first, and
+`tools/fetch_tilesets.sh` now does it.
+
+**The host check was also wrong in the other direction.** The script listed the
+status codes it thought a bucket root could return -- 200, 404, 403 -- and the
+day the domain was opened it returned **301**, so the script reported the host
+still blocked while it was working. A refused CONNECT never becomes an HTTP
+response at all; curl reports `000` for it. The test is "did we get a status
+code", not "did we get one from a list somebody guessed".
+
+---
+
 **The tileset is generated, paid for, and undownloadable.** This is the
 `backblaze.pixellab.ai` problem in the section above, unchanged and still open:
 the metadata comes back from the allowed host and imports fine, and the
-spritesheet PNG 302s to a host the egress policy answers 403 to. Every route was
-re-probed at M6j — `?format=base64`, `/download`, `/spritesheet`, `/png`,
-`?proxy=1` — and they all either 404 or redirect to the same place. Stage 4
+spritesheet PNG 302s to a host the egress policy answers 403 to. Stage 4
 therefore ships greyboxed against stage 3's tiles with the swap marked in one
 line, and the tileset drops in the moment the host is allowed. **A generated
 tileset stays on PixelLab's server**, so this costs nothing to recover and
 nothing has to be regenerated.
 
+**Re-probed a third time at M7d, including four routes nobody had tried**, so
+that nobody probes a fourth. All dead:
+
+| Route | Result |
+| --- | --- |
+| `mcp__pixellab__get_sidescroller_tileset` (the MCP tool, not curl) | returns the same `/image` URL that 302s |
+| `/mcp/images/{tileset_id}/download` | 404 — the images endpoint serves image *jobs*, and a tileset is not one |
+| `/mcp/images/{base_tile_id}/download` | 404 |
+| `/mcp/images/{individual_tile_id}/download` | 404 — the 16 tiles have ids in the metadata and none of them is fetchable |
+| `/image?redirect=false`, `/image.png`, `/tiles`, bare `/{id}` | 302, 404, 404, 404 |
+| PixelLab git projects (`list_projects`) | the account belongs to no organization and has none |
+
+The metadata is the last word on it: `tileset_data.spritesheet_url` names the
+Backblaze URL directly, and `tileset_image` carries the filename, format and
+dimensions but no bytes. **There is no supported route that avoids the host.**
+
 **Nothing is committed for it**, deliberately. `tests/test_tilesets.gd` derives
 what it expects from the directories under `assets/tilesets/`, so a directory
 holding metadata and no art is a red build for as long as the host stays closed —
 and the metadata costs nothing to re-fetch, because it comes from the allowed
-host. Both halves are one command each once `backblaze.pixellab.ai` is open:
+host.
+
+The recovery is `tools/fetch_tilesets.sh`, which holds the id table, checks the
+blocked host first and says which of the two halves failed. It replaced four
+lines of `curl` that this document had carried since stage 1 and that were
+retyped by hand every time:
 
 ```sh
-ID=9ce2430f-2e8f-4aef-b342-19098469414d
-mkdir -p assets/tilesets/mirror_field
-curl -fsSL -o assets/tilesets/mirror_field/tileset.png \
-  "https://api.pixellab.ai/mcp/sidescroller-tilesets/$ID/image"
-curl -fsSL -o assets/tilesets/mirror_field/tileset.json \
-  "https://api.pixellab.ai/mcp/sidescroller-tilesets/$ID/metadata"
-godot --headless --script res://tools/pixellab_tileset_import.gd
+tools/fetch_tilesets.sh                 # every tileset the project uses
+tools/fetch_tilesets.sh mirror_field    # just this one
 ```
 
 Then swap the one marked line in `mirror_field.gd` from `breakers.tres` to
@@ -1189,6 +1227,34 @@ that moves.
 generating a tileset.** A tileset already generated stays on the server, so
 opening the host later costs nothing to recover it — this one was downloaded
 after the fact, not regenerated.
+
+### What is actually stranded, as of M7d
+
+Seven tilesets exist on the account and three are on disk. Checking the ids
+saved inside each downloaded `tileset.json` against the account's list settles
+which of the other four matter, and the answer is **one**:
+
+| id | made | what it is |
+| --- | --- | --- |
+| `2e44791f` | 09-02 | stage 1, on disk |
+| `a1ee3aa4` | 09-03 16:42 | a substation attempt, superseded three minutes later |
+| `d635e91f` | 09-03 16:45 | stage 2, on disk |
+| `9bb04e54` | 09-04 07:48 | a breakers attempt, superseded four minutes later |
+| `faa7f5cd` | 09-04 07:52 | stage 3, on disk |
+| `5fc7a84a` | 09-04 07:54 | another breakers attempt, not the one used |
+| `9ce2430f` | 09-08 | **stage 4, stranded** |
+
+So opening the host recovers **Mirror Field's terrain and nothing else**. That
+is worth saying plainly, because "the tilesets are blocked" has been read as
+covering stages 5–8 and the fortress, and it does not: **no tileset has ever
+been generated for those.** They are greyboxed because nobody has made their art
+yet, which is a different job and one the subscription can afford — 2000
+generations a cycle, and stage 4's whole art bill was 6.
+
+The sensible order is therefore: open the host, run `tools/fetch_tilesets.sh` to
+prove one download works end to end, *then* generate for stages 5–8. Generating
+first is not wrong — the output would sit on the server waiting — but it would
+mean finding out whether the fix worked with five stages' art already paid for.
 
 Do not work around it by handing the storage URL back to the API as an
 `init_image_url` so the service fetches its own file. That routes around the

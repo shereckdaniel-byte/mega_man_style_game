@@ -116,6 +116,14 @@ func test_the_crosswind_is_weaker_than_the_player_can_walk() -> void:
 	assert_true(GaleScript.CROSSWIND_DRIFT_PF < tuning.walk_speed_pf,
 		"the crosswind pushes at %.2f and the player walks at %.2f"
 			% [GaleScript.CROSSWIND_DRIFT_PF, tuning.walk_speed_pf])
+	# **And by enough to matter**, which is the half of this that has teeth now
+	# that the push reaches a walking player. Under the walk speed only promises
+	# the player is not walked backwards; it says nothing about whether crossing
+	# the arena takes all day. At 1.0 -- legal under the old rule -- a player
+	# walked into it at 27% speed.
+	var left := (tuning.walk_speed_pf - GaleScript.CROSSWIND_DRIFT_PF) / tuning.walk_speed_pf
+	assert_true(left > 0.5,
+		"walking into the crosswind leaves %.0f%% of the player's speed" % [left * 100.0])
 
 
 ## And it is written onto the player rather than latched, so nothing about the

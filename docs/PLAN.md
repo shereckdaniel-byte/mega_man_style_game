@@ -1532,7 +1532,9 @@ they are worth completing.
   original list here named seven gimmicks for seven *remaining* stages, which left stage 1
   with none — section 4's roster adds **rising tide** for Dawn Boardwalk and moves
   **water** (swim physics) to the Sinkhole, so all eight stages have one.
-- Utility-dog items, unlocked by beating specific bosses.
+- Utility-dog items, unlocked by beating specific bosses. **Built** — Coil (Rust), Jet
+  (Gale), Marine (Quarry), carried on the weapon system so they inherit selection,
+  ammo, the pause menu and the HUD bar.
 - Item drops (health/ammo/1UP/E-tank) with weighted tables.
 - Password/save: MM3 used a password grid; ship a save slot **and** a password so the
   retro flow is intact.
@@ -1543,10 +1545,59 @@ non-boss situations; password round-trips full progress state.
 ### M7 — Endgame (1–2 weeks)
 
 - Revisit stages with mini-bosses reusing earlier boss AI at higher aggression.
-- 4 fortress stages, boss-rush teleporter room, two-phase final boss.
-- Rival duel encounter and whistle-cue setpiece.
+  **Built as `Boss.aggression`** — one property, which shortens *recovery* and
+  nothing else. The tell is the fairness contract `BossPattern` exists to enforce
+  and the act is what the attack is, so scaling either would make a reprise a
+  different fight wearing the first one's sprite rather than the same fight with
+  fewer openings.
+- 4 fortress stages, boss-rush teleporter room, two-phase final boss. **Outfall
+  (F1), Caisson (F2) and Switchgear (F3) are built**; Keep is declared in
+  `StageRoster` and not yet on disk, which the stage select reports by name.
+- Rival duel encounter and whistle-cue setpiece. **Built**, as Caisson's boss.
+  The plan asked for a *mid-stage* duel and this is at the end of one: what makes
+  a duel a set piece rather than an encounter is that the room shuts and the
+  player cannot walk away, and `BossArena` is the thing in this project that
+  shuts a room. Putting Ward behind a boss door also spends eight stages of
+  training — the player knows exactly what that door means, and this one opens
+  onto a fight with no bar, no weapon and a whistle first.
 
 **Accept:** the game is completable start to finish without dev tools.
+
+**Decided at M7a: the fortress is derived, not stored.** `GameState.fortress_open()`
+walks the eight boss bits rather than setting a ninth flag, so the gate cannot
+disagree with the thing it gates on. Progress *through* the fortress is stored
+(four bits, in the save and in four of the password's five reserved cells), and
+`fortress_stage()` returns the lowest uncleared rather than the highest cleared
+plus one — the two rules agree while progress is contiguous, and only the first
+can never skip a stage.
+
+**Decided at M7d: the boss rush is a resource problem.** The refights are the
+fights as shipped -- no `aggression` -- because eight fights on one health bar in
+an order you choose, against weapons you have a finite amount of, is a question
+none of the eight stages asks, and it stops being that question the moment the
+fights themselves become the difficulty.
+
+A teleport is the **third way two rooms can be joined**, after the door and the
+ladder, and the room table says so with `"exit": "teleport"`. Switchgear's eight
+arenas sit one per band precisely so that they are unreachable on foot: side by
+side they would share a deck, and walking off one into the next with `Stage.room`
+still naming the first is the M6i shaft bug's exact shape.
+
+**Decided at M7c: unbeatable and non-lethal are the same design.** Ward's health
+floors above the biggest single hit in the game, so he stops and leaves rather
+than ever reaching zero; his attacks carry `DamageInfo.NON_LETHAL`, a flag on the
+hit rather than a mode on the target, so they leave the player on at least one
+point. Neither of you can finish it, and what is left is a conversation — the
+only fight in the game with no stake in it, which is why it can afford to be the
+one that says something. He also has a clock: a player who hides behind a block
+still gets to leave, because the one fight with no reward is the worst possible
+place to put a wall.
+
+**Decided at M7b: a fortress stage has no gimmick of its own.** Each master stage
+contains exactly one idea and deliberately none of the others, because a stage
+that mixes two teaches neither (Sinkhole's docstring argues it at length). The
+fortress can mix, because there is nothing left to teach — it is the second
+examination, and the only new thing in it is that two answers are wanted at once.
 
 ### M8 — Polish & ship (1–2 weeks)
 
@@ -1681,7 +1732,7 @@ Branch per issue off `main`, squash-merge. Tag `v0.M<n>` at each milestone accep
 | Hand-authoring 8 stages is the schedule | Slips M6 | Build stage 1 fully, then extract a gimmick-block library before stages 2–8 |
 | ~~Tileset art style clashes with the HD character~~ | ~~Looks like two games~~ | **Closed 2026-09-02.** Stage 1 was generated and judged against the player in `art_preview.tscn`: flat banded pixel terrain behind a smooth anti-aliased character reads as deliberate. 16 px tiles fit the 72 px grid exactly at 4.5×, and a per-node `TEXTURE_FILTER_NEAREST` keeps them crisp without touching the project default — SPRITES.md §8b |
 | ~~PixelLab trial is 40 generations~~ | ~~Stops stage art mid-way~~ | **Closed at M6j — the account is a Tier 1 subscription, not a trial.** 2000 generations a cycle, resetting monthly; stage 4's whole art bill was 6. The budget is no longer what shapes stage art, so the advice that came out of the scarcity stands on its own merits instead: reuse the technique rather than re-derive it (SPRITES.md §8b–8f), because a prompt is not repeatable and a few lines over the returned PNG are |
-| **`backblaze.pixellab.ai` is not in the environment's allowed domains** | Blocks every stage tileset | **Open, and it blocked stage 4's tileset.** Tileset *metadata* is served from `api.pixellab.ai` and downloads fine; the spritesheet PNG 302s to `backblaze.pixellab.ai`, which the egress proxy answers 403 to. Every alternate route was re-probed at M6j and all still redirect. A generated tileset stays on PixelLab's server, so opening the host recovers it without paying again — SPRITES.md §8 has had this written down since stage 1 |
+| ~~`backblaze.pixellab.ai` is not in the environment's allowed domains~~ | ~~Blocks stage 4's tileset~~ | **Closed at M7d.** The host was added to the environment's allowed domains and `tools/fetch_tilesets.sh` recovered Mirror Field's terrain on the first run — generated at M6k, stranded for two milestones, and not regenerated or paid for twice. The script gained the one step the hand-typed recipe never had: `godot --headless --import` before the tileset importer, because a PNG that has just appeared on disk has no `.import` file and `load()` on it fails in a way that reads exactly like a bad download. **Stages 5–8 and the fortress are unaffected — no tileset has ever been generated for them, which is a different job.** SPRITES.md §8g |
 | Pixel-perfect + camera smoothing fight each other | Jitter | Camera snapping off, no position smoothing, integer stretch — settled in ARCHITECTURE §2 and asserted in `tests/test_project_settings.gd` |
 | Continuous-vs-discrete physics maths in level design | Unclearable ledges | **Hit once already at M0.** `jump_apex_px()` integrates for real; a test locks the number |
 | Web export audio latency | Feel | Test the web build from M3, not M8 |

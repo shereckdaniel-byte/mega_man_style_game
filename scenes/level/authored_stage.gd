@@ -160,6 +160,8 @@ var _pause_menu: PauseMenu = null
 var _holes: Dictionary = {}
 ## Cached deck surface offset in tiles; negative means "not measured yet".
 var _surface_offset := -1.0
+## Rising tides by the index of the room they fill. See `_on_room_changed_tide`.
+var _tides: Dictionary = {}
 
 
 # --- What a subclass supplies -------------------------------------------------
@@ -200,6 +202,13 @@ func boss_name() -> String:
 ## fight starts at a readable distance rather than in the player's face.
 func boss_offset_tiles() -> Vector2:
 	return Vector2(16.0, 0.0)
+
+
+## Anything this stage wants changed about its boss, once the arena has built
+## it. The eight need nothing here -- a Robot Master's script already says what
+## it is -- and the fortress needs it for every fight it has.
+func configure_boss(_boss: Boss) -> void:
+	pass
 
 
 ## Anything this stage has that the shared kit does not: stage 1's tide, stage
@@ -307,6 +316,26 @@ func band_surface_row(band: int) -> float:
 	return float(band_deck_row(band)) + deck_surface_offset()
 
 
+## Rows of open air between a room's ceiling and its deck.
+##
+## A room is exactly one screen tall by this class's own construction, so this
+## is that height rather than a number any stage gets to restate -- a press hung
+## from a ceiling that had moved would hang in mid-air.
+##
+## Written for stage 3's crushers and moved up here when the fortress's Caisson
+## wanted the same presses: two copies of a derived constant is one copy that
+## does not get updated.
+func ceiling_to_deck_rows() -> int:
+	return DECK_ROW - ROOM_TOP
+
+
+## How far a press travels, from the room ceiling to `clearance` rows above the
+## deck. Exposed rather than inlined so a stage's tests can check the arithmetic
+## against the real geometry instead of restating it.
+func press_drop_rows(height_rows: float, clearance_rows: float) -> float:
+	return float(ceiling_to_deck_rows()) - height_rows - clearance_rows
+
+
 func rooms() -> Array[Room]:
 	return _rooms
 
@@ -354,6 +383,8 @@ func _ready() -> void:
 	# upper one's sky. Driven from here because which band a room is in is the
 	# stage's fact, not the backdrop's.
 	room_changed.connect(_on_room_changed_backdrop)
+	room_changed.connect(_on_room_changed_reset_crumbles)
+	room_changed.connect(_on_room_changed_tide)
 	# The menu first: the HUD's menu button needs something to open.
 	_add_pause_menu()
 	_add_hud()
@@ -361,6 +392,7 @@ func _ready() -> void:
 	_add_overlay()
 	_player.game_over.connect(_on_game_over)
 	stage_cleared.connect(_print_ledger.bind("stage cleared"))
+	stage_cleared.connect(_save_progress)
 	begin(_player, _rooms[0])
 
 
@@ -514,7 +546,29 @@ func _build_rooms(tile: float) -> void:
 
 	# Doors last, so every room exists to be named.
 	for index in _rooms.size() - 1:
+		if is_teleport_link(index):
+			continue
 		_add_door(index, tile)
+
+
+## Whether the link out of room `index` is a teleport rather than a walk.
+##
+## **Three ways two rooms can be joined, and the table has to be able to say
+## which.** A door is a walk, a `shaft` is a climb, and a teleport is neither --
+## the fortress's Switchgear is a hub with eight pads, and its eight arenas have
+## no walkable connection to anything, including each other.
+##
+## Declared on the room the link leaves, as `"exit": "teleport"`, and the
+## default is a door because that is what every room in the first eight stages
+## is. Two things read it: this file, which then hangs no door; and
+## `tests/test_stage_authoring.gd`, whose rule that a change of band needs a
+## ladder is a rule about *walking* between rooms and does not apply to a link
+## nobody walks.
+func is_teleport_link(index: int) -> bool:
+	var table := room_table()
+	if index < 0 or index >= table.size():
+		return false
+	return String(table[index].get("exit", "door")) == "teleport"
 
 
 ## The door out of room `index`, pointing at the next one.
@@ -817,6 +871,7 @@ func _add_arena(tile: float) -> void:
 	arena_node.position = Vector2(float(room_origin(index)) + 4.0,
 		band_surface_row(room_band(index))) * tile
 	arena_node.boss_offset_tiles = boss_offset_tiles()
+	arena_node.boss_built.connect(configure_boss)
 	add_child(arena_node)
 	arena_node.cleared.connect(_on_boss_cleared)
 
@@ -828,9 +883,13 @@ func _add_hud() -> void:
 	hud.track(_player)
 	if _pause_menu != null:
 		hud.use_pause_menu(_pause_menu)
-	var arena_node := arena()
-	if arena_node != null:
-		arena_node.use_hud(hud)
+	# **Every arena, not only the stage's own.** A stage may hold more than one
+	# -- the fortress's duel is a sealed room mid-stage with its own -- and a bar
+	# that appeared for one sealed fight and not the other would read as the
+	# second one being unimportant.
+	for child in get_children():
+		if child is BossArena:
+			(child as BossArena).use_hud(hud)
 
 
 func _add_pause_menu() -> void:
@@ -896,6 +955,71 @@ func _on_room_changed_backdrop(room_entered: Room) -> void:
 			return
 
 
+## Puts every crumbling block back when the player changes room.
+##
+## **A crumbling block no longer comes back on a timer** (see
+## `CrumblingBlock.respawn_frames`), which is what a player expects -- a plank
+## you broke stays broken while you are standing there. The thing that must not
+## happen is a room with no floor left: crumble every plank, fall in the pit,
+## and the checkpoint puts you back in a room you can no longer finish.
+##
+## `room_changed` is the event that makes the reset safe, and it is exactly the
+## right one because `Stage` emits it for both cases that matter -- walking
+## through a door, and respawning after a death. Leave or die and the planks are
+## whole; stay and they are not.
+##
+## `PhaseBlock` opts out through `resets_on_room_change`: its cycle is a clock,
+## and putting a whole panel path back at once would start every panel on beat 0
+## together.
+## The tide runs in its own room and nowhere else.
+##
+## **Nothing started it for two milestones.** `RisingTide` has been complete and
+## unit-tested since M5a -- it rises in steps, stops at its ceiling, recedes when
+## told -- and `running` defaults to false because a tide that climbed from the
+## moment the stage loaded would top out before the player reached the room. The
+## piece nobody wrote was the one that turns it on, so stage 1's headline gimmick
+## was a blue rectangle sitting still. The unit tests all passed: every one of
+## them calls `begin()` itself, which is exactly the shape of a test that cannot
+## see the bug.
+##
+## **Reset, then begin.** `room_changed` fires on a respawn as well as on a door,
+## so a bare `begin()` would put a player who just drowned back at the checkpoint
+## with the water already at their neck -- the soft lock `RisingTide`'s docstring
+## says it exists to make impossible. Entering the room is entering the room,
+## however you got there, and the water starts from the bottom every time.
+func _on_room_changed_tide(room_entered: Room) -> void:
+	if _tides.is_empty():
+		return
+	var index := _rooms.find(room_entered)
+	for key: int in _tides:
+		var water: RisingTide = _tides[key]
+		if not is_instance_valid(water):
+			continue
+		if key == index:
+			water.reset()
+			water.begin()
+		else:
+			water.recede()
+
+
+## Called by a stage that places a tide, so this file can run it. The stage owns
+## where the water goes; when it moves is the same answer for every stage that
+## has one, so it is answered once here.
+func register_tide(room_index: int, water: RisingTide) -> void:
+	_tides[room_index] = water
+
+
+## Every tide in the stage, by the room it is in. For the tests.
+func tides() -> Dictionary:
+	return _tides
+
+
+func _on_room_changed_reset_crumbles(_room_entered: Room) -> void:
+	for child in get_children():
+		if child is CrumblingBlock and (child as CrumblingBlock).resets_on_room_change():
+			(child as CrumblingBlock).restore_now()
+
+
 ## Out of lives. Show the screen, then start the run over.
 ##
 ## The whole run, not the room: lives go back to the starting count and the
@@ -931,6 +1055,14 @@ func _restart_run() -> void:
 ## screen comes first because it is the *reward* and it should land while the
 ## explosion is still fresh; the pose and the exit are the punctuation after it.
 func _on_boss_cleared(_index: int, weapon_id: StringName) -> void:
+	if weapon_id == &"":
+		# A boss that awards nothing skips the screen rather than showing an
+		# empty one. Nothing in the eight takes this path -- it is the fortress,
+		# whose bosses drop no weapons -- but the check belongs here, because
+		# `weapon_id` has been optional on `Boss` since M5 and a stage that
+		# announced "YOU GOT" over a blank would be this file's fault.
+		_begin_stage_exit()
+		return
 	var weapons := get_node_or_null(^"/root/WeaponManager")
 	var data: WeaponData = weapons.data_for(weapon_id) if weapons != null else null
 	var weapon_name := data.display_name if data != null else String(weapon_id).capitalize()
@@ -965,3 +1097,28 @@ func _on_stage_exited() -> void:
 	var router := get_node_or_null(^"/root/SceneRouter")
 	if router != null:
 		router.goto_stage_select()
+
+
+## Writes the run to slot 0.
+##
+## **Connected to `stage_cleared` rather than called from the exit handler**, so
+## the save is a consequence of the stage being cleared rather than of one
+## particular route out of it. That is also what makes it testable: the
+## playthrough bot stops as soon as the weapon lands and never reaches the
+## victory pose, so a save wired into the exit path had no coverage at all and
+## no way to get any.
+##
+## **On stage clear and nowhere else in a stage.** It is the only moment in a
+## run where the player has unambiguously gained something that should survive
+## being closed -- a checkpoint has not, and saving at one would mean a death
+## loop writes to disk every few seconds. docs/ARCHITECTURE.md section 8 says
+## "on stage clear and on quit"; this is the first half, and quit is the pause
+## menu's to own.
+##
+## A failed write is reported by `SaveGame` and not swallowed here: a save that
+## silently did not happen is worse than one that visibly failed.
+func _save_progress() -> void:
+	var state := get_node_or_null(^"/root/GameState")
+	if state == null:
+		return
+	SaveGame.write(0, state.to_dict())

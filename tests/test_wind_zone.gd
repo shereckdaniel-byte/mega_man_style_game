@@ -118,9 +118,13 @@ func test_the_lull_outlasts_a_full_jump() -> void:
 			% [zone.lull_frames, airborne])
 
 
-## **Rule one: it never touches a walking player.** The most basic verb in the
-## game stays exact whatever the weather is doing.
-func test_a_walking_player_is_not_pushed() -> void:
+## **Rule one, first half: a player who is not moving is not moved.**
+##
+## The push scales movement rather than creating it, so standing still in a gust
+## keeps you exactly where you are. Without this a gust would slide an idle
+## player into a pit while they were not touching the controls, which is a
+## different mechanic from a headwind and not one anybody asked for.
+func test_a_standing_player_is_not_pushed() -> void:
 	zone.phase_frames = zone.lull_frames + zone.tell_frames  # start in the gust
 	await _frames(2)
 	assert_true(zone.is_blowing(), "the zone is not in its gust")
@@ -132,6 +136,60 @@ func test_a_walking_player_is_not_pushed() -> void:
 	assert_almost_eq(player.global_position.x, before, 1.0,
 		"a standing player drifted %.1f px in a gust"
 			% [player.global_position.x - before])
+
+
+## **Rule one, second half: a walking player is slowed and sped.**
+##
+## The wind used to apply only in the air, which made it something you could not
+## feel for most of a room. Both directions are measured in the same gust so the
+## test cannot pass by the wind being broken in one of them.
+func test_a_headwind_slows_a_walk_and_a_tailwind_speeds_it() -> void:
+	zone.phase_frames = zone.lull_frames + zone.tell_frames  # start in the gust
+	zone.direction = 1
+	await _frames(2)
+	assert_true(zone.is_blowing(), "the zone is not in its gust")
+
+	var with_it := await _walk_distance(&"move_right")
+	var into_it := await _walk_distance(&"move_left")
+	assert_true(with_it > into_it,
+		"downwind covered %.1f px and upwind %.1f; the wind is not being felt"
+			% [with_it, into_it])
+
+
+## **And a headwind never stops one.** With the push on the ground this is the
+## rule that keeps a gusting room crossable at all -- a wind at or above the
+## walk speed would hold the player still or walk them backwards.
+##
+## Measured as a fraction of the same walk in still air rather than against a
+## number, and required to keep over half of it: "not quite zero" is not a
+## playable amount of headway.
+func test_a_headwind_leaves_more_than_half_the_walk() -> void:
+	var t := PlayerTuning.new()
+	assert_true(zone.speed_pf < t.walk_speed_pf * 0.5,
+		"a %.2f px/frame wind against a %.2f px/frame walk leaves %.0f%% of it"
+			% [zone.speed_pf, t.walk_speed_pf,
+				100.0 * (t.walk_speed_pf - zone.speed_pf) / t.walk_speed_pf])
+
+	# And the same thing measured on a real player rather than in arithmetic.
+	zone.phase_frames = zone.lull_frames + zone.tell_frames
+	zone.direction = 1
+	await _frames(2)
+	var into_it := await _walk_distance(&"move_left")
+	assert_true(into_it > 1.0, "a headwind stopped the player dead")
+
+
+## Distance covered walking one way for 30 frames, from a standing start on the
+## floor. Returns an absolute distance, so the two directions compare directly.
+func _walk_distance(action: StringName) -> float:
+	player.global_position = SPAWN
+	player.velocity = Vector2.ZERO
+	await _frames(6)
+	var before := player.global_position.x
+	Input.action_press(action)
+	await _frames(30)
+	Input.action_release(action)
+	await _frames(1)
+	return absf(player.global_position.x - before)
 
 
 # --- The push itself ------------------------------------------------------------

@@ -25,6 +25,7 @@ const FIRST_SCENE := "res://scenes/ui/stage_select.tscn"
 
 
 func _ready() -> void:
+	_load_progress()
 	var report := _self_check()
 	for line in report:
 		print(line)
@@ -34,6 +35,35 @@ func _ready() -> void:
 	# self-check; a real run drops straight into stage 1.
 	if DisplayServer.get_name() != "headless":
 		get_tree().call_deferred("change_scene_to_file", FIRST_SCENE)
+
+
+## Picks up slot 0, if there is one.
+##
+## Here rather than in `GameState._ready` because an autoload initialises before
+## anything can have decided not to load -- a title screen with "new game" on it
+## needs the option, and putting the read in the autoload takes it away. Boot is
+## the first thing that is allowed to have an opinion.
+##
+## Nothing is reported when there is no save: a first run has none, and that is
+## not an event.
+func _load_progress() -> void:
+	var saved := SaveGame.read(0)
+	if saved.is_empty():
+		return
+	var state := get_node_or_null(^"/root/GameState")
+	if state == null:
+		return
+	state.from_dict(saved)
+	print("save     slot 0 loaded, %d/%d bosses"
+		% [_count_bits(int(saved.get("bosses_defeated", 0))), GameState.BOSS_COUNT])
+
+
+func _count_bits(value: int) -> int:
+	var n := 0
+	while value != 0:
+		n += value & 1
+		value >>= 1
+	return n
 
 
 ## Reads back the settings that are easy to break and hard to notice.

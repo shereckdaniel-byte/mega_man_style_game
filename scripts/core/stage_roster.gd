@@ -7,7 +7,9 @@
 ## is a roster that disagrees in two of them the first time a stage is renamed.
 ##
 ## **`scene` empty means the stage is not built.** That is a first-class state
-## rather than an omission: six of the eight are unbuilt today, the select screen
+## rather than an omission. All eight are built now, but the state has to stay: a
+## stage whose scene is renamed or deleted should grey out on the select screen
+## rather than crash it, which is what `is_built` is for. The select screen
 ## has to show them as coming rather than pretend they are not in the game, and
 ## the alternative — listing only what exists — makes the screen silently change
 ## shape as stages land, which is exactly when a 3×3 grid should not move.
@@ -16,54 +18,81 @@ class_name StageRoster
 
 ## Boss index -> the stage that boss owns. Index is the bit position in
 ## `GameState.bosses_defeated`, so these must not be reordered.
+##
+## `script` is the boss itself, by path rather than `preload`, for the same
+## reason `frames` and `scene` are: the roster is loaded by the stage select,
+## which wants eight names and eight portraits and has no use for eight bosses'
+## worth of code. It went in when the fortress's Switchgear needed to build all
+## eight in one room -- a second table mapping index to boss would have been a
+## second table to disagree with this one.
+##
+## `item` is the utility item that boss also hands over, or absent for the five
+## that hand over nothing. It lives here rather than in a second table for the
+## reason this file exists at all: a roster kept in two places is a roster that
+## disagrees in one of them the first time an award moves.
+##
+## The three are spread across the run and chosen so the theme does the
+## explaining -- the scrapyard gives you a spring, the wind farm gives you
+## flight, and the flooded mine gives you the sub.
 const ENTRIES := [
 	{
 		"index": 0, "boss": "Tide", "stage": "Dawn Boardwalk",
 		"weapon": "Tide Crawler",
+		"script": "res://scenes/actors/bosses/tide.gd",
 		"frames": "res://resources/sprite_frames/wave_man.tres",
 		"scene": "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn",
 	},
 	{
 		"index": 1, "boss": "Arc", "stage": "Substation",
 		"weapon": "Arc Lance",
+		"script": "res://scenes/actors/bosses/arc.gd",
 		"frames": "res://resources/sprite_frames/arc.tres",
 		"scene": "res://scenes/stages/substation/substation.tscn",
 	},
 	{
 		"index": 2, "boss": "Rust", "stage": "Breakers",
 		"weapon": "Rust Bloom",
+		"item": GameState.Item.COIL,
+		"script": "res://scenes/actors/bosses/rust.gd",
 		"frames": "res://resources/sprite_frames/rust.tres",
 		"scene": "res://scenes/stages/breakers/breakers.tscn",
 	},
 	{
 		"index": 3, "boss": "Prism", "stage": "Mirror Field",
 		"weapon": "Prism Ray",
+		"script": "res://scenes/actors/bosses/prism.gd",
 		"frames": "res://resources/sprite_frames/prism.tres",
 		"scene": "res://scenes/stages/mirror_field/mirror_field.tscn",
 	},
 	{
 		"index": 4, "boss": "Gale", "stage": "Turbine Row",
 		"weapon": "Gale Cutter",
+		"item": GameState.Item.JET,
+		"script": "res://scenes/actors/bosses/gale.gd",
 		"frames": "res://resources/sprite_frames/gale.tres",
 		"scene": "res://scenes/stages/turbine_row/turbine_row.tscn",
 	},
 	{
 		"index": 5, "boss": "Cinder", "stage": "Stack",
 		"weapon": "Cinder Spray",
+		"script": "res://scenes/actors/bosses/cinder.gd",
 		"frames": "res://resources/sprite_frames/cinder.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/stack/stack.tscn",
 	},
 	{
 		"index": 6, "boss": "Frost", "stage": "Cold Store",
 		"weapon": "Frost Lock",
+		"script": "res://scenes/actors/bosses/frost.gd",
 		"frames": "res://resources/sprite_frames/frost.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/cold_store/cold_store.tscn",
 	},
 	{
 		"index": 7, "boss": "Quarry", "stage": "Sinkhole",
 		"weapon": "Quarry Bore",
+		"item": GameState.Item.MARINE,
+		"script": "res://scenes/actors/bosses/quarry.gd",
 		"frames": "res://resources/sprite_frames/quarry.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/sinkhole/sinkhole.tscn",
 	},
 ]
 
@@ -80,6 +109,107 @@ const GRID := [
 	Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2),
 ]
 const CENTRE := Vector2i(1, 1)
+
+
+## The fortress: four stages played in order behind the centre cell.
+##
+## **A separate table from `ENTRIES`, on purpose.** The eight are chosen from
+## and the four are walked through, and almost nothing that is true of a row
+## above is true of a row here: a fortress stage has no portrait, no weapon, no
+## grid cell and no bit in `bosses_defeated`. Folding them into one table would
+## mean every reader of it -- the select screen, the password, the damage
+## tables, five tests -- learning which half of the rows their rule applies to.
+##
+## The names are the sea's revenge on the coast, which is what the fortress is:
+## the wall that drowned the world in stage 1's concept art, and the four rooms
+## of it that still run.
+const FORTRESS := [
+	{
+		"index": 0, "name": "Outfall",
+		"blurb": "the drain the sea comes back through",
+		"scene": "res://scenes/stages/outfall/outfall.tscn",
+	},
+	{
+		"index": 1, "name": "Caisson",
+		"blurb": "the pressure chamber, and whoever is waiting in it",
+		"scene": "res://scenes/stages/caisson/caisson.tscn",
+	},
+	{
+		"index": 2, "name": "Switchgear",
+		"blurb": "eight pads, and everything you already beat",
+		"scene": "res://scenes/stages/switchgear/switchgear.tscn",
+	},
+	{
+		"index": 3, "name": "Keep",
+		"blurb": "the core",
+		"scene": "res://scenes/stages/keep/keep.tscn",
+	},
+]
+
+
+static func fortress_entry(index: int) -> Dictionary:
+	return FORTRESS[index] if index >= 0 and index < FORTRESS.size() else {}
+
+
+static func fortress_is_built(index: int) -> bool:
+	var row := fortress_entry(index)
+	if row.is_empty():
+		return false
+	var path: String = row["scene"]
+	return not path.is_empty() and ResourceLoader.exists(path)
+
+
+## The fortress stages that can actually be entered today. Same shape and same
+## purpose as `built()`: the fortress lands one stage at a time, and a select
+## screen that offered a scene that is not on disk would hard-fail on confirm.
+static func fortress_built() -> Array[int]:
+	var out: Array[int] = []
+	for row in FORTRESS:
+		if fortress_is_built(int(row["index"])):
+			out.append(int(row["index"]))
+	return out
+
+
+## The weapon id a utility item is selected as.
+##
+## Utility items ride the weapon system -- they are picked from the same menu,
+## spend the same ammo and draw the same bar -- so each one needs an id in
+## `resources/weapons/`. The mapping lives here because the roster is where the
+## award is declared, and a mapping kept anywhere else is one more place for the
+## two to disagree.
+const ITEM_WEAPONS := {
+	GameState.Item.COIL: &"rush_coil",
+	GameState.Item.JET: &"rush_jet",
+	GameState.Item.MARINE: &"rush_marine",
+}
+
+
+static func item_weapon_id(item: int) -> StringName:
+	return ITEM_WEAPONS.get(item, &"")
+
+
+## Every utility item the roster awards, in boss order. For the tests, and for
+## anything that wants to show what is still out there.
+static func items() -> Array[int]:
+	var out: Array[int] = []
+	for row in ENTRIES:
+		if row.has("item"):
+			out.append(int(row["item"]))
+	return out
+
+
+## The boss at `index`, as a script. Null for an index off the end or a row
+## whose script is missing from disk, which is a state worth surviving: a
+## fortress room that could not build one of the eight should be short a fight,
+## not a crash.
+static func boss_script(index: int) -> GDScript:
+	var row := entry(index)
+	if row.is_empty():
+		return null
+	var path: String = row.get("script", "")
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	return load(path) as GDScript
 
 
 static func entry(index: int) -> Dictionary:

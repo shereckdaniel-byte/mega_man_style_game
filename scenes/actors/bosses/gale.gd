@@ -64,12 +64,20 @@ const BODY_NES := Vector2(19.0, 29.0)
 
 ## The push, in NES px/frame, written onto the player every act frame.
 ##
-## **Under `PlayerTuning.walk_speed_pf` (1.375), and that is a rule rather than a
-## taste** -- the same one `WindZone` is built on. A wind at or above the walk
-## speed is a wind that can hold a player still or walk them backwards, and a
-## player who cannot get where they are going has no answer to give.
-## `tests/test_gale.gd` checks it against the tuning rather than against 1.375.
-const CROSSWIND_DRIFT_PF := 1.0
+## **It must leave the player over half their walk speed** -- the same rule
+## `WindZone` is built on, and for the same reason: a wind at or above the walk
+## speed holds a player still or walks them backwards, and a player who cannot
+## get where they are going has no answer to give.
+##
+## It was 1.0, which is under the walk speed of 1.375 and satisfied the rule as
+## it was then written -- the push only applied in the air, so what it cost a
+## walking player was nothing. Now that the wind reaches the ground, 1.0 leaves
+## 27% of the walk: not a headwind, a bog. 0.6 leaves 56%, which is felt on
+## every step and still lets the player cross their own arena.
+##
+## `tests/test_gale.gd` checks it against `PlayerTuning` rather than against
+## either number.
+const CROSSWIND_DRIFT_PF := 0.6
 
 ## Blades per Crosswind, and the act frames they leave on.
 ##

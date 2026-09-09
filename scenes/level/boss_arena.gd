@@ -18,6 +18,15 @@ signal sealed()
 signal fight_started(boss: Boss)
 ## The boss is gone and the weapon (if any) has been awarded.
 signal cleared(boss_index: int, weapon_id: StringName)
+## The boss exists and is in the tree, and its entrance has not started.
+##
+## The one place a stage can change what it is fighting. Emitted *after* the
+## node is in the tree, deliberately: a boss sets its own index, weapon and
+## display name in `_ready`, so anything handed one before that would be
+## overwritten by the boss itself a frame later. A fortress reprise is exactly
+## this -- Tide's script, Tide's patterns, a different name, no weapon, and
+## half the openings.
+signal boss_built(built: Boss)
 
 enum Phase { WAITING, SEALING, ENTERING, FILLING, FIGHTING, CLEARED }
 
@@ -136,6 +145,7 @@ func _start_entrance() -> void:
 	boss.name = "Boss"
 	var level := get_parent()
 	level.add_child(boss)
+	boss_built.emit(boss)
 
 	var landing := global_position + boss_offset_tiles * _tile
 	if boss.has_method("set_arena_span"):
@@ -184,8 +194,32 @@ func _on_boss_defeated(defeated_boss: Boss) -> void:
 	var weapons := get_node_or_null(^"/root/WeaponManager")
 	if weapons != null and weapon != &"":
 		weapons.unlock(weapon)
+	_award_item(index, state, weapons)
 
 	cleared.emit(index, weapon)
+
+
+## Three of the eight also hand over a utility item.
+##
+## **Which three is `StageRoster`'s business, not this file's.** The roster is
+## already the single source of truth for what a boss is and what it drops, and
+## a second table here is a second table to disagree with it the first time an
+## award moves.
+##
+## The item is recorded twice on purpose, and the two records answer different
+## questions. `GameState.items_unlocked` is the *progress* bit -- it is what the
+## password carries and what a save round-trips. `WeaponManager.unlock` is what
+## puts the item on the weapon menu, because a utility item is selected, spends
+## ammo and shows a bar exactly like a weapon does; that is how MM3 does it and
+## it is why the items needed no new UI at all.
+func _award_item(index: int, state: Node, weapons: Node) -> void:
+	var row := StageRoster.entry(index)
+	if not row.has("item"):
+		return
+	if state != null:
+		state.unlock_item(int(row["item"]))
+	if weapons != null:
+		weapons.unlock(StageRoster.item_weapon_id(int(row["item"])))
 
 
 ## Shuts the room, physically.

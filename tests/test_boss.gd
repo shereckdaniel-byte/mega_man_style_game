@@ -189,6 +189,128 @@ func test_every_pattern_leaves_an_opening() -> void:
 			"%s never recovers" % pattern.id)
 
 
+# --- Aggression -------------------------------------------------------------------
+
+## **Aggression shortens recovery and nothing else.** This is the rule the whole
+## knob rests on: the tell is the fairness contract (`BossPattern` exists to
+## make it part of the shape of an attack) and the act is what the attack *is*,
+## so a reprise at 2.0 has to be the same fight with half the openings rather
+## than a different fight wearing the first one's sprite.
+func test_aggression_shortens_recovery_and_leaves_the_tell_alone() -> void:
+	var calm := TideScript.new() as Boss
+	var keen := TideScript.new() as Boss
+	keen.aggression = 2.0
+	root.add_child(calm)
+	root.add_child(keen)
+	await _frames(1)
+
+	var slow := calm.patterns()
+	var fast := keen.patterns()
+	assert_eq(slow.size(), fast.size())
+	for i in slow.size():
+		assert_eq(fast[i].tell_frames, slow[i].tell_frames,
+			"%s: aggression moved the tell" % slow[i].id)
+		assert_eq(fast[i].act_frames, slow[i].act_frames,
+			"%s: aggression moved the act" % slow[i].id)
+		assert_true(fast[i].recover_frames < slow[i].recover_frames,
+			"%s: aggression did not shorten the recovery" % slow[i].id)
+
+
+## An untouched boss is bit-identical to one that declares 1.0, so the eight can
+## go on writing their numbers once at the speed they were designed at.
+func test_the_default_aggression_changes_nothing() -> void:
+	var plain := TideScript.new() as Boss
+	var declared := TideScript.new() as Boss
+	declared.aggression = 1.0
+	root.add_child(plain)
+	root.add_child(declared)
+	await _frames(1)
+	for i in plain.patterns().size():
+		assert_eq(declared.patterns()[i].recover_frames,
+			plain.patterns()[i].recover_frames)
+
+
+## **No aggression can close the opening entirely.** A recovery of zero is a
+## boss with no counterplay, and there would then be no way to hurt it at all.
+func test_no_aggression_leaves_a_boss_with_no_opening() -> void:
+	for factor in [2.0, 8.0, 100.0]:
+		var frantic := TideScript.new() as Boss
+		frantic.aggression = factor
+		root.add_child(frantic)
+		await _frames(1)
+		for pattern in frantic.patterns():
+			assert_true(pattern.recover_frames >= Boss.MIN_RECOVER_FRAMES,
+				"aggression %.1f left %s with %d frames of recovery"
+					% [factor, pattern.id, pattern.recover_frames])
+		frantic.queue_free()
+		await tree.physics_frame
+
+
+## A nonsensical aggression is ignored rather than obeyed: zero or negative
+## would divide the recovery into something meaningless, and the safe reading of
+## "I do not know how fast this should be" is the speed it was written at.
+func test_a_nonsense_aggression_is_ignored() -> void:
+	for factor in [0.0, -1.0]:
+		var odd := TideScript.new() as Boss
+		odd.aggression = factor
+		root.add_child(odd)
+		await _frames(1)
+		for i in odd.patterns().size():
+			assert_eq(odd.patterns()[i].recover_frames,
+				boss.patterns()[i].recover_frames,
+				"aggression %.1f was obeyed" % factor)
+		odd.queue_free()
+		await tree.physics_frame
+
+
+## **Setting aggression twice does not compound.** The arena builds a boss and
+## the stage then configures it, so this happens on every fortress fight: a
+## reprise set to 2.0 and then to 2.0 again has to come out at 2.0, not 4.0,
+## and nothing on screen would have said otherwise.
+func test_setting_aggression_twice_lands_on_the_same_numbers() -> void:
+	var once := TideScript.new() as Boss
+	var twice := TideScript.new() as Boss
+	root.add_child(once)
+	root.add_child(twice)
+	await _frames(1)
+	once.aggression = 2.0
+	twice.aggression = 2.0
+	twice.aggression = 2.0
+	for i in once.patterns().size():
+		assert_eq(twice.patterns()[i].recover_frames,
+			once.patterns()[i].recover_frames,
+			"%s compounded" % once.patterns()[i].id)
+
+
+## And it can be set back: aggression is a knob, not a one-way door, so a boss
+## returned to 1.0 is the boss its author wrote.
+func test_aggression_can_be_turned_back_down() -> void:
+	var keen := TideScript.new() as Boss
+	root.add_child(keen)
+	await _frames(1)
+	keen.aggression = 3.0
+	keen.aggression = 1.0
+	for i in keen.patterns().size():
+		assert_eq(keen.patterns()[i].recover_frames,
+			boss.patterns()[i].recover_frames,
+			"%s did not come back" % keen.patterns()[i].id)
+
+
+## **Aggression below 1.0 changes nothing.** It is a knob for making a boss
+## harder; letting it hand a boss a *longer* opening than its author gave it
+## would be a difficulty setting hiding inside a reprise knob, and the place to
+## make the game easier is not here.
+func test_aggression_below_one_does_not_soften_a_boss() -> void:
+	var mild := TideScript.new() as Boss
+	root.add_child(mild)
+	await _frames(1)
+	mild.aggression = 0.25
+	for i in mild.patterns().size():
+		assert_eq(mild.patterns()[i].recover_frames,
+			boss.patterns()[i].recover_frames,
+			"%s was softened" % mild.patterns()[i].id)
+
+
 func test_a_fighting_boss_picks_a_pattern_and_runs_it_in_order() -> void:
 	boss.begin_intro(Vector2(600.0, FLOOR_TOP), null)
 	await _frames(INTRO_FRAMES)

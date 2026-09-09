@@ -11,14 +11,23 @@
 ## moves the player is the easiest way in this kit to build something that cannot
 ## be crossed:
 ##
-##   1. **It never touches a walking player.** The most basic verb in the game
-##      stays exact. A stage where walking is unreliable is a stage about
-##      fighting the controls.
+##   1. **It never stops a walking player, and it never moves a standing one.**
+##      This rule used to read "it never touches a walking player" -- the push
+##      applied only in the air. Playtested, that is a wind nobody can feel: you
+##      spend most of a room on the ground, so the stage read as still air with
+##      occasional odd jumps. Now a headwind drags and a tailwind carries, which
+##      is the thing that makes the weather exist, and the guarantee moves to
+##      the two ends that actually matter -- you always make headway into it
+##      (rule 2), and standing still in a gust never slides you into a pit,
+##      because the push scales movement rather than creating it.
 ##   2. **It is weaker than the player.** `speed_pf` is below
-##      `PlayerTuning.walk_speed_pf`, so flying into the teeth of it is slow and
-##      never impossible -- the difference is the headway you keep, not whether
-##      you have any. `tests/test_wind_zone.gd` asserts it against the real
-##      tuning rather than against this comment.
+##      `PlayerTuning.walk_speed_pf`, and by enough that a headwind leaves over
+##      half the walk speed -- so walking into the teeth of it is slow and never
+##      impossible, and the difference is the headway you keep rather than
+##      whether you have any. **This is now load-bearing rather than decorative:**
+##      with the push on the ground, a wind at or above the walk speed would hold
+##      a player still or walk them backwards. `tests/test_wind_zone.gd` asserts
+##      it against the real tuning rather than against this comment.
 ##   3. **It gusts, and the lull outlasts a jump.** A constant wind is a changed
 ##      constant, learned once and then irrelevant; a gust is a thing to time.
 ##      The lull is longer than the player is airborne for a full jump

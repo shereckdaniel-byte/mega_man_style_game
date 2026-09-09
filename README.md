@@ -3,10 +3,12 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M6q complete** — the player controller, combat, enemies, four bosses with weapon
-gets, and **four stages**: Dawn Boardwalk, Substation, Breakers and Mirror Field, all
-authored as room tables against a shared `AuthoredStage`. Verified on Godot 4.7.stable,
-headless, in CI. Next up is the rest of M6, stages 5–8.
+**Status: all eight stages built, and the fortress has opened.** The player controller,
+combat, enemies, eight bosses with weapon gets, eight stages of nineteen rooms each, and
+the first of the four fortress stages behind the centre cell — all authored as room
+tables against a shared `AuthoredStage`. Both weakness cycles close, no boss is weak to
+the weapon it drops, and every one of the eight weapon archetypes is used exactly once.
+Verified on Godot 4.7.stable, headless, in CI.
 
 | # | Stage | Boss | Weapon | Gimmick |
 | --- | --- | --- | --- | --- |
@@ -14,11 +16,142 @@ headless, in CI. Next up is the rest of M6, stages 5–8.
 | 2 | Substation | Arc | Arc Lance | dark room |
 | 3 | Breakers | Rust | Rust Bloom | crusher press |
 | 4 | Mirror Field | Prism | Prism Ray | disappearing panels |
+| 5 | Turbine Row | Gale | Gale Cutter | wind |
+| 6 | Stack | Cinder | Cinder Spray | conveyors |
+| 7 | Cold Store | Frost | Frost Lock | ice |
+| 8 | Sinkhole | Quarry | Quarry Bore | water |
 
-**Stage 1 wants a playtester.** Its difficulty is the one open question in the plan, and
-it is not one more bot run away — see docs/PLAN.md M5b. Run the game (a windowed run drops
-straight into stage 1), press **F3** for the running ledger, and play it through; the same
-breakdown prints to the console on a game over or a stage clear.
+The four movement gimmicks are deliberately four different ideas rather than four
+forces: **wind is a cycle you time, the belt is a constant you fight, ice moves nobody
+and simply will not stop you, and water is the only one that helps.**
+
+## The fortress
+
+The centre cell of the stage select opens when the eighth Robot Master falls, and holds
+four stages played **in order** rather than chosen from. Three of the four are built:
+
+| # | Stage | Boss | What it is |
+| --- | --- | --- | --- |
+| F1 | Outfall | Tide, rebuilt | the drain the sea comes back through |
+| F2 | Caisson | **Ward** | the pressure chamber, and whoever is waiting in it |
+| F3 | Switchgear | **all eight** | eight pads, and everything you already beat |
+| F4 | Keep | — | the core |
+
+**A fortress stage has no gimmick of its own, and that is the design.** Each master stage
+contains exactly one idea and deliberately none of the others, because a stage that mixes
+two teaches neither. The fortress can mix, because there is nothing left to teach — so
+Outfall puts stage 8's pool and stage 1's tide in one stage, the two waters, one of which
+is a floor and the other instant death. They never share a room: the tell is motion, and
+*if the line is moving, it kills.*
+
+**Outfall** takes stage 8's pool and stage 1's tide. Its boss is Tide again, faster:
+`Boss.aggression` shortens a boss's **recovery** and nothing else — never the tell, which
+is the fairness contract, and never the act, which is what the attack *is* — so a reprise
+is the same fight with fewer openings rather than a different fight wearing the first
+one's sprite. It is Tide specifically because the fortress is a chain with no stage select
+in between, and Tide is the boss the roster already names as the buster-only one.
+
+**Caisson** takes stage 6's conveyor and stage 3's crusher, which go together because
+neither is dangerous and both are about *when*: **the belt decides when you arrive, and
+the press decides whether that was a good time.** They never share cells, and that is
+arithmetic rather than taste — the press's 36-frame tell is a walking budget sized to let
+you clear the widest legal column, and walking out against a belt spends most of it
+(1.74 tiles of a possible 3). The stage's test computes both numbers from `CrusherPress`
+and `ConveyorBelt` rather than restating them.
+
+**Switchgear** is the boss rush: a hub with eight lit plates, each dropping you into a
+sealed room with one of the Robot Masters, in whatever order you like. **The difficulty is
+one health bar, not eight harder fights** — the refights are the fights as shipped, with
+no `aggression`, because the boss rush is the only place in the game where the question is
+what you have *left* rather than what you can do, and it stops being that question the
+moment the fights themselves become the difficulty.
+
+A plate fires on a press of **up**, not on contact: a hub is a room about choosing, and a
+pad that fired when you walked over it would answer the question for you. Beaten plates go
+dark, so how many lights are left is how many fights are left, and the ninth plate — the
+way out — stays dark until the eighth boss falls.
+
+The eight arenas are stacked one per band, each unreachable on foot. Side by side they
+would share a continuous deck, and a player who walked off one would be standing in the
+next with the game still naming the first: no enemies, a camera locked to a room they have
+left, and nothing to say so. A band is fifteen rows and nothing crosses one without a
+ladder, so eight bands is eight islands for free.
+
+**Switchgear is the one stage the playthrough bot cannot drive** — it has no boss door, no
+last-room boss, and a route that is not a walk. `tests/test_switchgear.gd` builds it for
+real and takes the route instead, so the bot's silence about this stage is written down
+rather than mistaken for a pass.
+
+At the end of Caisson, **the boss door opens onto someone who is not a boss.** Ward
+whistles first, fights with the player's own three verbs — shoot, jump, slide, nothing you
+have not had since M1 — and **cannot win or lose**: every hit he lands carries
+`DamageInfo.NON_LETHAL` and leaves you on at least one point, and hitting him past a floor
+makes him stop, salute and leave rather than explode. There is no bar to empty and no
+weapon at the end of it. Eight stages have taught the player exactly what a boss door
+means, which is what makes it worth spending one on this.
+
+**Stages 5–8 and the fortress are greyboxed**: stage 3's tileset and enemy skins, and
+backdrops drawn in code rather than loaded. The layouts were driven by the bot before any
+art was paid for, which is PLAN.md's own rule — layout first, art second. Each stage's
+docstring names the six enemies it actually wants.
+
+**Stage 4 has its own terrain again.** It was generated at M6k and then undownloadable
+for two milestones — the spritesheet is served from `backblaze.pixellab.ai` and this
+environment's egress policy refused the host, while the metadata came from an allowed one.
+The host was opened and `tools/fetch_tilesets.sh` recovered it on the first run; nothing
+was regenerated and nothing was paid for twice, because a generated tileset sits on
+PixelLab's server indefinitely. That is the argument for greyboxing written out in full:
+Mirror Field was authored, bot-driven and shipped for two milestones without its art, and
+the art dropped in on one line.
+
+Progress persists two ways, both writing the same struct: a **save slot** at
+`user://save_0.json`, written when a stage is cleared and read at boot, and an
+MM3-style **password grid** — five by five, one dot per cell, reachable with
+**Pause** on the stage select. The slot carries your life count; the password
+deliberately does not, because a password that restored lives would let you farm
+one, write it down and come back topped up.
+
+Three bosses drop a **utility item** as well as a weapon — Rust the **Rush Coil**,
+Gale the **Rush Jet**, Quarry the **Rush Marine**. They ride the weapon system rather
+than a menu of their own: they cost ammo, sit on the pause menu and the weapon cycle,
+and are selected and fired like anything else, which is how MM3 does it. The Coil is a
+spring you land on for a jump you cannot otherwise make; the Jet is a board that flies a
+straight line until its fuel runs out; the Marine is the same board, underwater only.
+Firing an item spawns the machine beside you rather than a projectile — see
+`scenes/actors/items/item_courier.gd`, which is the one place the weapon system is told
+that not every shot is a shot.
+
+**Every stage wants a playtester.** The bot completes all eight from spawn to a dead
+boss, but it is not a player: it dodges low projectiles better than a human and it never
+gets bored, curious or greedy. Cold Store is the clearest case — the bot beats Frost
+without taking a hit, because that fight's two answers happen to be the bot's two
+strongest reflexes.
+
+**Stage 1 wants one most, and M7b sharpened why.** Its difficulty is the one open
+question in the plan (docs/PLAN.md M5b), and building the fortress produced the clearest
+measurement of it yet: **the bot loses the Tide fight about as often as it wins it.** The
+unseeded run that has been quoted for milestones — "TIDE DOWN, player hp=6" — is one
+sample of a coin flip; asked for seeds 1 and 2 it died in the arena both times, and it
+does the same in Outfall at every reprise speed from 1.0 to 1.6. Its death frame moves 4%
+across a 60% change in the boss's aggression, which is what a measurement with no
+headroom looks like. Two things follow: stage 1's boss is much closer to the edge than
+anyone thought, and **the bot cannot be used to tune Tide or anything built on it.**
+
+Run the game (a windowed run drops straight into stage 1), press **F3** for the running
+ledger, and play it through; the same breakdown prints to the console on a game over or a
+stage clear.
+
+**The tide was inert until M7b, in every build that has ever existed.** `RisingTide` has
+been complete and unit-tested since M5a — it climbs in steps, stops at its ceiling,
+recedes when told, kills through i-frames — and `running` defaults to false, correctly,
+because water that climbed from the moment the stage loaded would top out before the
+player arrived. Nothing was ever written to turn it on. Every one of its nine unit tests
+calls `begin()` itself, which is the exact shape of a test that cannot see this: it checks
+that a thing works when switched on and never asks who switches it on. Stage 1's headline
+gimmick was a blue rectangle sitting still. It now starts when the player enters the room
+and resets when they re-enter it — including when "re-entering" means respawning after
+drowning in it — and `tests/test_gimmicks_in_play.gd` builds the real stage and watches
+the real water. **Stage 1 is harder than it was**: the bot now drowns there once a run.
 
 ```sh
 GODOT=/path/to/godot ./tools/check.sh     # import + boot check + tests, same as CI
@@ -83,6 +216,7 @@ godot --headless --script res://tests/run_tests.gd -- rising_tide crest_wave
 | `scenes/stages/substation/` | Stage 2, Substation — Arc, and the dark-room gimmick |
 | `scenes/stages/breakers/` | Stage 3, Breakers — Rust, and the crusher press |
 | `scenes/stages/mirror_field/` | Stage 4, Mirror Field — Prism, and the disappearing panels |
+| `scenes/actors/items/` | The dog. Coil, Jet and Marine, spawned by a courier so they can be bodies rather than shots. |
 | `scenes/level/phase_block.gd` | The panel. A block is solid for two beats, and a beat is one jump. |
 | `scenes/stages/test_room/` | M1 tuning room, opened directly when reading movement numbers off F3 |
 | `tests/` | Headless suite, including integration tests driving the real `CharacterBody2D` |

@@ -15,6 +15,19 @@ const STUN := 1
 const PIERCE := 2
 ## Damage without the knockback, for hits that should not move the player.
 const NO_KNOCKBACK := 4
+## Hurts, but never to zero: the target is left on one point instead of dying.
+##
+## For a scripted encounter that is not allowed to end the run. The rival duel
+## is the one that needed it -- docs/PLAN.md section 1 asks for "a scripted
+## mid-stage duel with an unbeatable, **non-lethal** rival", and a rival who can
+## kill you turns a set piece into a boss fight with no reward.
+##
+## **A flag on the hit rather than a state on the target**, for the same reason
+## every other flag here is: the property belongs to the attack. A "cannot die
+## right now" mode on `Health` would have to be switched on when the duel starts
+## and off when it ends, and the frame it was left on by mistake is a frame the
+## player is immortal for the rest of the run.
+const NON_LETHAL := 8
 
 var amount: int
 var source_position: Vector2
