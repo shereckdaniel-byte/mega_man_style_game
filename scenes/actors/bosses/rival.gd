@@ -160,6 +160,8 @@ func begin_intro(floor_position: Vector2, p_target: Node2D = null) -> void:
 	visible = false
 	_whistle_left = WHISTLE_FRAMES
 	_show_cue(floor_position)
+	# The cue that has been a signal with nothing listening since M7c.
+	Sfx.play(&"whistle")
 	whistled.emit()
 
 

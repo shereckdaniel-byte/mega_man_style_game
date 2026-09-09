@@ -70,11 +70,13 @@
 extends AuthoredStage
 
 const BACKGROUND := preload("res://scenes/stages/stack/parallax_background.gd")
-## TODO(art): swap to res://resources/tilesets/stack.tres once generated.
-## Greyboxed against stage 3's tiles so the layout can be driven by the bot
-## before any generation is paid for -- PLAN.md's rule, layout first and art
-## second. Stages 4 and 5 were built the same way.
-const TILESET := preload("res://resources/tilesets/breakers.tres")
+## Its own terrain: fire-blackened firebrick with the heat still bleeding through the mortar.
+##
+## Generated at M8e from the description in this stage's own docstring,
+## once `backblaze.pixellab.ai` was opened. Greyboxed against stage 3's
+## tiles until then -- layout first, art second, which is PLAN.md's rule
+## and the reason a two-milestone wait for a host cost this stage nothing.
+const TILESET := preload("res://resources/tilesets/stack.tres")
 const CINDER := preload("res://scenes/actors/bosses/cinder.gd")
 const BELT := preload("res://scenes/level/conveyor_belt.gd")
 ## Cinder's art. By path rather than preloaded so the stage still opens if the

@@ -23,6 +23,9 @@ signal intro_landed()
 signal defeated(boss: Boss)
 ## Emitted when a pattern begins its tell, for the tests and for audio.
 signal pattern_started(pattern_id: StringName)
+## A multi-form boss has finished one form and started the next. `index` is the
+## form now being fought, counting from 0.
+signal form_changed(index: int)
 
 enum Phase {
 	## Off, invisible, untouchable. How a boss waits before the player arrives.
@@ -60,6 +63,16 @@ const LAND_PAUSE_FRAMES := 20
 const DEATH_FRAMES := 90
 ## Frames between bursts during the defeat.
 const DEATH_BURST_INTERVAL := 9
+
+## Frames a multi-form boss holds between forms.
+##
+## Long enough to read as "that was not the end of it" and short enough that the
+## player does not go looking for a door. The boss is immune and harmless
+## throughout -- the pause is a beat, not a free hit either way.
+const FORM_PAUSE_FRAMES := 72
+## Frames per flash of the form change, so the hold reads as something happening
+## rather than as the game stopping.
+const FORM_FLASH_PERIOD := 6
 
 ## Which of the eight this is, for GameState's bitmask.
 ##
@@ -112,6 +125,9 @@ var phase: Phase = Phase.DORMANT
 var target: Node2D = null
 
 var _patterns: Array[BossPattern] = []
+## Which form is being fought, from 0. Meaningless for the eight, who have one.
+var _form := 0
+var _form_pause_left := 0
 ## Every pattern's recovery as its author wrote it, so `aggression` is always
 ## applied to the original rather than to whatever it was last set to.
 var _base_recover := PackedInt32Array()
@@ -166,8 +182,39 @@ func setup() -> void:
 
 
 ## Subclass hook. Return the patterns this boss can choose between.
+##
+## Called again on every form change, so a multi-form boss reads `form()` here
+## and returns a different set -- which is what makes a second form a different
+## fight rather than the same one with a refilled bar.
 func build_patterns() -> Array[BossPattern]:
 	return []
+
+
+## How many forms this boss has. One, unless a subclass says otherwise.
+##
+## **Multi-form lives on the base class rather than in the one boss that needs
+## it**, because the alternative is `Bulwark` reaching into `_on_died`,
+## `_dead`, `health.immune` and `phase` to fake a death it does not want -- and
+## every one of those is bookkeeping this class already owns. What a subclass
+## should have to say is "there are two of me", and it does.
+func forms() -> int:
+	return 1
+
+
+## The form being fought, from 0.
+func form() -> int:
+	return _form
+
+
+func is_changing_form() -> bool:
+	return _form_pause_left > 0
+
+
+## Subclass hook: the form is about to change. Swap art, damage tables, size --
+## anything that is a property of *which* boss this now is. `form()` already
+## reads as the new one.
+func enter_form(_index: int) -> void:
+	pass
 
 
 ## Applies `aggression` to the patterns the subclass just built.
@@ -301,11 +348,19 @@ func _physics_process(delta: float) -> void:
 			health.tick()
 			contact.tick()
 			_face_target()
-			fight_move(delta)
-			_run_pattern()
-			_apply_gravity(delta)
-			move_and_slide()
-			_update_hit_flash()
+			if is_changing_form():
+				# Still FIGHTING -- the room stays sealed and the bar stays up --
+				# but nothing acts and nothing lands. Gravity keeps running so a
+				# boss caught mid-leap comes down rather than hanging there.
+				_process_form_change()
+				_apply_gravity(delta)
+				move_and_slide()
+			else:
+				fight_move(delta)
+				_run_pattern()
+				_apply_gravity(delta)
+				move_and_slide()
+				_update_hit_flash()
 		Phase.DYING:
 			_process_death()
 
@@ -408,6 +463,14 @@ func _choose_pattern() -> void:
 ## bar is in the corner while the player is looking at the boss. A fight where
 ## you cannot tell your shots are connecting reads as a broken hitbox -- which,
 ## twice in this project, is exactly what it was.
+## A boss taking a hit, over the top of `Enemy`'s. The fight is long and the
+## difference between "that landed" and "that did not" is most of what the
+## player is reading.
+func _on_damaged(info: DamageInfo, taken: int) -> void:
+	super(info, taken)
+	Sfx.play(&"boss_hit", -3.0)
+
+
 func _update_hit_flash() -> void:
 	if sprite == null:
 		return
@@ -542,12 +605,66 @@ func _set_hazardous(value: bool) -> void:
 		contact.rearm()
 
 
+## Ends one form and begins the next: refill the bar, rebuild the patterns, hold
+## for a beat.
+##
+## The bar refilling is the whole trick and it is free -- `Health.refill` emits
+## `changed`, which is what the HUD's boss bar already listens to, so the second
+## form fills the same bar the first one emptied with nothing wired specially.
+func _advance_form() -> void:
+	_form += 1
+	_form_pause_left = FORM_PAUSE_FRAMES
+	velocity = Vector2.ZERO
+	# The bar, which is the whole trick and was missing from the first version
+	# of this method while its own docstring described it. `refill` emits
+	# `changed`, which the HUD's boss bar already listens to, so the second form
+	# fills the bar the first one emptied with nothing wired specially.
+	health.refill()
+	health.immune = true
+	_set_hazardous(false)
+	enter_form(_form)
+	# Rebuilt rather than reused: `build_patterns` reads `form()`, so this is
+	# where a second form becomes a different fight. The recovery cache goes with
+	# them, or the new patterns would be scaled against the old ones' numbers.
+	_patterns = build_patterns()
+	_base_recover.clear()
+	_apply_aggression()
+	_pattern_index = -1
+	_step = 0
+	_step_frames = 0
+	Sfx.play(&"boss_form")
+	form_changed.emit(_form)
+
+
+## One frame of the hold between forms.
+func _process_form_change() -> void:
+	_form_pause_left -= 1
+	if sprite != null:
+		# Flashing rather than invisible: a boss that blinks out reads as a
+		# rendering fault, which is the same call `HIT_FLASH_TINT` makes.
+		var lit := (_form_pause_left / FORM_FLASH_PERIOD) % 2 == 0
+		sprite.modulate = HIT_FLASH_TINT if lit else Color.WHITE
+	if _form_pause_left > 0:
+		return
+	if sprite != null:
+		sprite.modulate = Color.WHITE
+	health.immune = false
+	_set_hazardous(true)
+	_choose_pattern()
+
+
 ## The long defeat, replacing Enemy's free-on-death. Overriding rather than
 ## reaching into Enemy: the base connects `_on_died` to Health, and virtual
 ## dispatch means this runs instead without the base needing to know bosses
 ## exist.
+## The last point of damage. For a boss with another form in it, this is not a
+## death -- it is the end of a round.
 func _on_died(_info: DamageInfo) -> void:
 	if phase == Phase.DYING:
+		return
+	Sfx.play(&"boss_die")
+	if _form + 1 < forms():
+		_advance_form()
 		return
 	phase = Phase.DYING
 	_phase_frames = 0

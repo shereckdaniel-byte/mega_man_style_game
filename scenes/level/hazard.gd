@@ -88,3 +88,11 @@ func _draw() -> void:
 		draw_colored_polygon(points, TOOTH)
 		draw_polyline(points + PackedVector2Array([points[0]]), TOOTH_EDGE,
 			maxf(tile * 0.03, 1.0))
+
+
+## The teeth landing. Instant death, so this fires once and then the player's
+## own death sound follows it -- two sounds for one event, deliberately: the
+## first says what killed you and the second says that it did.
+func _deliver(hurtbox: Hurtbox) -> void:
+	super(hurtbox)
+	Sfx.play(&"spike")

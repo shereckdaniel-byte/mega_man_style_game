@@ -3,8 +3,20 @@
 # `godot --headless --import` before anything else.
 .godot/
 /android/
-export_presets.cfg
 *.translation
+
+# `export_presets.cfg` is deliberately NOT ignored, against Godot's default.
+#
+# The default exists because that file can hold signing identities, keystore
+# paths and notarisation credentials, and those must never be committed. Ours
+# holds none: `codesign/enable=false`, `codesign/codesign=0`,
+# `notarization/notarization=0`, and no path outside the project.
+#
+# What it does hold is the definition of what a build *is*, and ignoring that
+# means a release that only exists on whichever machine last opened the editor
+# -- the same argument every generated asset here makes.
+#
+# **If anyone adds signing to a preset, ignore this file again on that day.**
 
 # Build output
 /export/

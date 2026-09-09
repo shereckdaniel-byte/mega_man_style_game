@@ -21,10 +21,19 @@ extends Node2D
 ## drives; art_preview.tscn is the bare art harness; and either stage's own
 ## .tscn drops straight into that stage, which is what the playthrough bot and a
 ## targeted playtest both want.
-const FIRST_SCENE := "res://scenes/ui/stage_select.tscn"
+## **The intro, then the title, then the select** -- the route M8 finally gave
+## this. It was the stage select directly, because there was no title screen to
+## land on, which meant a returning player got their save whether they wanted it
+## or not: boot read slot 0 and there was nowhere to decide otherwise. The title
+## is where that decision lives.
+const FIRST_SCENE := "res://scenes/ui/intro.tscn"
 
 
 func _ready() -> void:
+	# Before anything is drawn or heard: a window that resizes after the first
+	# frame and a volume that corrects itself after the first sound are both
+	# things a player notices and neither is worth noticing.
+	Settings.load_settings()
 	_load_progress()
 	var report := _self_check()
 	for line in report:

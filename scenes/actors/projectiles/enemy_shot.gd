@@ -43,6 +43,7 @@ func launch(from: Vector2, direction: Vector2, speed_pf: float, damage: int,
 		tuning: PlayerTuning) -> void:
 	_tuning = tuning
 	_spawn_position = from
+	Sfx.play(&"enemy_shoot", -10.0)
 	_damage = damage
 	var heading := direction.normalized() if direction.length() > 0.001 else Vector2.RIGHT
 	_velocity = heading * tuning.px_s(speed_pf)

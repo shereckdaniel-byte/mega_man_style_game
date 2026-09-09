@@ -25,4 +25,5 @@ charged_ammo_cost = 0
 charged_max_on_screen = 1
 charged_weapon_id = &"buster_charged"
 palette = Array[Color]([Color(0.45, 0.78, 1, 1), Color(0.96, 0.98, 1, 1)])
+suit = Color(0.45, 0.78, 1.0, 1)
 tuning = {}

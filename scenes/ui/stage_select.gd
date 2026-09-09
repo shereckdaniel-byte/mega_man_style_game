@@ -49,6 +49,7 @@ var _title: Label
 
 func _ready() -> void:
 	layer = 40
+	Music.play(&"jingle_stage_select")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_state = get_node_or_null(^"/root/GameState")
 	_build()
@@ -64,6 +65,7 @@ func _ready() -> void:
 ## Moves the cursor. Wraps in both axes, like the original's.
 func move_cursor(delta: Vector2i) -> void:
 	cursor = Vector2i(wrapi(cursor.x + delta.x, 0, 3), wrapi(cursor.y + delta.y, 0, 3))
+	Sfx.play(&"cursor")
 	_refresh()
 
 
@@ -82,6 +84,7 @@ func confirm() -> bool:
 		return false
 	if _state != null:
 		_state.current_stage = index
+	Sfx.play(&"confirm")
 	stage_chosen.emit(index)
 	var router := get_node_or_null(^"/root/SceneRouter")
 	if router != null:
@@ -124,6 +127,7 @@ func _confirm_fortress() -> bool:
 	# The fortress is not one of the eight, and `current_stage` is a boss index.
 	# -1 is what the rest of the game already reads as "not in a master's stage".
 	_state.current_stage = -1
+	Sfx.play(&"confirm")
 	stage_chosen.emit(-1)
 	var router := get_node_or_null(^"/root/SceneRouter")
 	if router != null:
@@ -171,7 +175,10 @@ func _on_password_finished(loaded: bool) -> void:
 		_report("PASSWORD LOADED")
 
 
+## Every refusal on this screen says the same thing in sound, which is the half
+## of a refusal a player hears before they read it.
 func _report(message: String) -> void:
+	Sfx.play(&"refuse")
 	if _status != null:
 		_status.text = message
 	refused.emit(message)

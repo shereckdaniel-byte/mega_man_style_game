@@ -33,6 +33,7 @@ var _airborne := false
 
 
 func enter(_msg: Dictionary = {}) -> void:
+	Sfx.play(&"sword")
 	var player: Player = host
 	_airborne = not player.is_on_floor()
 	_fit_clip_to_swing(player)

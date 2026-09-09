@@ -41,6 +41,10 @@ texture={
 "process/fix_alpha_border": true
 }
 
+[audio]
+
+bus_layout="res://default_bus_layout.tres"
+
 [input]
 
 move_left={
@@ -143,5 +147,11 @@ common/max_physics_steps_per_frame=4
 [rendering]
 
 textures/canvas_textures/default_texture_filter=1
+; Needed by the macOS (universal/arm64) and Web presets, which refuse to export
+; without it. It costs import time on a project whose textures are all 2D and
+; uncompressed anyway -- the Compatibility renderer never reaches for a VRAM
+; format here -- so the price is a slower first import and the benefit is two
+; platforms that build at all.
+textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

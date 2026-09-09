@@ -128,7 +128,10 @@ func _on_hit(_hurtbox: Hurtbox, _taken: int) -> void:
 	queue_free()
 
 
+## A shot that ends on a wall. Quiet: it happens constantly and it is feedback
+## rather than an event.
 func _on_body_entered(_body: Node2D) -> void:
+	Sfx.play(&"shot_spent", -12.0)
 	queue_free()
 
 

@@ -556,6 +556,8 @@ func fire() -> WeaponShot:
 	if weapons != null and not weapons.consume(weapon):
 		return null
 
+	Sfx.play(Sfx.for_weapon(weapon), -3.0)
+
 	var script: Script = data.projectile_script if data != null else BUSTER_SHOT
 	if script == null:
 		script = BUSTER_SHOT
@@ -686,6 +688,11 @@ func apply_weapon_palette(weapon_id: StringName) -> void:
 
 ## Hue distance from the buster to this weapon, in turns, wrapped to [-0.5, 0.5]
 ## so the rotation always takes the short way round the colour wheel.
+##
+## Measured from each weapon's **suit** rather than from its own body colour.
+## Those were the same field until five weapons turned out to be the buster's
+## blue -- see `WeaponData.suit` for why the character's colour is chosen for
+## legibility rather than for likeness to the shot.
 func weapon_hue_shift(weapon_id: StringName) -> float:
 	var weapons := weapons_autoload()
 	if weapons == null:
@@ -694,9 +701,11 @@ func weapon_hue_shift(weapon_id: StringName) -> float:
 	var data: WeaponData = weapons.data_for(weapon_id)
 	if base == null or data == null:
 		return 0.0
-	if base.palette.is_empty() or data.palette.is_empty():
+	var from := base.suit_colour()
+	var to := data.suit_colour()
+	if from.a <= 0.0 or to.a <= 0.0:
 		return 0.0
-	return wrapf(data.palette[0].h - base.palette[0].h, -0.5, 0.5)
+	return wrapf(to.h - from.h, -0.5, 0.5)
 
 
 # --- Damage -------------------------------------------------------------------
@@ -751,6 +760,7 @@ func respawn_at(position: Vector2) -> void:
 	sprite.visible = true
 	state_machine.transition_to(&"Idle")
 	respawned.emit()
+	Sfx.play(&"teleport_in")
 
 
 func is_shooting() -> bool:
@@ -835,6 +845,10 @@ func _tick_charge() -> void:
 	if level != _charge_level:
 		_charge_level = level
 		charge_level_changed.emit(level)
+		# One note per stage reached rather than a held tone: the charge has two
+		# stages and the player needs to hear which one they are at, not that
+		# something is happening.
+		Sfx.play(&"charge_ready" if level > 1 else &"charge_loop", -6.0)
 
 
 ## Lets go of the charge, firing the blast if it reached a stage.
@@ -847,6 +861,7 @@ func _release_charge() -> void:
 		charge_level_changed.emit(0)
 	if level <= 0 or data == null:
 		return
+	Sfx.play(&"charge_fire")
 	fire_charged(level, data)
 
 

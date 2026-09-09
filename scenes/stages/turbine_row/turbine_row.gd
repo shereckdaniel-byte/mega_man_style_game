@@ -74,11 +74,13 @@
 extends AuthoredStage
 
 const BACKGROUND := preload("res://scenes/stages/turbine_row/parallax_background.gd")
-## TODO(art): swap to res://resources/tilesets/turbine_row.tres once generated.
-## Greyboxed against stage 3's tiles so the layout and the pacing can be driven
-## by the bot before any generation is paid for -- PLAN.md's own rule, layout
-## first and art second. Stage 4 was built the same way.
-const TILESET := preload("res://resources/tilesets/breakers.tres")
+## Its own terrain: salt-bleached steel deck plate, diamond tread and bolt rows -- an offshore wind farm is a walkway bolted to the sea.
+##
+## Generated at M8e from the description in this stage's own docstring,
+## once `backblaze.pixellab.ai` was opened. Greyboxed against stage 3's
+## tiles until then -- layout first, art second, which is PLAN.md's rule
+## and the reason a two-milestone wait for a host cost this stage nothing.
+const TILESET := preload("res://resources/tilesets/turbine_row.tres")
 const GALE := preload("res://scenes/actors/bosses/gale.gd")
 const WIND := preload("res://scenes/level/wind_zone.gd")
 ## Gale's art. By path rather than preloaded so the stage still opens if the

@@ -3,10 +3,10 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: all eight stages built, and the fortress has opened.** The player controller,
-combat, enemies, eight bosses with weapon gets, eight stages of nineteen rooms each, and
-the first of the four fortress stages behind the centre cell — all authored as room
-tables against a shared `AuthoredStage`. Both weakness cycles close, no boss is weak to
+**Status: the game is completable start to finish.** The player controller, combat,
+enemies, eight bosses with weapon gets, eight stages of nineteen rooms each, and all four
+fortress stages behind the centre cell, ending in a two-form final boss — all authored as
+room tables against a shared `AuthoredStage`. Both weakness cycles close, no boss is weak to
 the weapon it drops, and every one of the eight weapon archetypes is used exactly once.
 Verified on Godot 4.7.stable, headless, in CI.
 
@@ -28,14 +28,14 @@ and simply will not stop you, and water is the only one that helps.**
 ## The fortress
 
 The centre cell of the stage select opens when the eighth Robot Master falls, and holds
-four stages played **in order** rather than chosen from. Three of the four are built:
+four stages played **in order** rather than chosen from. All four are built:
 
 | # | Stage | Boss | What it is |
 | --- | --- | --- | --- |
 | F1 | Outfall | Tide, rebuilt | the drain the sea comes back through |
 | F2 | Caisson | **Ward** | the pressure chamber, and whoever is waiting in it |
 | F3 | Switchgear | **all eight** | eight pads, and everything you already beat |
-| F4 | Keep | — | the core |
+| F4 | Keep | **Bulwark** | the core |
 
 **A fortress stage has no gimmick of its own, and that is the design.** Each master stage
 contains exactly one idea and deliberately none of the others, because a stage that mixes
@@ -82,6 +82,25 @@ last-room boss, and a route that is not a walk. `tests/test_switchgear.gd` build
 real and takes the route instead, so the bot's silence about this stage is written down
 rather than mistaken for a pass.
 
+**Keep** is the shortest stage in the game, on purpose: what is at the end of it is the
+only thing anyone is there for. It has no gimmick of its own and does not borrow one
+either — just the shared kit the player has been reading since the first room they ever
+played, because a gimmick in the last stage is a thing to learn on the way to the thing
+you came to do.
+
+**Bulwark** is the only fight with two forms, and they are opposites. The shell never
+leaves the ground and never chases: everything it does travels along the floor or falls
+from the ceiling, so the answer is *where you stand*. Then it breaks, and what is inside
+never touches the ground: it hovers, aims at where you are, and closes — so the answer
+becomes *when you jump*. Eight stages of Robot Masters are one or the other; the last one
+is both, and the transition is where everything the player worked out stops applying.
+
+The shell is weak to the **Quarry Bore** — the piercing drill against the armoured wall,
+the one weakness in the game you could guess from the fiction rather than a chart. The
+core is weak to nothing, so **the last blow of the game is always the buster**: nobody
+arrives at the end of the fortress dry and stuck, and the weapon you have had since the
+first frame is the one that finishes it.
+
 At the end of Caisson, **the boss door opens onto someone who is not a boss.** Ward
 whistles first, fights with the player's own three verbs — shoot, jump, slide, nothing you
 have not had since M1 — and **cannot win or lose**: every hit he lands carries
@@ -90,12 +109,17 @@ makes him stop, salute and leave rather than explode. There is no bar to empty a
 weapon at the end of it. Eight stages have taught the player exactly what a boss door
 means, which is what makes it worth spending one on this.
 
-**Stages 5–8 and the fortress are greyboxed**: stage 3's tileset and enemy skins, and
-backdrops drawn in code rather than loaded. The layouts were driven by the bot before any
-art was paid for, which is PLAN.md's own rule — layout first, art second. Each stage's
-docstring names the six enemies it actually wants.
+**Every stage has its own terrain.** Nine tilesets, one per master stage and one shared by
+the four fortress stages, each generated from the description already written in that
+stage's docstring. The layouts were driven by the bot for milestones before any art was
+paid for, which is PLAN.md's rule — layout first, art second — and the swap was one line
+per stage when the art arrived.
 
-**Stage 4 has its own terrain again.** It was generated at M6k and then undownloadable
+**Enemy skins and backdrops are still greybox** for stages 5–8 and the fortress: stage
+3's skins, and backdrops drawn in code rather than loaded. Each stage's docstring names
+the six enemies it actually wants.
+
+**Stage 4 was the first one back.** It was generated at M6k and then undownloadable
 for two milestones — the spritesheet is served from `backblaze.pixellab.ai` and this
 environment's egress policy refused the host, while the metadata came from an allowed one.
 The host was opened and `tools/fetch_tilesets.sh` recovered it on the first run; nothing
@@ -220,6 +244,40 @@ godot --headless --script res://tests/run_tests.gd -- rising_tide crest_wave
 | `scenes/level/phase_block.gd` | The panel. A block is solid for two beats, and a beat is one jump. |
 | `scenes/stages/test_room/` | M1 tuning room, opened directly when reading movement numbers off F3 |
 | `tests/` | Headless suite, including integration tests driving the real `CharacterBody2D` |
+
+## Sound
+
+48 sound effects and 15 tracks, **synthesised in-engine** rather than recorded or licensed
+— two pulse channels, a triangle and a noise generator, which is what the hardware this
+game imitates actually had. Every sound is a recipe rather than a file: "a pulse falling
+from 880 to 220 over a tenth of a second" is four lines that are both the sound and its
+own documentation, and `tools/make_sfx.gd` and `tools/make_music.gd` rebuild all of it.
+
+The music is a **competent sketch and not a soundtrack**, said plainly here because it is
+said plainly in the tool. A track is three voices written as strings of scale degrees, and
+the format is deliberately the easiest thing in the repository for a person to replace.
+
+Four buses — Master, Music, Sfx, Jingle — and the jingles **duck the music with a
+sidechained compressor** rather than a tween, because a tween that lowers a volume has to
+remember to put it back.
+
+## Options
+
+Reachable from the title and from the pause menu. Volume per bus, window scale,
+fullscreen, rebindable keys, and a **colourblind cue for the disappearing panels** — which
+adds a hatch pattern as well as changing the colour, because a player who cannot separate
+any two hues is not helped by a different palette. Everything applies and saves on the
+frame it changes; the only undo is the reset row.
+
+## Building
+
+```sh
+tools/export.sh                 # Linux, Windows, macOS and Web
+tools/export.sh Linux Web       # just these
+```
+
+Export templates are ~1 GB and not committed; the script checks for them first and tells
+you how to get them rather than failing with a message about a missing preset.
 
 ## Controls
 
