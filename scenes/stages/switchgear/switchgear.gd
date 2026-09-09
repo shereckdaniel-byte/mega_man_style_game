@@ -56,8 +56,13 @@
 extends FortressStage
 
 const BACKGROUND := preload("res://scenes/stages/fortress/parallax_background.gd")
-## TODO(art): the fortress wants its own tileset. Greyboxed against stage 3's.
-const TILESET := preload("res://resources/tilesets/breakers.tres")
+## The fortress's own terrain: poured sea-defence concrete, board-form grain,
+## tide staining and rust bleeding from the rebar.
+##
+## **One tileset for all four fortress stages**, as they share one backdrop
+## and one music track and for the same reason: they are one place, and four
+## terrains for it would be four answers to a question that has one.
+const TILESET := preload("res://resources/tilesets/fortress.tres")
 const PAD := preload("res://scenes/level/teleport_pad.gd")
 
 const WALKER := preload("res://scenes/actors/enemies/walker.gd")

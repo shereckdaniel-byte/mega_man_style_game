@@ -29,14 +29,22 @@ GODOT="${GODOT:-godot}"
 # stage directory -> tileset id. The id is also saved inside each downloaded
 # tileset.json, so this table can always be rebuilt from what is on disk.
 #
-# Stages 5-8 and the fortress are **not** in here because no tileset has been
-# generated for them: they are greyboxed against stage 3's, which is a different
-# problem from this one and is not fixed by opening the host.
+# `fortress` is one tileset for all four of its stages: they are one place with
+# one backdrop, and the same argument that gives them one music track gives them
+# one terrain.
 declare -A TILESETS=(
   [dawn_boardwalk]=2e44791f-404c-4174-81fe-bc2f6a082215
   [substation]=d635e91f-b9d3-43ce-ae01-5f461fcf2377
   [breakers]=faa7f5cd-8181-430b-896e-a29051b2626f
   [mirror_field]=9ce2430f-2e8f-4aef-b342-19098469414d
+  # The second attempt. The first (56530268) came back as sparse vertical bars
+  # with a lot of transparency in them -- a walkway you could see through, which
+  # for the one stage built over open water is exactly the wrong read.
+  [turbine_row]=e6342acc-4a75-4e12-aaac-e917a2dfc267
+  [stack]=75715678-2f9d-4919-864d-04f4cd0da1f9
+  [cold_store]=0cb5805d-5eef-46e8-b92a-72c080d596d1
+  [sinkhole]=b1c1f68e-ee6b-47f8-baa0-10b1bb5184f2
+  [fortress]=12f5c6e2-9fd9-43e8-a169-84eda3a137b8
 )
 
 want=("$@")

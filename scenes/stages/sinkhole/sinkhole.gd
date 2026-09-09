@@ -71,9 +71,13 @@
 extends AuthoredStage
 
 const BACKGROUND := preload("res://scenes/stages/sinkhole/parallax_background.gd")
-## TODO(art): swap to res://resources/tilesets/sinkhole.tres once generated.
-## Greyboxed against stage 3's tiles, as stages 4-7 were.
-const TILESET := preload("res://resources/tilesets/breakers.tres")
+## Its own terrain: wet drill-scarred rock, ore seams, water beading on the faces.
+##
+## Generated at M8e from the description in this stage's own docstring,
+## once `backblaze.pixellab.ai` was opened. Greyboxed against stage 3's
+## tiles until then -- layout first, art second, which is PLAN.md's rule
+## and the reason a two-milestone wait for a host cost this stage nothing.
+const TILESET := preload("res://resources/tilesets/sinkhole.tres")
 const QUARRY := preload("res://scenes/actors/bosses/quarry.gd")
 const WATER := preload("res://scenes/level/water_volume.gd")
 const BOSS_FRAMES_PATH := "res://resources/sprite_frames/quarry.tres"

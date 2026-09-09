@@ -59,10 +59,13 @@
 extends AuthoredStage
 
 const BACKGROUND := preload("res://scenes/stages/cold_store/parallax_background.gd")
-## TODO(art): swap to res://resources/tilesets/cold_store.tres once generated.
-## Greyboxed against stage 3's tiles, as stages 4-6 were -- PLAN.md's rule,
-## layout first and art second.
-const TILESET := preload("res://resources/tilesets/breakers.tres")
+## Its own terrain: insulated panel wall with frost blooming in the corners.
+##
+## Generated at M8e from the description in this stage's own docstring,
+## once `backblaze.pixellab.ai` was opened. Greyboxed against stage 3's
+## tiles until then -- layout first, art second, which is PLAN.md's rule
+## and the reason a two-milestone wait for a host cost this stage nothing.
+const TILESET := preload("res://resources/tilesets/cold_store.tres")
 const FROST := preload("res://scenes/actors/bosses/frost.gd")
 const ICE := preload("res://scenes/level/ice_floor.gd")
 const BOSS_FRAMES_PATH := "res://resources/sprite_frames/frost.tres"

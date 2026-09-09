@@ -1614,12 +1614,24 @@ examination, and the only new thing in it is that two answers are wanted at once
 ### M8 — Polish & ship (1–2 weeks)
 
 - Music (8 stage themes + 6 jingles) and ~40 SFX; audio bus layout with ducking.
-- Title, intro, ending, credits.
+  **Built** — 15 tracks and 48 effects, synthesised in-engine from a four-voice
+  NES-style synthesiser (`tools/synth.gd`), and a bus layout whose ducking is a
+  sidechained compressor rather than a tween. The music is a sketch and not a
+  composed soundtrack; that is stated in the tool and in the README rather than
+  left to be discovered.
+- Title, intro, ending, credits. **Built.** The title is the option boot never
+  had: it has read slot 0 since M6 with nowhere to decline it.
 - Options: rebindable input, scale/fullscreen, volume, colourblind palette for the
-  disappearing-block gimmick.
-- Exports: Windows / Linux / macOS / Web. Web build must hold 60 fps.
+  disappearing-block gimmick. **Built** — and the colourblind switch adds a
+  *hatch* as well as a palette, because redundant encoding is the actual
+  accessibility rule and a palette alone helps only some of the people it is for.
+- Exports: Windows / Linux / macOS / Web. **All four build**, and the Linux binary
+  was run and reports its self-check correctly. Web build must hold 60 fps —
+  **not measured**: it exports, and nobody has opened it in a browser.
 
 **Accept:** a clean-machine playthrough by someone who has never seen the build.
+**Not met, and it is the only thing left.** Everything the milestone lists is
+built; what has never happened is a person playing it.
 
 **Rough total:** 7–10 weeks of focused solo work. M6 is the bulk; parallelise art
 generation with code work from M2 onward.
