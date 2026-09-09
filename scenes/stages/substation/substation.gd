@@ -1,25 +1,33 @@
 ## Stage 2, "Substation" -- the flooded switchyard, and Arc's stage.
 ##
-## Eight rooms laid out as a **J**: a short run across the yard, down into the
-## cable trench almost immediately, a long dark middle along the bottom, and one
-## climb at the end into the arena.
+## Nineteen rooms laid out as a long **J**: a short run across the yard, down
+## into the cable trench almost immediately, a long dark stretch, a lit yard in
+## the middle, a second and harder dark stretch, and one climb into the arena.
 ##
-##      col 0     1                                 4        5
-##  band 0  Yard  - Busbars                      Gate  - Arena
-##                     |                            ^
-##  band 1           Trench - Flooded Bay - Hall - Riser
+##   col  0    1      2      3     4     5     6      7        8      9     10    11    12    13     14
+##  band 0 Yard-Busbars                            Daylight-TfmrRow-YardTwo-Catwalk              Gate-Arena
+##               |                                    ^                        |                   ^
+##  band 1    Trench-Flooded-CableRun-Hall-Sump-TieLine                    LowerTrench-Blackout-Feeder-Dead-Riser
 ##
-## **The shape is chosen against stage 1's.** Dawn Boardwalk is a U: down in the
-## middle and up again, with the two ends of the stage at the same height and the
-## descent as a mid-stage event. Copying that would make stage 2 the same walk
-## with different tiles, which is the failure M5a's whole argument was about. So
-## this one commits early and stays down: the descent is the second room, four of
-## the eight rooms are the dark trench, and the climb is the last thing before
-## the boss door rather than the middle of the level.
+## **The shape is chosen against stage 1's.** Dawn Boardwalk is a W that spends
+## as long above the deck as below it. Copying that would make stage 2 the same
+## walk with different tiles, which is the failure M5a's whole argument was
+## about. So this one commits early and stays down: the descent is the second
+## room, **eleven of the nineteen are dark**, and the yard is something the stage
+## visits rather than something it runs along.
 ##
-## That also gives the gimmick the room it needs. A dark section that is one
-## screen long is a novelty; four rooms is a place. `DarkRoom` is what makes them
-## dark, and its docstring carries the three rules that keep it fair.
+## **The lit middle is not a rest, it is the rehearsal.** Six dark rooms, then
+## four with the lights on, then five more dark. Everything the second stretch
+## asks for is asked first in the light -- Yard Two's slide is Blackout's spiked
+## tunnel without the teeth, Transformer Row's gaps are Feeder's planks without
+## the dark. A stage that just kept going down would have to teach in the dark or
+## not teach at all, and `DarkRoom`'s three rules exist precisely because
+## teaching in the dark is how a gimmick becomes unfair.
+##
+## That also gives the gimmick the room it needs. A dark section one screen long
+## is a novelty; four rooms is a place; eleven, split by a return to daylight, is
+## the stage. `DarkRoom` is what makes them dark, and its docstring carries the
+## three rules that keep it fair.
 ##
 ## **What is not different from stage 1 is deliberate.** The vocabulary is the
 ## M5a kit -- ladders, one-ways, movers, crumbling blocks, spikes -- because a
@@ -143,7 +151,23 @@ const ROOMS := [
 		"pit_spikes": [[8, 3, 2], [17, 3, 2]],
 	},
 	{
-		"name": "Switch Hall", "col": 3, "band": BAND_TRENCH,
+		"name": "Cable Run", "col": 3, "band": BAND_TRENCH,
+		# One-way platforms, in the dark. Stage 1 introduces them in daylight
+		# because their rule -- solid from above, passable from below -- cannot
+		# be read off the art; here the player already knows the rule and the
+		# new thing is finding the platform on a remembered layout.
+		"dark": true,
+		"gaps": [[7, 9]], "blocks": [],
+		"one_ways": [[14, 3, 5]],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 5.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 18.0, 4.0],
+		],
+		"pit_spikes": [[7, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Switch Hall", "col": 4, "band": BAND_TRENCH,
 		# The hardest dark room, and the only one that asks for two things at
 		# once: a slide under live gear, then a crossing on the mover.
 		#
@@ -181,7 +205,192 @@ const ROOMS := [
 		"pit_spikes": [[14, 3, 6]],
 	},
 	{
-		"name": "Riser", "col": 4, "band": BAND_TRENCH,
+		"name": "Sump", "col": 5, "band": BAND_TRENCH,
+		# Crumbling planks in the dark, and the reason they are only ever laid
+		# across a jumpable gap: a plank falls, so it can never be the sole way
+		# over -- and in the dark a player who guesses wrong about where the far
+		# lip is has already committed. Two cells each, both inside
+		# MAX_GAP_TILES, so the planks are the fast route and not the only one.
+		"dark": true,
+		"gaps": [[9, 11], [16, 18]], "blocks": [],
+		"crumbles": [[9, 0], [10, 0], [16, 0], [17, 0]],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 5.0, 0.0],
+			[SPAWNER, SKIN_SPAWNER, &"idle", 13.0, 4.0],
+		],
+		"pit_spikes": [[9, 3, 2], [16, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Tie Line", "col": 6, "band": BAND_TRENCH,
+		# The way back up, and the end of the first dark stretch. A block ladder
+		# rather than an obstacle: after six rooms in the dark the exit should be
+		# something the player can find by walking into it.
+		"dark": true,
+		"gaps": [], "blocks": [[6, 2, 3, 2], [12, 4, 3, 2]],
+		"enemies": [
+			[TURRET, SKIN_TURRET, &"idle", 18.0, 2.0],
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 20.0, 0.0],
+		],
+		"checkpoint": 2.0,
+		"shaft_up": [23, 2],
+	},
+	{
+		"name": "Daylight", "col": 6, "band": BAND_YARD,
+		# **The light is the event.** Six rooms of flash-lit trench, and then the
+		# lid comes off. Nothing is asked here beyond one walker, because the
+		# room is doing its work by being visible -- and because the ladder puts
+		# the player three cells from the door (SHAFT_LANDING_CELLS), so there is
+		# no space for a room even if one were wanted.
+		#
+		# No gaps: Tie Line is directly below, and a hole would drop the player
+		# into it past its own door.
+		"gaps": [], "blocks": [],
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 10.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Transformer Row", "col": 7, "band": BAND_YARD,
+		# The lit stretch is not a rest, it is a rehearsal. Everything the second
+		# dark run will ask for gets asked here first with the lights on: two
+		# gaps to time against a flyer, and a step to climb past a turret.
+		"gaps": [[8, 10], [18, 20]], "blocks": [[23, 2, 3, 2]],
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 5.0, 0.0],
+			[TURRET, SKIN_TURRET, &"idle", 14.0, 2.0],
+			[FLYER, SKIN_FLYER, &"fly", 16.0, 4.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Yard Two", "col": 8, "band": BAND_YARD,
+		# The slide, in the light. Switch Hall already asked for one under live
+		# gear in the dark, which was the stage's hardest single moment; asking
+		# again here, visible and un-toothed, is what makes the *next* dark
+		# tunnel a thing the player has practised rather than a thing they
+		# remember being hurt by.
+		#
+		# Four rows thick, so its top is out of the jump's reach and the tunnel
+		# is the only way through. Three cells wide, because a slide covers about
+		# four and a longer tunnel traps the player standing up inside it.
+		"gaps": [[6, 8]], "blocks": [[20, 2, 4, 2]],
+		"ceilings": [[13, SLIDE_CLEARANCE, 3, 4]],
+		"enemies": [
+			[HOPPER, SKIN_HOPPER, &"hop", 10.0, 0.0],
+			[TURRET, SKIN_TURRET, &"idle", 18.0, 2.0],
+			[WALKER, SKIN_WALKER, &"walk", 22.0, 2.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Catwalk", "col": 9, "band": BAND_YARD,
+		# Climbing, and then the way back down. No gaps -- Lower Trench is
+		# underneath -- so the room goes up instead of opening, which also puts
+		# the player at the top of the yard for the drop into the second dark
+		# stretch. The stage descends twice and this is the second commitment.
+		"gaps": [], "blocks": [[5, 2, 3, 2]],
+		"one_ways": [[11, 2, 4], [17, 4, 4]],
+		"enemies": [
+			[TURRET, SKIN_TURRET, &"idle", 8.0, 2.0],
+			[FLYER, SKIN_FLYER, &"fly", 14.0, 6.0],
+		],
+		"checkpoint": 2.0,
+		"shaft": [22, 2],
+	},
+	{
+		"name": "Lower Trench", "col": 9, "band": BAND_TRENCH,
+		# Dark again, and it opens with the thing the first stretch closed with:
+		# a crossing on a mover over spikes. No teaching room this time -- the
+		# lit stretch was the teaching, and the second descent is allowed to
+		# start where the first one finished.
+		"dark": true,
+		"gaps": [[8, 14]], "blocks": [],
+		"movers": [[8, 0, 6.0, 0.0, 150]],
+		"pit_spikes": [[8, 3, 6]],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 4.0, 0.0],
+			[TURRET, SKIN_TURRET, &"idle", 20.0, 2.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Blackout", "col": 10, "band": BAND_TRENCH,
+		# The stage's hardest room, and the one Yard Two exists to prepare. A
+		# spiked tunnel in the dark, then a gap over spikes.
+		#
+		# Two cells of tunnel, not three: a slide covers 4.06 tiles and a player
+		# commits a cell or two before the lip, so a three-wide spiked tunnel is
+		# cleared or not depending on which pixel the slide began at. Switch Hall
+		# proved that with the bot; MAX_SPIKED_TUNNEL_TILES holds every stage to
+		# it.
+		"dark": true,
+		"gaps": [[16, 18]], "blocks": [],
+		"ceilings": [[6, SPIKED_CLEARANCE, 2]],
+		"ceiling_spikes": [[6, SPIKED_CLEARANCE, 2]],
+		"enemies": [
+			[SPAWNER, SKIN_SPAWNER, &"idle", 12.0, 4.0],
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 22.0, 0.0],
+		],
+		"pit_spikes": [[16, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Feeder", "col": 11, "band": BAND_TRENCH,
+		# Three plank crossings in a row, in the dark, over spikes. Sump asked
+		# for two; this is the same move at a rhythm, which is the only way the
+		# element gets to be about pace rather than about one decision.
+		"dark": true,
+		"gaps": [[7, 9], [13, 15], [19, 21]], "blocks": [],
+		"crumbles": [[7, 0], [8, 0], [13, 0], [14, 0], [19, 0], [20, 0]],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 4.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 11.0, 4.0],
+		],
+		"pit_spikes": [[7, 3, 2], [13, 3, 2], [19, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Dead Section", "col": 12, "band": BAND_TRENCH,
+		# The last full dark room, and **the only one with no hole in it.**
+		#
+		# It had a two-cell gap off nine cells of flat deck, which is the most
+		# ordinary jump in the game, and the bot walked into it twice from two
+		# different positions -- 26 HP and a life, in the one room out of
+		# nineteen that cost anything. Moving the gap and moving the turret both
+		# failed to fix it, which is the signal that the room was wrong rather
+		# than its numbers.
+		#
+		# It is wrong because of where it sits. Five dark rooms deep, every one
+		# of them ending in a hole, the stage has made "there is a gap here" the
+		# default expectation -- and a stage that only ever says the same thing
+		# in the dark has stopped saying anything. So the last one climbs: a
+		# step, a platform, and the ladder out. Riser owns the final gap, one
+		# room later, where it is the last obstacle rather than the fifth in a
+		# row.
+		"dark": true,
+		# **The turret is past the step, not across the gap.** It was authored at
+		# cell 11 with the gap at 6-8, which put a thing that fires horizontally
+		# on the far side of a hole the player has to jump -- in the dark, where
+		# the shot arrives before the shooter is visible. The bot lost 22 HP and
+		# a life in this one room and nowhere else in nineteen. A turret is a
+		# thing to shoot past; it is not a thing to be shot by mid-air, and the
+		# stage has no other room that asks for both at once.
+		#
+		# The gap also moved back to 10, so the room opens with ground rather
+		# than with a hole three cells inside the door.
+		"gaps": [], "blocks": [[10, 2, 3, 2]],
+		"one_ways": [[17, 3, 5]],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 4.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 17.0, 5.0],
+			[TURRET, SKIN_TURRET, &"idle", 24.0, 2.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Riser", "col": 13, "band": BAND_TRENCH,
 		# Still dark, and the way out is up. The crumbling planks are the last
 		# obstacle in the dark and they are optional: the one-way platforms above
 		# them are a slower way to the same ladder, so a player who cannot read
@@ -198,7 +407,7 @@ const ROOMS := [
 		"shaft_up": [23, 2],
 	},
 	{
-		"name": "Gate", "col": 4, "band": BAND_YARD,
+		"name": "Gate", "col": 13, "band": BAND_YARD,
 		# Lit, and deliberately empty. The run-up to a boss is a breath, and
 		# coming back into the light is the stage's own punctuation before it.
 		"gaps": [], "blocks": [],
@@ -206,7 +415,7 @@ const ROOMS := [
 		"checkpoint": 2.0,
 	},
 	{
-		"name": "Arena", "col": 5, "band": BAND_YARD,
+		"name": "Arena", "col": 14, "band": BAND_YARD,
 		# Flat, empty, lit, and no checkpoint. A dark arena would make Arc's
 		# Curtain unreadable, and the pattern's answer is reading it.
 		"gaps": [], "blocks": [],

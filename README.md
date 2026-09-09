@@ -3,7 +3,7 @@
 An original action-platformer built in the style of *Mega Man 3* (NES, 1990): 8 selectable
 stages, weapon-get progression, slide, robot-dog utility items, and boss-rush endgame.
 
-**Status: M6p complete** — the player controller, combat, enemies, four bosses with weapon
+**Status: M6q complete** — the player controller, combat, enemies, four bosses with weapon
 gets, and **four stages**: Dawn Boardwalk, Substation, Breakers and Mirror Field, all
 authored as room tables against a shared `AuthoredStage`. Verified on Godot 4.7.stable,
 headless, in CI. Next up is the rest of M6, stages 5–8.

@@ -1,13 +1,20 @@
 ## Stage 4, "Mirror Field" -- the solar array, and Prism's stage.
 ##
-## Nine rooms in an **L**. Stage 1 is a U, stage 2 a J, stage 3 a staircase that
-## climbs all the way; this one runs flat across the field for five rooms and
-## then turns straight up into the receiver tower and stays there.
+## Nineteen rooms in an **L**. Stage 1 is a W, stage 2 a long J, stage 3 a
+## staircase that climbs all the way; this one runs flat across the field for
+## **fourteen rooms** and then turns straight up into the receiver tower and
+## stays there.
 ##
-##      col 0       1        2        3       4        5       6      7
-##  band 0                                 Landing - Focus - Gate - Arena
-##                                            ^
-##  band 1  Array - Pylons - Trough -  Salt - Foot
+##   col 0    1     2     3    4     5    6   7     8     9    10   11  12   13    14    15    16   17
+##  band 0                                                              Landing-Focus-Apertr-Gate-Arena
+##                                                                         ^
+##  band 1 Array-Pylons-Trough-Salt-Brine-Helio-Duct-Crust-Walk-Trap-Coll-Pan-Anneal-Foot
+##
+## **Fourteen flat rooms and one turn is the most extreme shape in the game, and
+## it is the right one for a plain of mirrors.** The other three stages get their
+## variety from terrain; this one has none to get it from, so all of its variety
+## has to come from the panels -- which means it needs more room to vary them in,
+## not less.
 ##
 ## ### The flatness is the design, not a shortcut
 ##
@@ -36,8 +43,35 @@
 ##   * **Foot** -- no panels at all. After two panel rooms the stage needs a room
 ##     that is only platforming, or the gimmick stops being an event and becomes
 ##     the floor. Same argument Ribs makes in Breakers.
+##   * **Heliostat Row** -- a path that *climbs* and hands you off onto a block at
+##     its top. Until here every crossing returned the player to the deck it
+##     started on; this one is a way up, which turns a toll into a route.
+##   * **Sun Trap** -- two paths at different phases with solid ground between
+##     them: Focus's shape with four cells of rest instead of three, so the exam
+##     has something to be an exam of.
+##   * **Pan** -- six panels over twelve cells, the longest crossing in the game.
+##     Salt says "you cannot stop" in five; this says it long enough that the
+##     player has to trust it rather than remember it. Eight was tried and is too
+##     many: a set's beat count is its panel count, so two of eight are solid at
+##     a time and every one of eight hops has to be right.
+##   * **Anneal** -- the field's last crossing, four flush panels: Trough one
+##     panel longer. Drafted at the thinnest the rules allow -- three panels
+##     three cells apart -- and reverted, because a crossing with every number at
+##     its limit is one nobody can make. Focus is the exam; this is the last
+##     word, and they are not the same job.
 ##   * **Focus** -- the exam: two paths half a beat out of step, over two gaps,
 ##     with three cells of deck between them to re-read the rhythm on.
+##
+## Five rooms carry no panels at all -- Brine, Duct, Crust, Mirror Walk and
+## Collector -- for the reason Foot already gives: a stage whose every room is
+## the gimmick has no gimmick, only a floor. `tests/test_mirror_field.gd` checks
+## that the panel rooms are not all adjacent.
+##
+## **Every path begins level with the deck it leaves.** Crust was drafted as a
+## path starting two rows up, and that is a crossing whose first move is a jump
+## up and across onto a block that is only there half the time, taken from the
+## lip of a ten-cell pit. A crossing may ask the player to commit; it may not ask
+## them to commit before they are on it.
 ##
 ## ### Two things this stage deliberately does not contain
 ##
@@ -200,7 +234,246 @@ const ROOMS := [
 		],
 	},
 	{
-		"name": "Foot", "col": 4, "band": BAND_FIELD,
+		"name": "Brine", "col": 4, "band": BAND_FIELD,
+		# No panels. Trough and Salt asked for the gimmick twice running, and the
+		# stage's own rule -- written on Foot -- is that a room of plain
+		# platforming has to come between, or the panels stop being an event and
+		# become the floor. This is that room, moved earlier now the field is
+		# long enough to need two of them.
+		"gaps": [[8, 10], [16, 18]], "blocks": [[22, 2, 4, 2]],
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 5.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 13.0, 4.0],
+			[TURRET, SKIN_TURRET, &"idle", 20.0, 2.0],
+		],
+		"pit_spikes": [[8, 3, 2], [16, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Heliostat Row", "col": 5, "band": BAND_FIELD,
+		# **A path that climbs, and puts you somewhere new.** Every crossing so
+		# far has started and ended on the deck -- Salt arcs up and comes back
+		# down to it. This one steps 0-1-2-2 and hands the player off onto a
+		# block at the same height, so the panels are not just floor that comes
+		# and goes, they are a way *up*.
+		#
+		# That matters for what the gimmick means. A disappearing staircase that
+		# always returns you to where you started is a toll; one that leaves you
+		# on higher ground is a route.
+		"gaps": [[8, 16]], "blocks": [[16, 2, 4, 2]],
+		"enemies": [
+			[FLYER, SKIN_FLYER, &"fly", 22.0, 5.0],
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 25.0, 0.0],
+		],
+		"pit_spikes": [[8, 3, 8]],
+		"checkpoint": 2.0,
+		"mirrors": [
+			{"path": [[8, 0], [10, 1], [12, 2], [14, 2]], "phase": 0},
+		],
+	},
+	{
+		"name": "Duct", "col": 6, "band": BAND_FIELD,
+		# The cooling duct under the array, and the stage's one required slide.
+		# No panels: the kit is what keeps a stage from being a gimmick with
+		# scenery, and a stage whose every hard moment is the same object has
+		# only one idea however many rooms it has.
+		"gaps": [[6, 8]], "blocks": [[21, 2, 4, 2]],
+		"ceilings": [[14, SLIDE_CLEARANCE, 3, 4]],
+		"enemies": [
+			[HOPPER, SKIN_HOPPER, &"hop", 10.0, 0.0],
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 19.0, 0.0],
+			[TURRET, SKIN_TURRET, &"idle", 25.0, 2.0],
+		],
+		"pit_spikes": [[6, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Crust", "col": 7, "band": BAND_FIELD,
+		# No panels and no holes: the ridges of dried salt, climbed.
+		#
+		# It was drafted as Heliostat Row reversed -- a path that **starts** two
+		# rows up and steps down into the pan. That reads well and is a bad
+		# entry: the first panel is a jump up *and* across, onto a block that is
+		# only there half the time, taken from the lip of a ten-cell pit. Get it
+		# wrong and there is nowhere to have been. The bot stood on that lip for
+		# nine hundred frames and never tried it, which is the honest response.
+		#
+		# A crossing may ask the player to commit; it may not ask them to commit
+		# before they are on it. Every path in this stage now begins level with
+		# the deck it leaves, and climbs afterwards if it climbs at all.
+		#
+		# What the room is instead: the only vertical terrain in fourteen flat
+		# ones. A stage with no landscape still needs somewhere to stand above
+		# itself once.
+		"gaps": [], "blocks": [[5, 2, 3, 2], [11, 4, 3, 2], [17, 2, 4, 2]],
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 8.0, 2.0],
+			[TURRET, SKIN_TURRET, &"idle", 13.0, 4.0],
+			[FLYER, SKIN_FLYER, &"fly", 21.0, 5.0],
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 25.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Mirror Walk", "col": 8, "band": BAND_FIELD,
+		# The service walk between two rows, and the stage's second breath.
+		#
+		# It was drafted with a ferry and crumbling planks in it, on the argument
+		# that "the field is not a stage about panels, it is a stage that has
+		# panels in it". `tests/test_mirror_field.gd` refused both, and it is
+		# right: a mover and a panel path are two answers to "this gap is wider
+		# than the jump", and a stage offering both makes neither mean anything;
+		# a crumbling block is what a panel looks like under a different rule,
+		# and one stage may not contain both or the player cannot tell by looking
+		# which rule governs which block. So a breath here is jumps and
+		# platforms, and the crossings stay panels.
+		# Both holes moved eight cells further in, and the reason is worth
+		# recording because two guesses came first. The room shipped its first
+		# gap at cell 6, and the bot walked into it at the same frame on every
+		# seed. The first guess was the hopper on the island; the second was the
+		# crawler on the approach. Removing both changed nothing at all -- the 2
+		# HP lost on the way down was the pit's own spikes, not an enemy -- and
+		# an identical death frame across seeds is what geometry looks like when
+		# you have been blaming choreography.
+		#
+		# Stage 2's Dead Section is the same finding from the same afternoon: a
+		# hole a few cells inside a door is one the player is walking at before
+		# they are looking at it.
+		"gaps": [[10, 12], [16, 18]], "blocks": [],
+		"one_ways": [[21, 3, 5]],
+		# The hopper is out on the long deck, not on the four-cell island between
+		# the two holes. A hopper travels on a fixed arc and does not care where
+		# it is; a player who lands on that island and is bumped has one cell of
+		# room and a pit either side, and the bot found it twice.
+		#
+		# Deliberately **not** generalised into a rule. Enemies sit within a
+		# couple of cells of a landing all over this game -- more than thirty
+		# placements across four stages -- and almost none of them cost anything.
+		# What is wrong here is a *moving* enemy on a short island, which is not
+		# the same claim and is not one a table can check.
+		# **Nothing on the approach to the first hole.** The room shipped a crawler
+		# at cell 4 against a gap at 6: the player comes through the door, meets
+		# it at five, is knocked two cells, and the two cells are the gap. The bot
+		# died there on every seed at the identical frame, which is what a
+		# geometry problem looks like as opposed to an unlucky one -- and moving
+		# the *hopper*, which was the first guess, changed nothing at all.
+		#
+		# The gaps are this room's content, so they get clear ground in front of
+		# them and the enemies live in the second half.
+		"enemies": [
+			[FLYER, SKIN_FLYER, &"fly", 14.0, 5.0],
+			[HOPPER, SKIN_HOPPER, &"hop", 20.0, 0.0],
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 25.0, 0.0],
+		],
+		"pit_spikes": [[10, 3, 2], [16, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Sun Trap", "col": 9, "band": BAND_FIELD,
+		# Two paths at different phases, with solid ground between them -- which
+		# is Focus's shape, taught here with four cells of rest instead of three
+		# and flush panels instead of an arc. Introduce, then examine.
+		#
+		# **It was drafted as two rows stacked over one pit, half a beat apart,
+		# and that was a worse idea than it sounded.** Crossing by going up and
+		# back down as each row takes its turn reads beautifully in a table and is
+		# illegible on screen: two sets of mounts overlapping the same hole, and
+		# the thing this stage most needs to communicate from across the room is
+		# which mounts are full. The backdrop is built around that one signal.
+		# The bot stood at the lip for nine hundred frames rather than pick a row.
+		# **Four panels a path, not three, and the difference is the cycle rather
+		# than the length.** A set's beat count is its panel count, so a
+		# three-panel path turns over faster than a four -- two of three solid
+		# against two of four. Drafted at three, the last hop of the second
+		# crossing came due just as its panel went, and the bot fell off the end
+		# of a route it had crossed correctly.
+		#
+		# Four flush panels with four cells of deck between the crossings, where
+		# Focus has rises and three: this is the introduction and that is the
+		# exam, and they should not be the same room.
+		"gaps": [[5, 13], [17, 25]], "blocks": [],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 15.0, 0.0],
+			[TURRET, SKIN_TURRET, &"idle", 26.0, 2.0],
+		],
+		"pit_spikes": [[5, 3, 8], [17, 3, 8]],
+		"checkpoint": 2.0,
+		"mirrors": [
+			{"path": [[5, 0], [7, 0], [9, 0], [11, 0]], "phase": 0},
+			{"path": [[17, 0], [19, 0], [21, 0], [23, 0]], "phase": HALF_BEAT},
+		],
+	},
+	{
+		"name": "Collector", "col": 10, "band": BAND_FIELD,
+		# The collector head, and the last plain room before the field's longest
+		# crossing. A rack over the middle of it, so the climb is made with
+		# something arriving.
+		"gaps": [[9, 11]], "blocks": [],
+		"one_ways": [[15, 2, 4], [21, 4, 4]],
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 5.0, 0.0],
+			[SPAWNER, SKIN_SPAWNER, &"idle", 13.0, 4.0],
+			[FLYER, SKIN_FLYER, &"fly", 19.0, 6.0],
+		],
+		"pit_spikes": [[9, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Pan", "col": 11, "band": BAND_FIELD,
+		# The evaporation pan proper: **six panels over twelve cells**, the longest
+		# crossing in the game against Salt's five. Salt makes the point that you
+		# cannot stop; this says it for long enough that the player has to trust
+		# it rather than remember it.
+		#
+		# **It was drafted at eight and eight was too many, for a reason that is
+		# about the cycle rather than the distance.** A set's beat count is its
+		# panel count, so two of eight are solid at a time where two of five are
+		# in Salt -- the tolerance per hop is unchanged, but there are eight of
+		# them and every one has to be right. The bot crossed seven and fell off
+		# the last, twice, on both seeds. A crossing that punishes the eighth
+		# correct decision is not asking for skill, it is asking again.
+		#
+		# An arc rather than a flat run, for Salt's reason: identical hops read
+		# as one obstacle repeated, and a shape reads as a route.
+		"gaps": [[7, 19]], "blocks": [],
+		"enemies": [
+			[FLYER, SKIN_FLYER, &"fly", 24.0, 4.0],
+		],
+		"pit_spikes": [[7, 3, 12]],
+		"checkpoint": 2.0,
+		"mirrors": [
+			{"path": [[7, 0], [9, 1], [11, 1], [13, 2], [15, 1], [17, 0]],
+				"phase": 0},
+		],
+	},
+	{
+		"name": "Anneal", "col": 12, "band": BAND_FIELD,
+		# The field's last crossing: four flush panels over eight cells, which is
+		# Trough's shape one panel longer.
+		#
+		# **It was drafted as the thinnest thing the rules allow -- three panels
+		# three cells apart -- and that was a worse idea than it sounded.** Three
+		# is the shortest a path may be and three cells the furthest the jump
+		# covers, so every number was at its limit at once, and the bot fell in
+		# the middle of it on both seeds. "The known thing with the slack taken
+		# out" is a nice sentence about a crossing nobody can make.
+		#
+		# The hardest panel room in the stage is Focus, which is the exam and has
+		# a room of deck to read the rhythm on first. The field's job is to have
+		# taught it by then, and a last word does not have to be a last stand.
+		"gaps": [[9, 17]], "blocks": [],
+		"enemies": [
+			[FLYER, SKIN_FLYER, &"fly", 22.0, 4.0],
+			[WALKER, SKIN_WALKER, &"walk", 25.0, 0.0],
+		],
+		"pit_spikes": [[9, 3, 8]],
+		"checkpoint": 2.0,
+		"mirrors": [
+			{"path": [[9, 0], [11, 0], [13, 0], [15, 0]], "phase": 0},
+		],
+	},
+	{
+		"name": "Foot", "col": 13, "band": BAND_FIELD,
 		# The tower's foot, and the stage's breath. No panels: after Trough and
 		# Salt the stage needs a room that is only platforming, or the gimmick
 		# stops being an event and becomes the floor. Ribs makes the same
@@ -222,7 +495,7 @@ const ROOMS := [
 		"shaft_up": [23, 2],
 	},
 	{
-		"name": "Landing", "col": 4, "band": BAND_TOWER,
+		"name": "Landing", "col": 13, "band": BAND_TOWER,
 		# **Deliberately almost nothing, and that is the whole design of it.**
 		#
 		# Two rooms stacked in a column share their x range, so a `shaft_up` at
@@ -257,7 +530,7 @@ const ROOMS := [
 		"checkpoint": 26.0,
 	},
 	{
-		"name": "Focus", "col": 5, "band": BAND_TOWER,
+		"name": "Focus", "col": 14, "band": BAND_TOWER,
 		# The receiver's focal point, and the exam: **two paths, half a beat out
 		# of step**, with three cells of deck between them to re-read the rhythm
 		# on. Nothing here is a new rule -- that is what makes it the last room.
@@ -286,7 +559,26 @@ const ROOMS := [
 		],
 	},
 	{
-		"name": "Gate", "col": 6, "band": BAND_TOWER,
+		"name": "Aperture", "col": 15, "band": BAND_TOWER,
+		# Inside the receiver tower, above the field. No panels: the tower is
+		# where the stage stops asking about timing and starts asking about the
+		# boss, and Gate is one room away.
+		"gaps": [[8, 10], [18, 20]], "blocks": [[22, 2, 4, 2]],
+		# The turret is past both holes. At cell 13 it stood three cells beyond
+		# the first landing at head height, firing horizontally at a player still
+		# recovering from the jump -- the same placement that cost stage 2's Dead
+		# Section a life. A turret is a thing to shoot past, not a thing to be
+		# shot by while landing.
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 5.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 15.0, 4.0],
+			[TURRET, SKIN_TURRET, &"idle", 24.0, 2.0],
+		],
+		"pit_spikes": [[8, 3, 2], [18, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Gate", "col": 16, "band": BAND_TOWER,
 		# Deliberately empty. The run-up to a boss is a breath, and
 		# `tests/test_stage_authoring.gd` holds every stage to it: a gap or an
 		# enemy in the room before the door turns the walk to a fight into a
@@ -296,7 +588,7 @@ const ROOMS := [
 		"checkpoint": 2.0,
 	},
 	{
-		"name": "Arena", "col": 7, "band": BAND_TOWER,
+		"name": "Arena", "col": 17, "band": BAND_TOWER,
 		# Flat, empty and no checkpoint. **No panels either**, and for the reason
 		# Breakers keeps the press out of Rust's arena: Prism's Sweep already
 		# takes the floor away for a while, and a fight that also asked the
