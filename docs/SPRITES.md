@@ -159,12 +159,33 @@ now carries **`suit`** alongside `palette` — the weapon keeps its own colours,
 character wears something you can name — and the twelve are spaced **evenly**, 30° apart,
 which is the most twelve can be given one lever.
 
-**`suit` is a hue to rotate toward, not the colour you will see.** The saturation weighting
-that protects the outline also means mid-tones travel a fraction of the shift, so the warm
-half compresses: a suit declared at orange lands nearer lime. `grey_floor` is the dial if
-that is ever judged wrong — raising it lands colours closer to what is declared and starts
-dragging the outline with them. `tools/suit_sheet.gd` renders all twelve onto one image so
-the question can be looked at instead of argued about.
+**`suit` is a rotation, not the colour you will see** — and the first draft of this
+paragraph said it compressed "the warm half", which is wrong. It was measured instead of
+guessed, by sweeping the shift across the whole wheel and taking the saturation-weighted
+mean hue of the actual sprite:
+
+| declared shift | rendered mean hue |
+| --- | --- |
+| −0.500 | 0.258 |
+| −0.250 | 0.453 |
+| 0.000 | 0.643 |
+| +0.250 | 0.833 |
+| +0.500 | 0.030 |
+
+**The map is linear.** 0.032 of rendered hue per 0.042 declared — about 77% — the same
+everywhere. The wheel shrinks uniformly; nothing bunches at either end. So a suit named
+"orange oxide" renders nearer lime, *and* twelve evenly spaced declarations stay evenly
+spaced on screen at about 23° apart instead of 30°. There is nothing to gain by
+pre-compensating the declared values: a linear map cannot be un-compressed by moving points
+along it, only by changing the map.
+
+Changing the map means `grey_floor`. At 1.0 every pixel takes the full rotation, the twelve
+land a true 30° apart, and the white highlights take the tint with them — the character
+stops reading as the same character in different armour, which is exactly the failure this
+shader was written to avoid. 0.12 buys 23° and a stable outline.
+
+`tools/suit_sheet.gd` renders all twelve onto one image, and with a comma-separated list of
+floors renders one row per value so the trade can be looked at instead of argued about.
 
 **What was given up:** this is a tint, not the original's crisp two-colour swap.
 `tests/test_combat.gd` now holds every weapon in the catalogue clear of the buster *and*
