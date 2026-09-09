@@ -189,6 +189,80 @@ func test_every_pattern_leaves_an_opening() -> void:
 			"%s never recovers" % pattern.id)
 
 
+# --- Aggression -------------------------------------------------------------------
+
+## **Aggression shortens recovery and nothing else.** This is the rule the whole
+## knob rests on: the tell is the fairness contract (`BossPattern` exists to
+## make it part of the shape of an attack) and the act is what the attack *is*,
+## so a reprise at 2.0 has to be the same fight with half the openings rather
+## than a different fight wearing the first one's sprite.
+func test_aggression_shortens_recovery_and_leaves_the_tell_alone() -> void:
+	var calm := TideScript.new() as Boss
+	var keen := TideScript.new() as Boss
+	keen.aggression = 2.0
+	root.add_child(calm)
+	root.add_child(keen)
+	await _frames(1)
+
+	var slow := calm.patterns()
+	var fast := keen.patterns()
+	assert_eq(slow.size(), fast.size())
+	for i in slow.size():
+		assert_eq(fast[i].tell_frames, slow[i].tell_frames,
+			"%s: aggression moved the tell" % slow[i].id)
+		assert_eq(fast[i].act_frames, slow[i].act_frames,
+			"%s: aggression moved the act" % slow[i].id)
+		assert_true(fast[i].recover_frames < slow[i].recover_frames,
+			"%s: aggression did not shorten the recovery" % slow[i].id)
+
+
+## An untouched boss is bit-identical to one that declares 1.0, so the eight can
+## go on writing their numbers once at the speed they were designed at.
+func test_the_default_aggression_changes_nothing() -> void:
+	var plain := TideScript.new() as Boss
+	var declared := TideScript.new() as Boss
+	declared.aggression = 1.0
+	root.add_child(plain)
+	root.add_child(declared)
+	await _frames(1)
+	for i in plain.patterns().size():
+		assert_eq(declared.patterns()[i].recover_frames,
+			plain.patterns()[i].recover_frames)
+
+
+## **No aggression can close the opening entirely.** A recovery of zero is a
+## boss with no counterplay, and there would then be no way to hurt it at all.
+func test_no_aggression_leaves_a_boss_with_no_opening() -> void:
+	for factor in [2.0, 8.0, 100.0]:
+		var frantic := TideScript.new() as Boss
+		frantic.aggression = factor
+		root.add_child(frantic)
+		await _frames(1)
+		for pattern in frantic.patterns():
+			assert_true(pattern.recover_frames >= Boss.MIN_RECOVER_FRAMES,
+				"aggression %.1f left %s with %d frames of recovery"
+					% [factor, pattern.id, pattern.recover_frames])
+		frantic.queue_free()
+		await tree.physics_frame
+
+
+## A nonsensical aggression is ignored rather than obeyed: zero or negative
+## would divide the recovery into something meaningless, and the safe reading of
+## "I do not know how fast this should be" is the speed it was written at.
+func test_a_nonsense_aggression_is_ignored() -> void:
+	for factor in [0.0, -1.0]:
+		var odd := TideScript.new() as Boss
+		odd.aggression = factor
+		root.add_child(odd)
+		await _frames(1)
+		for i in odd.patterns().size():
+			assert_eq(odd.patterns()[i].recover_frames,
+				boss.patterns()[i].recover_frames,
+				"aggression %.1f was obeyed" % factor)
+		odd.queue_free()
+		await tree.physics_frame
+
+
 func test_a_fighting_boss_picks_a_pattern_and_runs_it_in_order() -> void:
 	boss.begin_intro(Vector2(600.0, FLOOR_TOP), null)
 	await _frames(INTRO_FRAMES)

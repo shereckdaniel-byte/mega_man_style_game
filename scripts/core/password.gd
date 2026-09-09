@@ -18,8 +18,13 @@
 ##   bits 0-7    bosses defeated, one per boss index
 ##   bits 8-10   items unlocked (coil, jet, marine)
 ##   bits 11-14  E-tanks, 0-9
-##   bits 15-18  checksum
-##   bits 19-24  reserved, and **must be zero**
+##   bits 15-18  fortress stages cleared, one per fortress index
+##   bits 19-23  checksum
+##   bit  24     reserved, and **must be zero**
+##
+## The fortress field spent M6 as four of the five reserved cells. Reserved bits
+## exist to be spent on exactly this -- a field the layout did not have yet --
+## and the one left over is what keeps the second net below working at all.
 ##
 ## **Lives are not encoded**, and that is deliberate rather than an oversight.
 ## MM3's password does not carry them either: a password that restored a life
@@ -32,7 +37,7 @@
 ## It catches the two mistakes people actually make copying a grid off paper:
 ## **any single wrong dot**, and **any two dots swapped**. Those are weight-one
 ## and weight-two error patterns, and a degree-5 primitive generator gives a
-## code of minimum distance 3 over any word shorter than 31 bits -- ours is 20 --
+## code of minimum distance 3 over any word shorter than 31 bits -- ours is 24 --
 ## so both are caught for every payload, provably rather than probably.
 ##
 ## **The first version was a weighted sum and it did not do this.** Each set
@@ -46,13 +51,17 @@
 ##
 ## A CRC has the property the sum was reaching for: the check bits are part of
 ## the codeword rather than a separate opinion about it, so an error anywhere in
-## the twenty bits is an error in the same word. The five reserved cells are the
-## second net -- they must come back blank, so most random grids are refused
-## before the CRC runs at all.
+## the codeword is an error in the same word. The reserved cell is the second
+## net -- it must come back blank, so a share of random grids are refused before
+## the CRC runs at all. That net was five cells wide before the fortress took
+## four of them, and it is worth being honest that it is now a great deal
+## thinner: it rejects half of all random grids rather than thirty-one
+## thirty-seconds of them. The CRC is what the guarantee rests on and always
+## was; the reserved cell is a cheap first pass, not the argument.
 class_name Password
 
-## Grid shape. Five by five is ARCHITECTURE's number and there is room to spare:
-## nineteen bits are used and twenty-five are available.
+## Grid shape. Five by five is ARCHITECTURE's number: twenty-four of the
+## twenty-five cells are now spoken for.
 const COLUMNS := 5
 const ROWS := 5
 const CELLS := COLUMNS * ROWS
@@ -66,7 +75,9 @@ const ITEM_OFFSET := 8
 const ITEM_BITS := 3
 const ETANK_OFFSET := 11
 const ETANK_BITS := 4
-const PAYLOAD_BITS := BOSS_BITS + ITEM_BITS + ETANK_BITS
+const FORTRESS_OFFSET := 15
+const FORTRESS_BITS := 4
+const PAYLOAD_BITS := BOSS_BITS + ITEM_BITS + ETANK_BITS + FORTRESS_BITS
 const CHECK_OFFSET := PAYLOAD_BITS
 const CHECK_BITS := 5
 const RESERVED_OFFSET := CHECK_OFFSET + CHECK_BITS
@@ -96,6 +107,7 @@ static func encode(state: Dictionary) -> Array[bool]:
 	payload |= (int(state.get("bosses_defeated", 0)) & _mask(BOSS_BITS)) << BOSS_OFFSET
 	payload |= (int(state.get("items_unlocked", 0)) & _mask(ITEM_BITS)) << ITEM_OFFSET
 	payload |= (clampi(int(state.get("etanks", 0)), 0, _mask(ETANK_BITS))) << ETANK_OFFSET
+	payload |= (int(state.get("fortress_progress", 0)) & _mask(FORTRESS_BITS)) << FORTRESS_OFFSET
 
 	var cells: Array[bool] = []
 	cells.resize(CELLS)
@@ -105,8 +117,8 @@ static func encode(state: Dictionary) -> Array[bool]:
 	var check := checksum(payload)
 	for i in CHECK_BITS:
 		cells[CHECK_OFFSET + i] = (check >> i) & 1 == 1
-	# The reserved cells stay blank. Nothing writes them, and `decode` refuses a
-	# grid where they are not.
+	# The reserved cell stays blank. Nothing writes it, and `decode` refuses a
+	# grid where it is not.
 	return cells
 
 
@@ -133,15 +145,26 @@ static func decode(cells: Array) -> Dictionary:
 	if given != checksum(payload):
 		return {}
 
+	var bosses := (payload >> BOSS_OFFSET) & _mask(BOSS_BITS)
 	var etanks := (payload >> ETANK_OFFSET) & _mask(ETANK_BITS)
 	if etanks > GameState.MAX_ETANKS:
 		# Reachable: four bits hold up to 15 and only 0-9 are legal, so a grid
 		# can pass the checksum and still say something impossible.
 		return {}
+	var fortress := (payload >> FORTRESS_OFFSET) & _mask(FORTRESS_BITS)
+	if fortress != 0 and bosses != _mask(GameState.BOSS_COUNT):
+		# Also reachable, and a worse state than the E-tank one: fortress
+		# progress with a master still standing is a run the stage select cannot
+		# draw and the fortress cannot place the player in. The fortress is
+		# *derived* from the eight being down (`GameState.fortress_open`), so a
+		# grid that claims one without the other is claiming something the rest
+		# of the game has no representation for.
+		return {}
 	return {
-		"bosses_defeated": (payload >> BOSS_OFFSET) & _mask(BOSS_BITS),
+		"bosses_defeated": bosses,
 		"items_unlocked": (payload >> ITEM_OFFSET) & _mask(ITEM_BITS),
 		"etanks": etanks,
+		"fortress_progress": fortress,
 		# Not carried by a password -- see the class docstring. Handed back as
 		# the starting count so a caller can pass this straight to
 		# `GameState.from_dict` without special-casing it.

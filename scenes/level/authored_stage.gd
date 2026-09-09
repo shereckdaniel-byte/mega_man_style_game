@@ -955,6 +955,14 @@ func _restart_run() -> void:
 ## screen comes first because it is the *reward* and it should land while the
 ## explosion is still fresh; the pose and the exit are the punctuation after it.
 func _on_boss_cleared(_index: int, weapon_id: StringName) -> void:
+	if weapon_id == &"":
+		# A boss that awards nothing skips the screen rather than showing an
+		# empty one. Nothing in the eight takes this path -- it is the fortress,
+		# whose bosses drop no weapons -- but the check belongs here, because
+		# `weapon_id` has been optional on `Boss` since M5 and a stage that
+		# announced "YOU GOT" over a blank would be this file's fault.
+		_begin_stage_exit()
+		return
 	var weapons := get_node_or_null(^"/root/WeaponManager")
 	var data: WeaponData = weapons.data_for(weapon_id) if weapons != null else null
 	var weapon_name := data.display_name if data != null else String(weapon_id).capitalize()

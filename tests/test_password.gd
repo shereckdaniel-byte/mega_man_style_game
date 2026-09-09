@@ -14,6 +14,11 @@ const PasswordScript := preload("res://scripts/core/password.gd")
 ## **Every reachable state**, not a sample: eight boss bits, eight item states
 ## and ten E-tank counts is 20,480 combinations and they all round-trip or none
 ## of them is trustworthy.
+##
+## Fortress progress is swept separately below rather than multiplied in here.
+## It is only legal alongside all eight bosses (see `decode`), so folding it into
+## this loop would mean 255 of every 256 rows asserting a refusal in a test whose
+## job is round trips.
 func test_every_reachable_state_round_trips() -> void:
 	var checked := 0
 	for bosses in 256:
@@ -52,6 +57,60 @@ func test_a_password_does_not_carry_lives() -> void:
 	assert_eq(Password.to_text(Password.encode(rich)),
 		Password.to_text(Password.encode(poor)),
 		"the grid changed when only the life count did")
+
+
+## The four fortress cells round-trip for every value they can hold.
+##
+## Sixteen states, all of them alongside the full set of eight bosses, because
+## that is the only company the fortress ever keeps.
+func test_every_fortress_state_round_trips() -> void:
+	for fortress in 16:
+		var state := {
+			"bosses_defeated": 0xFF,
+			"items_unlocked": 7,
+			"etanks": 4,
+			"fortress_progress": fortress,
+		}
+		var back := Password.decode(Password.encode(state))
+		assert_false(back.is_empty(), "fortress %d did not decode" % fortress)
+		if back.is_empty():
+			return
+		assert_eq(int(back["fortress_progress"]), fortress)
+
+
+## **Fortress progress without the eight masters is refused.** It is a state the
+## rest of the game has no representation for -- `GameState.fortress_open()`
+## derives the fortress from the eight rather than storing it -- so a grid that
+## claims one without the other has to be rejected here or it will be a run the
+## stage select cannot draw.
+func test_fortress_progress_without_the_eight_is_refused() -> void:
+	for bosses in [0, 0x7F, 0xFE, 0b10110101]:
+		var cells := Password.encode({
+			"bosses_defeated": bosses,
+			"items_unlocked": 0,
+			"etanks": 0,
+			"fortress_progress": 1,
+		})
+		assert_true(Password.decode(cells).is_empty(),
+			"fortress progress was accepted with bosses %d" % bosses)
+	# And the same grid with the eighth master added is fine, so what is being
+	# refused is the combination and not the fortress field itself.
+	var legal := Password.encode({
+		"bosses_defeated": 0xFF,
+		"items_unlocked": 0,
+		"etanks": 0,
+		"fortress_progress": 1,
+	})
+	assert_false(Password.decode(legal).is_empty(),
+		"a legal fortress password was refused")
+
+
+## A state with no fortress key at all reads as no fortress progress, so the
+## codec keeps working for anything that predates the field.
+func test_a_state_without_a_fortress_key_decodes_as_none() -> void:
+	var back := Password.decode(Password.encode(
+		{"bosses_defeated": 0xFF, "items_unlocked": 0, "etanks": 0}))
+	assert_eq(int(back["fortress_progress"]), 0)
 
 
 ## A fresh run's password is a real password, not an empty grid that anything
@@ -129,7 +188,12 @@ func test_an_impossible_etank_count_is_refused() -> void:
 
 ## Most random grids are refused, which is the property that matters when
 ## somebody types in a shape they liked the look of. Not a proof -- the codec
-## has 19 meaningful bits and cannot be a hash -- but a floor.
+## has 24 meaningful bits and cannot be a hash -- but a floor.
+##
+## The floor is the same number it was before the fortress took four of the five
+## reserved cells, which is the point: that net went from rejecting 31 grids in
+## 32 to rejecting 1 in 2, and the bound below did not have to move, because it
+## was never the net doing the work.
 func test_random_grids_are_almost_always_refused() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 12345

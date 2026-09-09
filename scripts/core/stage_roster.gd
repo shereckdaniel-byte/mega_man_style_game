@@ -96,6 +96,65 @@ const GRID := [
 const CENTRE := Vector2i(1, 1)
 
 
+## The fortress: four stages played in order behind the centre cell.
+##
+## **A separate table from `ENTRIES`, on purpose.** The eight are chosen from
+## and the four are walked through, and almost nothing that is true of a row
+## above is true of a row here: a fortress stage has no portrait, no weapon, no
+## grid cell and no bit in `bosses_defeated`. Folding them into one table would
+## mean every reader of it -- the select screen, the password, the damage
+## tables, five tests -- learning which half of the rows their rule applies to.
+##
+## The names are the sea's revenge on the coast, which is what the fortress is:
+## the wall that drowned the world in stage 1's concept art, and the four rooms
+## of it that still run.
+const FORTRESS := [
+	{
+		"index": 0, "name": "Outfall",
+		"blurb": "the drain the sea comes back through",
+		"scene": "res://scenes/stages/outfall/outfall.tscn",
+	},
+	{
+		"index": 1, "name": "Caisson",
+		"blurb": "the pressure chamber, and whoever is waiting in it",
+		"scene": "res://scenes/stages/caisson/caisson.tscn",
+	},
+	{
+		"index": 2, "name": "Switchgear",
+		"blurb": "eight pads, and everything you already beat",
+		"scene": "res://scenes/stages/switchgear/switchgear.tscn",
+	},
+	{
+		"index": 3, "name": "Keep",
+		"blurb": "the core",
+		"scene": "res://scenes/stages/keep/keep.tscn",
+	},
+]
+
+
+static func fortress_entry(index: int) -> Dictionary:
+	return FORTRESS[index] if index >= 0 and index < FORTRESS.size() else {}
+
+
+static func fortress_is_built(index: int) -> bool:
+	var row := fortress_entry(index)
+	if row.is_empty():
+		return false
+	var path: String = row["scene"]
+	return not path.is_empty() and ResourceLoader.exists(path)
+
+
+## The fortress stages that can actually be entered today. Same shape and same
+## purpose as `built()`: the fortress lands one stage at a time, and a select
+## screen that offered a scene that is not on disk would hard-fail on confirm.
+static func fortress_built() -> Array[int]:
+	var out: Array[int] = []
+	for row in FORTRESS:
+		if fortress_is_built(int(row["index"])):
+			out.append(int(row["index"]))
+	return out
+
+
 ## The weapon id a utility item is selected as.
 ##
 ## Utility items ride the weapon system -- they are picked from the same menu,

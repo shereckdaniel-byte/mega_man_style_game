@@ -62,10 +62,42 @@ const DEATH_FRAMES := 90
 const DEATH_BURST_INTERVAL := 9
 
 ## Which of the eight this is, for GameState's bitmask.
+##
+## **-1 means this fight records nothing**, which is what a fortress boss and a
+## reprise want: they are beaten once per visit and they are not one of the
+## eight, so setting a bit for them would either claim a master the player never
+## fought or need a second bitmask to keep them out of the first.
 @export var boss_index: int = 0
 ## Weapon awarded on defeat. Empty means this boss awards nothing.
 @export var weapon_id: StringName = &""
 @export var display_name: String = "Boss"
+
+## How much faster this boss is than the version the numbers were written for.
+##
+## **It shortens recovery and nothing else.** That is the whole design of the
+## knob and it is worth stating why, because the obvious implementation --
+## scale every phase -- is wrong in a way that only shows up in play.
+##
+## `BossPattern` exists to make the telegraph part of the *shape* of an attack:
+## tell, then act, then recover, in that order, always. Scaling the tell down
+## would take the fight past the point where it can be dodged on sight and into
+## the point where it has to be memorised, which is the exact failure that class
+## was written to make unrepresentable. Scaling the act down changes what the
+## attack *is* -- a faster sweep covers different ground.
+##
+## Recovery is the one phase that is purely the player's turn. Shortening it
+## takes away shooting time and leaves every read the player has learned intact,
+## so a reprise at 2.0 is the same fight with half the openings: harder in the
+## way a second encounter should be, rather than a different fight wearing the
+## first one's sprite.
+##
+## `MIN_RECOVER_FRAMES` is the floor, because a recovery of zero is a boss with
+## no counterplay at all and there would then be no way to hurt it.
+@export var aggression: float = 1.0
+
+## The shortest recovery any aggression may leave. Two tenths of a second: long
+## enough to land a tapped pellet, which is the smallest useful turn.
+const MIN_RECOVER_FRAMES := 12
 
 var phase: Phase = Phase.DORMANT
 ## The player, handed over by the arena. Bosses aim at this rather than
@@ -97,6 +129,7 @@ func _ready() -> void:
 	_set_hazardous(false)
 	visible = false
 	_patterns = build_patterns()
+	_apply_aggression()
 	_rng.randomize()
 
 
@@ -125,6 +158,20 @@ func setup() -> void:
 ## Subclass hook. Return the patterns this boss can choose between.
 func build_patterns() -> Array[BossPattern]:
 	return []
+
+
+## Applies `aggression` to the patterns the subclass just built.
+##
+## After `build_patterns()` rather than inside it, so the eight write their
+## numbers once, at the speed they were designed at, and a reprise is a property
+## on the node rather than a parameter threaded through every subclass.
+func _apply_aggression() -> void:
+	if is_equal_approx(aggression, 1.0) or aggression <= 0.0:
+		return
+	for pattern in _patterns:
+		pattern.recover_frames = maxi(
+			int(round(float(pattern.recover_frames) / aggression)),
+			MIN_RECOVER_FRAMES)
 
 
 ## Subclass hook: one frame of windup. `frame` counts from 0.
