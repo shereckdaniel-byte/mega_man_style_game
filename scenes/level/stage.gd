@@ -107,6 +107,39 @@ func _on_player_respawned() -> void:
 	room_changed.emit(here)
 
 
+## Puts the player in another room at once, with no slide and no doorway.
+##
+## **The third way two rooms can be joined.** A door is a walk and a ladder is a
+## climb, and both are journeys the player takes; a teleport is not one. The
+## fortress's Switchgear is built out of these -- a hub with eight pads, each
+## opening onto an arena that has no other way in or out -- and the whole reason
+## that room works is that the eight are *not* laid out in the order they are
+## fought. A slide between them would be a lie about where they are.
+##
+## Everything the outgoing room spawned goes, exactly as it does through a door:
+## the player is not in that room any more, and enemies left running in a room
+## nobody can see is how a stage ends up with a boss fighting an empty arena.
+##
+## Refused mid-transition rather than queued. A teleport that fired while a door
+## slide was still running would move the player out from under the camera
+## halfway through its lerp, and the camera would finish the slide to a room the
+## player has already left.
+func teleport_player(to_room: Room, at: Vector2) -> bool:
+	if _transitioning or player == null or not is_instance_valid(player):
+		return false
+	if to_room == null:
+		return false
+	_despawn_all()
+	player.global_position = at
+	player.velocity = Vector2.ZERO
+	room = to_room
+	if camera != null:
+		camera.enter_room(to_room)
+	refresh_markers()
+	room_changed.emit(to_room)
+	return true
+
+
 ## Runs the screen transition: freeze, slide, walk through, unfreeze.
 ##
 ## On rails from start to finish, which is what makes it read as a transition

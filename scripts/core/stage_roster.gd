@@ -19,6 +19,13 @@ class_name StageRoster
 ## Boss index -> the stage that boss owns. Index is the bit position in
 ## `GameState.bosses_defeated`, so these must not be reordered.
 ##
+## `script` is the boss itself, by path rather than `preload`, for the same
+## reason `frames` and `scene` are: the roster is loaded by the stage select,
+## which wants eight names and eight portraits and has no use for eight bosses'
+## worth of code. It went in when the fortress's Switchgear needed to build all
+## eight in one room -- a second table mapping index to boss would have been a
+## second table to disagree with this one.
+##
 ## `item` is the utility item that boss also hands over, or absent for the five
 ## that hand over nothing. It lives here rather than in a second table for the
 ## reason this file exists at all: a roster kept in two places is a roster that
@@ -31,12 +38,14 @@ const ENTRIES := [
 	{
 		"index": 0, "boss": "Tide", "stage": "Dawn Boardwalk",
 		"weapon": "Tide Crawler",
+		"script": "res://scenes/actors/bosses/tide.gd",
 		"frames": "res://resources/sprite_frames/wave_man.tres",
 		"scene": "res://scenes/stages/dawn_boardwalk/dawn_boardwalk.tscn",
 	},
 	{
 		"index": 1, "boss": "Arc", "stage": "Substation",
 		"weapon": "Arc Lance",
+		"script": "res://scenes/actors/bosses/arc.gd",
 		"frames": "res://resources/sprite_frames/arc.tres",
 		"scene": "res://scenes/stages/substation/substation.tscn",
 	},
@@ -44,12 +53,14 @@ const ENTRIES := [
 		"index": 2, "boss": "Rust", "stage": "Breakers",
 		"weapon": "Rust Bloom",
 		"item": GameState.Item.COIL,
+		"script": "res://scenes/actors/bosses/rust.gd",
 		"frames": "res://resources/sprite_frames/rust.tres",
 		"scene": "res://scenes/stages/breakers/breakers.tscn",
 	},
 	{
 		"index": 3, "boss": "Prism", "stage": "Mirror Field",
 		"weapon": "Prism Ray",
+		"script": "res://scenes/actors/bosses/prism.gd",
 		"frames": "res://resources/sprite_frames/prism.tres",
 		"scene": "res://scenes/stages/mirror_field/mirror_field.tscn",
 	},
@@ -57,18 +68,21 @@ const ENTRIES := [
 		"index": 4, "boss": "Gale", "stage": "Turbine Row",
 		"weapon": "Gale Cutter",
 		"item": GameState.Item.JET,
+		"script": "res://scenes/actors/bosses/gale.gd",
 		"frames": "res://resources/sprite_frames/gale.tres",
 		"scene": "res://scenes/stages/turbine_row/turbine_row.tscn",
 	},
 	{
 		"index": 5, "boss": "Cinder", "stage": "Stack",
 		"weapon": "Cinder Spray",
+		"script": "res://scenes/actors/bosses/cinder.gd",
 		"frames": "res://resources/sprite_frames/cinder.tres",
 		"scene": "res://scenes/stages/stack/stack.tscn",
 	},
 	{
 		"index": 6, "boss": "Frost", "stage": "Cold Store",
 		"weapon": "Frost Lock",
+		"script": "res://scenes/actors/bosses/frost.gd",
 		"frames": "res://resources/sprite_frames/frost.tres",
 		"scene": "res://scenes/stages/cold_store/cold_store.tscn",
 	},
@@ -76,6 +90,7 @@ const ENTRIES := [
 		"index": 7, "boss": "Quarry", "stage": "Sinkhole",
 		"weapon": "Quarry Bore",
 		"item": GameState.Item.MARINE,
+		"script": "res://scenes/actors/bosses/quarry.gd",
 		"frames": "res://resources/sprite_frames/quarry.tres",
 		"scene": "res://scenes/stages/sinkhole/sinkhole.tscn",
 	},
@@ -181,6 +196,20 @@ static func items() -> Array[int]:
 		if row.has("item"):
 			out.append(int(row["item"]))
 	return out
+
+
+## The boss at `index`, as a script. Null for an index off the end or a row
+## whose script is missing from disk, which is a state worth surviving: a
+## fortress room that could not build one of the eight should be short a fight,
+## not a crash.
+static func boss_script(index: int) -> GDScript:
+	var row := entry(index)
+	if row.is_empty():
+		return null
+	var path: String = row.get("script", "")
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	return load(path) as GDScript
 
 
 static func entry(index: int) -> Dictionary:

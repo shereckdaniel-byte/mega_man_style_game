@@ -34,6 +34,7 @@ const STAGES := {
 	# the fairness rules get to relax.
 	"outfall": preload("res://scenes/stages/outfall/outfall.gd"),
 	"caisson": preload("res://scenes/stages/caisson/caisson.gd"),
+	"switchgear": preload("res://scenes/stages/switchgear/switchgear.gd"),
 }
 
 ## A spiked slide tunnel is at most this wide, in cells.
@@ -318,6 +319,11 @@ func test_every_change_of_band_has_a_ladder() -> void:
 		for i in range(script.ROOMS.size() - 1):
 			var here: Dictionary = script.ROOMS[i]
 			var next: Dictionary = script.ROOMS[i + 1]
+			if String(here.get("exit", "door")) == "teleport":
+				# Nobody walks this link, so there is nothing to walk it with.
+				# Switchgear's eight arenas have no connection to each other or
+				# to anything else -- see `AuthoredStage.is_teleport_link`.
+				continue
 			var d_band := int(next["band"]) - int(here["band"])
 			var d_col := int(next["col"]) - int(here["col"])
 			if d_band == 0:

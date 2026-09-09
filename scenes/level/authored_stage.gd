@@ -546,7 +546,29 @@ func _build_rooms(tile: float) -> void:
 
 	# Doors last, so every room exists to be named.
 	for index in _rooms.size() - 1:
+		if is_teleport_link(index):
+			continue
 		_add_door(index, tile)
+
+
+## Whether the link out of room `index` is a teleport rather than a walk.
+##
+## **Three ways two rooms can be joined, and the table has to be able to say
+## which.** A door is a walk, a `shaft` is a climb, and a teleport is neither --
+## the fortress's Switchgear is a hub with eight pads, and its eight arenas have
+## no walkable connection to anything, including each other.
+##
+## Declared on the room the link leaves, as `"exit": "teleport"`, and the
+## default is a door because that is what every room in the first eight stages
+## is. Two things read it: this file, which then hangs no door; and
+## `tests/test_stage_authoring.gd`, whose rule that a change of band needs a
+## ladder is a rule about *walking* between rooms and does not apply to a link
+## nobody walks.
+func is_teleport_link(index: int) -> bool:
+	var table := room_table()
+	if index < 0 or index >= table.size():
+		return false
+	return String(table[index].get("exit", "door")) == "teleport"
 
 
 ## The door out of room `index`, pointing at the next one.

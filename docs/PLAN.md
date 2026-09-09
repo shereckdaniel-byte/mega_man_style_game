@@ -1551,7 +1551,7 @@ non-boss situations; password round-trips full progress state.
   different fight wearing the first one's sprite rather than the same fight with
   fewer openings.
 - 4 fortress stages, boss-rush teleporter room, two-phase final boss. **Outfall
-  (F1) and Caisson (F2) are built**; Switchgear and Keep are declared in
+  (F1), Caisson (F2) and Switchgear (F3) are built**; Keep is declared in
   `StageRoster` and not yet on disk, which the stage select reports by name.
 - Rival duel encounter and whistle-cue setpiece. **Built**, as Caisson's boss.
   The plan asked for a *mid-stage* duel and this is at the end of one: what makes
@@ -1570,6 +1570,18 @@ disagree with the thing it gates on. Progress *through* the fortress is stored
 `fortress_stage()` returns the lowest uncleared rather than the highest cleared
 plus one — the two rules agree while progress is contiguous, and only the first
 can never skip a stage.
+
+**Decided at M7d: the boss rush is a resource problem.** The refights are the
+fights as shipped -- no `aggression` -- because eight fights on one health bar in
+an order you choose, against weapons you have a finite amount of, is a question
+none of the eight stages asks, and it stops being that question the moment the
+fights themselves become the difficulty.
+
+A teleport is the **third way two rooms can be joined**, after the door and the
+ladder, and the room table says so with `"exit": "teleport"`. Switchgear's eight
+arenas sit one per band precisely so that they are unreachable on foot: side by
+side they would share a deck, and walking off one into the next with `Stage.room`
+still naming the first is the M6i shaft bug's exact shape.
 
 **Decided at M7c: unbeatable and non-lethal are the same design.** Ward's health
 floors above the biggest single hit in the game, so he stops and leaves rather

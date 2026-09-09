@@ -28,13 +28,13 @@ and simply will not stop you, and water is the only one that helps.**
 ## The fortress
 
 The centre cell of the stage select opens when the eighth Robot Master falls, and holds
-four stages played **in order** rather than chosen from. The first two are built:
+four stages played **in order** rather than chosen from. Three of the four are built:
 
 | # | Stage | Boss | What it is |
 | --- | --- | --- | --- |
 | F1 | Outfall | Tide, rebuilt | the drain the sea comes back through |
 | F2 | Caisson | **Ward** | the pressure chamber, and whoever is waiting in it |
-| F3 | Switchgear | — | eight pads, and everything you already beat |
+| F3 | Switchgear | **all eight** | eight pads, and everything you already beat |
 | F4 | Keep | — | the core |
 
 **A fortress stage has no gimmick of its own, and that is the design.** Each master stage
@@ -58,6 +58,29 @@ arithmetic rather than taste — the press's 36-frame tell is a walking budget s
 you clear the widest legal column, and walking out against a belt spends most of it
 (1.74 tiles of a possible 3). The stage's test computes both numbers from `CrusherPress`
 and `ConveyorBelt` rather than restating them.
+
+**Switchgear** is the boss rush: a hub with eight lit plates, each dropping you into a
+sealed room with one of the Robot Masters, in whatever order you like. **The difficulty is
+one health bar, not eight harder fights** — the refights are the fights as shipped, with
+no `aggression`, because the boss rush is the only place in the game where the question is
+what you have *left* rather than what you can do, and it stops being that question the
+moment the fights themselves become the difficulty.
+
+A plate fires on a press of **up**, not on contact: a hub is a room about choosing, and a
+pad that fired when you walked over it would answer the question for you. Beaten plates go
+dark, so how many lights are left is how many fights are left, and the ninth plate — the
+way out — stays dark until the eighth boss falls.
+
+The eight arenas are stacked one per band, each unreachable on foot. Side by side they
+would share a continuous deck, and a player who walked off one would be standing in the
+next with the game still naming the first: no enemies, a camera locked to a room they have
+left, and nothing to say so. A band is fifteen rows and nothing crosses one without a
+ladder, so eight bands is eight islands for free.
+
+**Switchgear is the one stage the playthrough bot cannot drive** — it has no boss door, no
+last-room boss, and a route that is not a walk. `tests/test_switchgear.gd` builds it for
+real and takes the route instead, so the bot's silence about this stage is written down
+rather than mistaken for a pass.
 
 At the end of Caisson, **the boss door opens onto someone who is not a boss.** Ward
 whistles first, fights with the player's own three verbs — shoot, jump, slide, nothing you
