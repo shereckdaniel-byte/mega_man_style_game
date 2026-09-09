@@ -218,6 +218,23 @@ var carry_drift_pf := 0.0
 ## mattering with nothing having to remember to switch it off.
 var ground_grip := 1.0
 
+## How much of normal gravity the player is under, 0..1. 1.0 is air; anything
+## less is water.
+##
+## The fourth and last of the world-writes-the-player fields, and the only one
+## that touches the vertical axis. Same contract as the other three -- written
+## every frame by whatever the player is standing in, reset every frame here --
+## so a volume that stops overlapping stops mattering with nothing having to
+## remember to switch it off.
+##
+## **It scales gravity and nothing else.** Jump velocity is untouched, so the
+## player's leap is the same push against a weaker pull: they go higher and come
+## down slower out of one number. Scaling the jump as well was tried on paper
+## and rejected -- it makes the entry and exit of a pool feel like two different
+## characters, and it puts a second number in the way of the arithmetic that
+## says water can only ever make a gap easier.
+var buoyancy := 1.0
+
 ## The ground speed the player actually had last frame, which is what ice blends
 ## *from*. Kept here rather than read back from `velocity` because the states
 ## overwrite `velocity.x` outright every frame -- by the time the blend runs, the
@@ -330,12 +347,25 @@ func _apply_grip() -> void:
 		velocity.x = lerpf(_last_ground_speed, velocity.x, clampf(ground_grip, 0.0, 1.0))
 	_last_ground_speed = velocity.x if is_on_floor() else 0.0
 	ground_grip = 1.0
+	# Buoyancy is reset here rather than in `apply_gravity`, because gravity is
+	# applied by the states and this runs once a frame whatever state is live --
+	# resetting it there would clear the value before a state that does not fall
+	# had a chance to be under water at all.
+	buoyancy = 1.0
 
 ## Applies gravity for one frame and clamps to terminal velocity.
+##
+## Scaled by `buoyancy` while the player is in water, which is the whole of
+## stage 8's gimmick and is deliberately the *only* thing it touches. Weaker
+## gravity means a higher jump and a slower fall out of one motion, which is
+## what water feels like in this genre -- and it means water can never make an
+## authored gap harder to cross, only easier. That is the opposite of stage 5's
+## wind, which reached the arc and made two-cell gaps uncrossable, and it is why
+## water is allowed next to holes without a margin rule.
 func apply_gravity(delta: float) -> void:
 	velocity.y = minf(
-		velocity.y + tuning.px_s2(tuning.gravity_pf) * delta,
-		tuning.px_s(tuning.terminal_velocity_pf))
+		velocity.y + tuning.px_s2(tuning.gravity_pf * buoyancy) * delta,
+		tuning.px_s(tuning.terminal_velocity_pf * buoyancy))
 
 
 ## -1, 0 or +1. Uses raw actions rather than get_axis so that holding both

@@ -101,6 +101,16 @@ const BACKDROPS := {
 		"light_source": "",
 		"paired": "",
 	},
+	# Sinkhole's plates are drawn in code as well. It declares no light source
+	# for the same reason Stack does not: its brightest plate is the sump's
+	# glow, which is lit from **under the water** and is a gradient rather than
+	# a landmark. Nothing on the rim carries a bright pixel, which is what the
+	# duplication rule below actually protects.
+	"sinkhole": {
+		"script": preload("res://scenes/stages/sinkhole/parallax_background.gd"),
+		"light_source": "",
+		"paired": "",
+	},
 }
 
 ## How much brighter than its own plate's median a pixel has to be to count as

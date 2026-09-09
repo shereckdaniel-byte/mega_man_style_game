@@ -96,27 +96,38 @@ func test_the_cursor_wraps_in_both_axes() -> void:
 	assert_eq(select.cursor, Vector2i(0, 0))
 
 
-## An unbuilt stage refuses and says which one, rather than doing nothing.
-func test_an_unbuilt_stage_is_refused_by_name() -> void:
-	var said: Array[String] = []
-	select.refused.connect(func(m: String) -> void: said.append(m))
-	# The first stage the roster still calls unbuilt, rather than a hard-coded
-	# index. This test named Breakers until stage 3 landed and then failed on it
-	# -- a test that has to be edited every time a stage ships is a test that
-	# will be edited into passing.
-	var unbuilt := -1
+## **All eight stages are built, and this test used to be about the ones that
+## were not.**
+##
+## It picked the first stage the roster still called unbuilt and checked that
+## the select screen refused it by name -- deliberately not a hard-coded index,
+## because it named Breakers until stage 3 landed and then failed on it, and a
+## test edited every time a stage ships is a test that gets edited into passing.
+##
+## What it could not survive was the roster filling up. It said so itself when
+## Sinkhole landed ("every stage is built; this test has nothing to check"),
+## which is the right way for a test to become obsolete: loudly, on the run that
+## obsoletes it, rather than by quietly passing over an empty loop.
+##
+## The by-name refusal path is not dead -- the fortress still uses it, and
+## `test_the_fortress_is_refused` covers that -- so what is left worth pinning
+## here is the guard the path hangs off, and the milestone itself.
+func test_every_stage_in_the_roster_is_built() -> void:
+	var unbuilt: Array[String] = []
 	for row in StageRoster.ENTRIES:
 		if not StageRoster.is_built(int(row["index"])):
-			unbuilt = int(row["index"])
-			break
-	assert_true(unbuilt >= 0, "every stage is built; this test has nothing to check")
-	var name := String(StageRoster.entry(unbuilt)["stage"]).to_upper()
+			unbuilt.append(String(row["stage"]))
+	assert_eq(unbuilt.size(), 0, "still unbuilt: %s" % ", ".join(unbuilt))
+	assert_eq(StageRoster.built().size(), 8, "there are eight stages")
 
-	select.cursor = StageRoster.grid_position(unbuilt)
-	assert_false(select.confirm())
-	assert_eq(said.size(), 1)
-	assert_true(said[0].contains(name), "said %s, expected it to name %s"
-		% [said[0], name])
+
+## And the guard still refuses anything it cannot load, which is what the
+## refusal above was built on and what will catch a stage whose scene is
+## renamed or deleted.
+func test_is_built_refuses_what_is_not_on_disk() -> void:
+	assert_false(StageRoster.is_built(99), "an index off the end reads as built")
+	assert_false(StageRoster.is_built(-1), "a negative index reads as built")
+	assert_true(StageRoster.entry(99).is_empty(), "an index off the end has a row")
 
 
 func test_the_fortress_is_refused() -> void:

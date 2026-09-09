@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/weapon_data.gd" id="1_data"]
+[ext_resource type="Script" path="res://scenes/actors/projectiles/bore_shot.gd" id="2_shot"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"quarry_bore"
+display_name = "Quarry Bore"
+projectile_script = ExtResource("2_shot")
+ammo_max = 28
+ammo_cost = 2
+max_on_screen = 2
+fire_cooldown_frames = 18
+damage = 2
+flags = 2
+palette = Array[Color]([Color(0.78, 0.8, 0.86, 1), Color(1, 0.86, 0.52, 1)])
+tuning = {
+"pierce": 3.0,
+"speed_pf": 6.0
+}

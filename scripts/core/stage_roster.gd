@@ -63,7 +63,7 @@ const ENTRIES := [
 		"index": 7, "boss": "Quarry", "stage": "Sinkhole",
 		"weapon": "Quarry Bore",
 		"frames": "res://resources/sprite_frames/quarry.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/sinkhole/sinkhole.tscn",
 	},
 ]
 

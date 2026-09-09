@@ -27,6 +27,7 @@ const STAGES := {
 	"turbine_row": "res://scenes/stages/turbine_row/turbine_row.tscn",
 	"stack": "res://scenes/stages/stack/stack.tscn",
 	"cold_store": "res://scenes/stages/cold_store/cold_store.tscn",
+	"sinkhole": "res://scenes/stages/sinkhole/sinkhole.tscn",
 }
 
 ## Frames to let a stage build its deck, rooms and elements.

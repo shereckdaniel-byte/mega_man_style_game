@@ -70,6 +70,7 @@ const STAGES := {
 	"turbine_row": "res://scenes/stages/turbine_row/turbine_row.tscn",
 	"stack": "res://scenes/stages/stack/stack.tscn",
 	"cold_store": "res://scenes/stages/cold_store/cold_store.tscn",
+	"sinkhole": "res://scenes/stages/sinkhole/sinkhole.tscn",
 }
 const DEFAULT_STAGE := "dawn_boardwalk"
 
