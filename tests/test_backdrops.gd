@@ -66,6 +66,21 @@ const BACKDROPS := {
 		"light_source": "",
 		"paired": "",
 	},
+	# **Turbine Row's plates are drawn in code, not loaded**, because stage 5's
+	# art has not been generated yet -- see its backdrop's docstring. A plate
+	# with no `file` key is measured as carrying no light at all, so the
+	# duplication rule below passes on it vacuously and `light_source` is empty
+	# for that reason rather than because of a crop or a bleached sky.
+	#
+	# That is a real gap and it closes itself: the moment the three PNGs land and
+	# the plates grow `file` keys, every check in this file starts applying to
+	# them, and the disc that the greybox draws on the sky plate is the thing the
+	# generated sky will have to keep to itself.
+	"turbine_row": {
+		"script": preload("res://scenes/stages/turbine_row/parallax_background.gd"),
+		"light_source": "",
+		"paired": "",
+	},
 }
 
 ## How much brighter than its own plate's median a pixel has to be to count as

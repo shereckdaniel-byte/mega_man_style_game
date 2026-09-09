@@ -161,8 +161,9 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _frozen:
 		# Gravity still applies, so a player frozen in mid-air lands rather than
-		# hanging there, but nothing else about them moves.
+		# hanging there, but nothing else about them moves -- the wind included.
 		velocity.x = 0.0
+		wind_drift_pf = 0.0
 		apply_gravity(delta)
 		move_and_slide()
 		_update_sprite()
@@ -172,13 +173,43 @@ func _physics_process(delta: float) -> void:
 	if melee != null and melee.monitoring:
 		melee.tick()
 	state_machine.physics_update(delta)
+	_apply_wind()
 	move_and_slide()
 	_try_switch_weapon()
 	_try_shoot()
 	_update_sprite()
 
 
+## Horizontal drift the world is pushing onto the player, in NES px/frame.
+##
+## **Written every frame by whatever is pushing and cleared every frame here**,
+## which is the whole reason it is a bare float rather than a state the player
+## keeps. A zone that stops overlapping, or is freed, or is left behind by a room
+## change simply stops writing, and the push ends on the next frame with nothing
+## having to remember to switch it off. The alternative -- enter/exit signals
+## toggling a flag -- is the shape that leaves a player becalmed in a room with
+## no wind in it after a mistimed transition.
+var wind_drift_pf := 0.0
+
+
 # --- Shared movement helpers, used by the states ------------------------------
+
+## Adds the world's push to whatever the state decided, **and only in the air.**
+##
+## It has to come after `state_machine.physics_update`, because `apply_walk` sets
+## `velocity.x` outright rather than accelerating it (ground movement here is
+## instant-on, instant-off) -- so a wind applied before the state would be
+## overwritten by it and do nothing at all.
+##
+## Grounded, the push is zero. That is a design rule and not an omission: a wind
+## that moved a walking player would make the most basic verb in the game
+## unreliable, and a stage built on that is a stage about fighting the controls.
+## In the air it changes the arc, which turns every jump into a decision and is
+## the thing Turbine Row is actually made of.
+func _apply_wind() -> void:
+	if wind_drift_pf != 0.0 and not is_on_floor():
+		velocity.x += tuning.px_s(wind_drift_pf)
+	wind_drift_pf = 0.0
 
 ## Applies gravity for one frame and clamps to terminal velocity.
 func apply_gravity(delta: float) -> void:

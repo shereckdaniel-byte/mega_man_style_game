@@ -56,7 +56,7 @@ godot --headless --script res://tools/contact_sheet.gd -- /tmp/out character=arc
 # what catches art that floats, sinks, or shows the wrong part of a move.
 xvfb-run -a godot --script res://tools/screenshot.gd -- /tmp/out
 
-# The full suite is about three and a half minutes, nearly all of it spent waiting on
+# The full suite is about five minutes, nearly all of it spent waiting on
 # real physics frames. While working on one thing, narrow it — arguments after `--` are
 # substrings matched against file and method names, and this takes a second or two:
 godot --headless --script res://tests/run_tests.gd -- backdrop

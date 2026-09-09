@@ -25,6 +25,7 @@ const STAGES := {
 	"substation": preload("res://scenes/stages/substation/substation.gd"),
 	"breakers": preload("res://scenes/stages/breakers/breakers.gd"),
 	"mirror_field": preload("res://scenes/stages/mirror_field/mirror_field.gd"),
+	"turbine_row": preload("res://scenes/stages/turbine_row/turbine_row.gd"),
 }
 
 ## A spiked slide tunnel is at most this wide, in cells.

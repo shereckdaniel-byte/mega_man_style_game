@@ -67,6 +67,7 @@ const STAGES := {
 	"substation": "res://scenes/stages/substation/substation.tscn",
 	"breakers": "res://scenes/stages/breakers/breakers.tscn",
 	"mirror_field": "res://scenes/stages/mirror_field/mirror_field.tscn",
+	"turbine_row": "res://scenes/stages/turbine_row/turbine_row.tscn",
 }
 const DEFAULT_STAGE := "dawn_boardwalk"
 
