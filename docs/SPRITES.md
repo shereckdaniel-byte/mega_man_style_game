@@ -130,15 +130,48 @@ the coloured body tones carry the weapon. `grey_floor` is the dial: 0 freezes gr
 completely, and the player uses 0.12 so the outline warms very slightly rather than
 looking pasted on.
 
-The shift itself is measured from the buster's own palette to the equipped weapon's, both
-read from the `.tres` — so a weapon resource says what colour the weapon *is*, and nothing
-has to separately state what colour it is relative to. The buster is therefore exactly
-0, and the default sprite is the sprite the art was made as.
+The shift is measured from the buster's suit to the equipped weapon's, both read from the
+`.tres`. The buster is therefore exactly 0, and the default sprite is the sprite the art
+was made as.
 
-**What was given up:** this is a tint, not the original's crisp two-colour swap, and two
-weapons authored close together on the colour wheel will look alike. `tests/test_combat.gd`
-asserts every weapon moves the hue by more than 0.05 turns, which catches that at the
-point a new weapon is added rather than in a screenshot later.
+### 3a. The suit is its own field, and five weapons are why
+
+The shift used to be measured from `palette[0]` — the weapon's *own* colours, on the
+argument that a resource should say what the weapon is and nothing should separately say
+what colour it is relative to. That argument is good and it produced a game in which
+**five of eleven alternates were indistinguishable from carrying nothing**:
+
+| Weapon | Hue shift it produced |
+| --- | --- |
+| Frost Lock | −3° |
+| Gale Cutter | −5° |
+| Rush Marine | −6° |
+| Prism Ray | −8° |
+| Quarry Bore | +21°, at 0.09 saturation — a hue that means nothing |
+
+They are all blue, every one of them for a good reason, and so is the buster. The shader
+can only rotate hue, so the suit is one number on a wheel, and deriving it from the shot
+crowded half the roster into one arc of that wheel.
+
+MM3 does not match the suit to the shot either: its palettes are chosen so you can tell at
+a glance which weapon is up, spread for legibility rather than likeness. So `WeaponData`
+now carries **`suit`** alongside `palette` — the weapon keeps its own colours, the
+character wears something you can name — and the twelve are spaced **evenly**, 30° apart,
+which is the most twelve can be given one lever.
+
+**`suit` is a hue to rotate toward, not the colour you will see.** The saturation weighting
+that protects the outline also means mid-tones travel a fraction of the shift, so the warm
+half compresses: a suit declared at orange lands nearer lime. `grey_floor` is the dial if
+that is ever judged wrong — raising it lands colours closer to what is declared and starts
+dragging the outline with them. `tools/suit_sheet.gd` renders all twelve onto one image so
+the question can be looked at instead of argued about.
+
+**What was given up:** this is a tint, not the original's crisp two-colour swap.
+`tests/test_combat.gd` now holds every weapon in the catalogue clear of the buster *and*
+clear of every other weapon. It used to assert the same rule over a hardcoded
+`[tide_crawler, arc_lance]` from when those were the only two weapons, and went on passing
+while ten more shipped behind it — a list of names inside an assertion stops being the
+thing it checks.
 
 ---
 

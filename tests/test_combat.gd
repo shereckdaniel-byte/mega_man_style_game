@@ -346,18 +346,107 @@ func test_an_unknown_weapon_leaves_the_colour_alone() -> void:
 	assert_almost_eq(player.weapon_hue_shift(&"not_a_weapon"), 0.0, 0.0001)
 
 
-## A weapon nobody can see they have equipped is a weapon they will forget they
-## have. Both shipped weapons have to move the sprite somewhere visible.
-func test_each_weapon_shifts_the_hue_somewhere_visible() -> void:
+## The least a weapon may move the sprite, in turns of hue, and the least two
+## weapons may differ from each other.
+##
+## Both are 0.08, which is 29 degrees, and that is not a taste: **twelve weapons
+## on one wheel is 30 degrees apart at best**, so the suits are spaced evenly and
+## the bound is the spacing minus a rounding allowance. There is nothing left to
+## spend -- hue is the only lever the shader has, and a thirteenth weapon would
+## have to take room from the twelve.
+##
+## The *rendered* spread is narrower than the declared one, and deliberately so:
+## the shader weights each pixel's rotation by its saturation, so the character's
+## mid-tones travel less than the fully saturated ones and the warm end
+## compresses. That is what keeps the outline and the highlights still -- see
+## `weapon_palette.gdshader` -- and it is the trade the shader was written to
+## make. It is measured here at the declared hue because that is the number an
+## author controls.
+const MIN_SHIFT_FROM_BUSTER := 0.08
+const MIN_SHIFT_BETWEEN_WEAPONS := 0.08
+
+
+## **A weapon nobody can see they have equipped is a weapon they will forget
+## they have.** Every weapon in the catalogue, not a hardcoded pair.
+##
+## This test read `[tide_crawler, arc_lance]` from when those were the only two
+## weapons in the game, and went on passing while ten more shipped behind it.
+## Five of them -- Prism Ray, Gale Cutter, Frost Lock, Quarry Bore and Rush
+## Marine -- moved the sprite by 8, 5, 3, 21 and 6 degrees respectively, which is
+## to say not at all, and the test that states exactly this rule never looked at
+## any of them. A list of names inside an assertion is a list that stops being
+## the thing it is checking.
+func test_every_weapon_shifts_the_hue_somewhere_visible() -> void:
 	var weapons := tree.root.get_node_or_null(^"WeaponManager")
 	if weapons == null:
 		return
-	for id in [&"tide_crawler", &"arc_lance"]:
-		if weapons.data_for(id) == null:
+	var checked := 0
+	for id: StringName in _catalogue_ids(weapons):
+		if id == weapons.BUSTER:
 			continue
+		checked += 1
 		var shift: float = absf(player.weapon_hue_shift(id))
-		assert_true(shift > 0.05,
-			"%s shifts the hue by only %.3f turns" % [id, shift])
+		assert_true(shift >= MIN_SHIFT_FROM_BUSTER,
+			"%s shifts the hue by %.3f turns (%.0f degrees), and the sprite needs %.2f"
+				% [id, shift, shift * 360.0, MIN_SHIFT_FROM_BUSTER])
+	assert_true(checked >= 8,
+		"only %d weapons were checked; the catalogue is not being read" % checked)
+
+
+## **And no two weapons look like each other**, which is the half that actually
+## makes the room legible: it is no use every weapon differing from the buster if
+## three of them are the same green.
+##
+## Two weapons wearing the *identical* suit is allowed and is not an accident --
+## Rush's Coil and Jet are the same dog, and a difference between them would be a
+## lie about that. What is refused is a near miss.
+func test_no_two_weapons_wear_the_same_suit() -> void:
+	var weapons := tree.root.get_node_or_null(^"WeaponManager")
+	if weapons == null:
+		return
+	var ids: Array[StringName] = _catalogue_ids(weapons)
+	for i in ids.size():
+		for j in range(i + 1, ids.size()):
+			var a: WeaponData = weapons.data_for(ids[i])
+			var b: WeaponData = weapons.data_for(ids[j])
+			if a == null or b == null:
+				continue
+			var apart := absf(wrapf(a.suit_colour().h - b.suit_colour().h, -0.5, 0.5))
+			if apart < 0.0001:
+				continue  # the same suit on purpose
+			assert_true(apart >= MIN_SHIFT_BETWEEN_WEAPONS,
+				"%s and %s are %.3f turns (%.0f degrees) apart"
+					% [ids[i], ids[j], apart, apart * 360.0])
+
+
+## Every weapon says what the player wears with it. A weapon with no suit falls
+## back to its own body colour, which is what put five of them in the buster's
+## blue -- so the fallback is a safety net rather than somewhere to leave one.
+func test_every_weapon_declares_a_suit() -> void:
+	var weapons := tree.root.get_node_or_null(^"WeaponManager")
+	if weapons == null:
+		return
+	for id: StringName in _catalogue_ids(weapons):
+		var data: WeaponData = weapons.data_for(id)
+		if data == null:
+			continue
+		assert_true(data.suit.a > 0.0, "%s has no suit colour of its own" % id)
+
+
+## Every weapon the catalogue knows about, unlocked or not. Read from disk rather
+## than listed, for the reason the test above exists.
+func _catalogue_ids(weapons: Node) -> Array[StringName]:
+	var out: Array[StringName] = []
+	var dir := DirAccess.open("res://resources/weapons")
+	if dir == null:
+		return out
+	for file in dir.get_files():
+		if not file.ends_with(".tres"):
+			continue
+		var id := StringName(file.get_basename())
+		if weapons.data_for(id) != null:
+			out.append(id)
+	return out
 
 
 func _first_shot() -> BusterShot:

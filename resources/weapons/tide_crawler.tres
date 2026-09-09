@@ -15,6 +15,7 @@ fire_cooldown_frames = 14
 damage = 2
 flags = 0
 palette = Array[Color]([Color(0.2, 0.8, 0.56, 1), Color(0.74, 1, 0.9, 1)])
+suit = Color(0.36, 0.96, 0.6, 1)
 tuning = {
 "speed_pf": 2.6
 }

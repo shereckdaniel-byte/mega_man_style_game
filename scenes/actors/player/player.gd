@@ -686,6 +686,11 @@ func apply_weapon_palette(weapon_id: StringName) -> void:
 
 ## Hue distance from the buster to this weapon, in turns, wrapped to [-0.5, 0.5]
 ## so the rotation always takes the short way round the colour wheel.
+##
+## Measured from each weapon's **suit** rather than from its own body colour.
+## Those were the same field until five weapons turned out to be the buster's
+## blue -- see `WeaponData.suit` for why the character's colour is chosen for
+## legibility rather than for likeness to the shot.
 func weapon_hue_shift(weapon_id: StringName) -> float:
 	var weapons := weapons_autoload()
 	if weapons == null:
@@ -694,9 +699,11 @@ func weapon_hue_shift(weapon_id: StringName) -> float:
 	var data: WeaponData = weapons.data_for(weapon_id)
 	if base == null or data == null:
 		return 0.0
-	if base.palette.is_empty() or data.palette.is_empty():
+	var from := base.suit_colour()
+	var to := data.suit_colour()
+	if from.a <= 0.0 or to.a <= 0.0:
 		return 0.0
-	return wrapf(data.palette[0].h - base.palette[0].h, -0.5, 0.5)
+	return wrapf(to.h - from.h, -0.5, 0.5)
 
 
 # --- Damage -------------------------------------------------------------------
