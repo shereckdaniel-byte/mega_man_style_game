@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/weapon_data.gd" id="1_data"]
+[ext_resource type="Script" path="res://scenes/actors/projectiles/lock_bolt.gd" id="2_shot"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"frost_lock"
+display_name = "Frost Lock"
+projectile_script = ExtResource("2_shot")
+ammo_max = 28
+ammo_cost = 2
+max_on_screen = 2
+fire_cooldown_frames = 20
+damage = 1
+flags = 1
+palette = Array[Color]([Color(0.66, 0.88, 1, 1), Color(0.96, 1, 1, 1)])
+tuning = {
+"speed_pf": 4.0
+}

@@ -124,6 +124,9 @@ func _physics_process(delta: float) -> void:
 	if _dead:
 		return
 	health.tick()
+	if _frozen_frames > 0:
+		_tick_frozen(delta)
+		return
 	contact.tick()
 	if affected_by_gravity:
 		velocity.y = minf(
@@ -131,6 +134,86 @@ func _physics_process(delta: float) -> void:
 			tuning.px_s(tuning.terminal_velocity_pf))
 	behave(delta)
 	move_and_slide()
+
+
+# --- Frozen ---------------------------------------------------------------------
+#
+# Archetype 7's half of the arsenal: a weapon that locks a target instead of
+# killing it. `DamageInfo.STUN` has been defined since M0 and nothing consumed
+# it, so a stun weapon had nowhere to land; this is where it lands.
+
+## Frames of ice left. Zero is the normal case and costs one comparison a frame.
+var _frozen_frames := 0
+## The tint a frozen enemy wears. Read at a glance and from across the room,
+## because the whole value of a stun is knowing which things are switched off.
+const FROZEN_TINT := Color(0.62, 0.86, 1.0)
+
+
+## Locks this enemy for `frames`. Public so a boss or a test can freeze one
+## without going through a damage event.
+##
+## **It does not stack, it refreshes.** Two hits landing a frame apart should
+## mean "frozen for a fresh count", not "frozen for twice as long" -- otherwise
+## the Frost Lock's real damage output is however fast the player can fire.
+func freeze(frames: int) -> void:
+	if _dead or frames <= 0:
+		return
+	_frozen_frames = maxi(_frozen_frames, frames)
+	# A frozen enemy is not a hazard. Being unable to act but still able to hurt
+	# you on contact would make the weapon a liability next to a walker.
+	if contact != null:
+		contact.monitoring = false
+		contact.rearm()
+	if sprite != null:
+		sprite.modulate = FROZEN_TINT
+
+
+func is_frozen() -> bool:
+	return _frozen_frames > 0
+
+
+func frozen_frames() -> int:
+	return _frozen_frames
+
+
+## One frame of being ice. It still falls -- a frozen flyer that hung in the air
+## would look like a bug rather than like something switched off -- and it is
+## still damageable, which is the point of freezing it.
+func _tick_frozen(delta: float) -> void:
+	_frozen_frames -= 1
+	if affected_by_gravity:
+		velocity.y = minf(
+			velocity.y + tuning.px_s2(tuning.gravity_pf) * delta,
+			tuning.px_s(tuning.terminal_velocity_pf))
+	velocity.x = 0.0
+	move_and_slide()
+	if _frozen_frames <= 0:
+		_thaw()
+
+
+func _thaw() -> void:
+	_frozen_frames = 0
+	if contact != null:
+		contact.monitoring = true
+	if sprite != null:
+		sprite.modulate = Color.WHITE
+
+
+## Frames a stunning hit locks an enemy for.
+##
+## Sized against the archetype rather than the weapon: long enough to walk past
+## a turret or cross a spawner's room, short enough that it is a window and not
+## a kill. The weapon's own resource may override it through `stun_frames`.
+const STUN_FRAMES := 150
+
+
+## Any hit carrying `DamageInfo.STUN` freezes as well as damaging.
+##
+## Driven off the flag rather than off the weapon id, so a second stun weapon --
+## or a charged variant, or an enemy that stuns another -- needs no change here.
+func _on_damaged(info: DamageInfo, _taken: int) -> void:
+	if info.flags & DamageInfo.STUN:
+		freeze(STUN_FRAMES)
 
 
 func is_dead() -> bool:
@@ -310,6 +393,7 @@ func _build_health() -> void:
 	health.damage_table = damage_table
 	add_child(health)
 	health.died.connect(_on_died)
+	health.damaged.connect(_on_damaged)
 
 
 func _build_hurtbox() -> void:

@@ -92,6 +92,15 @@ const BACKDROPS := {
 		"light_source": "",
 		"paired": "",
 	},
+	# Cold Store's plates are drawn in code as well, and it has no light source
+	# because it has no light: the lower band's sky is fog and the upper band's
+	# is flat overcast. The duplication rule still applies to the racking, which
+	# carries only thin rime lines and no blob big enough to count as a landmark.
+	"cold_store": {
+		"script": preload("res://scenes/stages/cold_store/parallax_background.gd"),
+		"light_source": "",
+		"paired": "",
+	},
 }
 
 ## How much brighter than its own plate's median a pixel has to be to count as

@@ -57,7 +57,7 @@ const ENTRIES := [
 		"index": 6, "boss": "Frost", "stage": "Cold Store",
 		"weapon": "Frost Lock",
 		"frames": "res://resources/sprite_frames/frost.tres",
-		"scene": "",
+		"scene": "res://scenes/stages/cold_store/cold_store.tscn",
 	},
 	{
 		"index": 7, "boss": "Quarry", "stage": "Sinkhole",

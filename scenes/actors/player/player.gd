@@ -204,6 +204,37 @@ var wind_drift_pf := 0.0
 ## cleared every frame by the player, so nothing has to remember to switch off.
 var carry_drift_pf := 0.0
 
+## How much of the player's asked-for ground speed actually arrives this frame,
+## 0..1. 1.0 is ordinary floor; anything less is ice.
+##
+## A third field rather than a third force, because ice is not a force. The wind
+## and the belt both add to `velocity.x`; this one **scales how fast the player's
+## own input reaches it**, which is the thing no push can express: nothing moves
+## the player anywhere they did not ask to go, they simply arrive after they
+## stopped asking.
+##
+## Same contract as the other two: written every frame by whatever is under the
+## player and reset every frame here, so a sheet that stops overlapping stops
+## mattering with nothing having to remember to switch it off.
+var ground_grip := 1.0
+
+## The ground speed the player actually had last frame, which is what ice blends
+## *from*. Kept here rather than read back from `velocity` because the states
+## overwrite `velocity.x` outright every frame -- by the time the blend runs, the
+## previous value is already gone.
+var _last_ground_speed := 0.0
+
+## Frames of ice left on the player's own feet, and how much grip it leaves.
+##
+## Frost's Lock coats the player rather than freezing them. **Taking control
+## away is the one thing a stun must not do to the player**: a boss that can
+## stop your inputs is a boss that can kill you while you watch, and every
+## fairness rule in this game is about the player always having an answer.
+## Degrading grip keeps every input working and makes them all arrive late,
+## which is the same idea expressed as a cost instead of a confiscation.
+var _slip_frames := 0
+var _slip_grip := 1.0
+
 
 # --- Shared movement helpers, used by the states ------------------------------
 
@@ -245,6 +276,7 @@ func _apply_wind() -> void:
 		velocity.x += tuning.px_s(wind_drift_pf)
 	wind_drift_pf = 0.0
 	_apply_carry()
+	_apply_grip()
 
 
 ## Adds the floor's own movement, **and only while the player is standing on it.**
@@ -259,6 +291,45 @@ func _apply_carry() -> void:
 	if carry_drift_pf != 0.0 and is_on_floor():
 		velocity.x += tuning.px_s(carry_drift_pf)
 	carry_drift_pf = 0.0
+
+
+## Blends this frame's asked-for ground speed toward the last one, so ice
+## arrives late and leaves late.
+##
+## **Last of the three, and it has to be.** The states write `velocity.x`
+## outright and the wind and the belt add to it; ice is a statement about how
+## much of *all* of that reaches the floor this frame, so it can only be applied
+## once the rest of the frame's answer is known. Running it earlier would blend
+## a number that a later line then overwrites.
+##
+## Grounded only. In the air the player already has no grip to lose -- air
+## control is full strength by design -- and blending there would make ice
+## change the shape of a jump, which is exactly the fault stage 5 paid for.
+## Coats the player's feet for `frames`, leaving `grip` of their control.
+##
+## Takes the *worse* of this and whatever floor they are on, so standing on ice
+## while iced does not cancel out.
+func slip(frames: int, grip: float) -> void:
+	if frames <= 0:
+		return
+	_slip_frames = maxi(_slip_frames, frames)
+	_slip_grip = minf(_slip_grip, clampf(grip, 0.01, 1.0))
+
+
+func is_slipping() -> bool:
+	return _slip_frames > 0
+
+
+func _apply_grip() -> void:
+	if _slip_frames > 0:
+		_slip_frames -= 1
+		ground_grip = minf(ground_grip, _slip_grip)
+		if _slip_frames == 0:
+			_slip_grip = 1.0
+	if ground_grip < 1.0 and is_on_floor():
+		velocity.x = lerpf(_last_ground_speed, velocity.x, clampf(ground_grip, 0.0, 1.0))
+	_last_ground_speed = velocity.x if is_on_floor() else 0.0
+	ground_grip = 1.0
 
 ## Applies gravity for one frame and clamps to terminal velocity.
 func apply_gravity(delta: float) -> void:
