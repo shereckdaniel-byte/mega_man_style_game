@@ -32,6 +32,15 @@ class_name FortressStage
 extends AuthoredStage
 
 
+## One theme for all four.
+##
+## They are one place with one backdrop, and four themes for it would be four
+## answers to a question that has one -- the same argument the shared backdrop
+## makes (`scenes/stages/fortress/parallax_background.gd`).
+func music_track() -> StringName:
+	return &"fortress"
+
+
 ## Which of the four this is, 0-3. Subclasses must say.
 func fortress_index() -> int:
 	return -1

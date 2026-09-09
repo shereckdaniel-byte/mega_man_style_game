@@ -108,6 +108,12 @@ func _physics_process(_delta: float) -> void:
 			if _frames >= SEAL_PAUSE_FRAMES:
 				_start_entrance()
 		Phase.FILLING:
+			# One blip per bar tick. `fill_frames` is 4 frames a tick, so this
+			# is the ladder of notes every boss entrance in this kind of game
+			# has -- and it stops the moment the bar is full rather than
+			# running through the ready pause.
+			if _frames <= fill_frames() and _frames % 4 == 0:
+				Sfx.play(&"boss_bar", -10.0)
 			if _frames >= fill_frames() + READY_PAUSE_FRAMES:
 				_start_fight()
 		Phase.CLEARED:
@@ -129,6 +135,7 @@ func _on_body_entered(body: Node2D) -> void:
 	# mid-stride lands rather than hanging in the air (see Player.set_frozen).
 	_player.set_frozen(true)
 	_raise_walls()
+	Sfx.play(&"boss_seal")
 	sealed.emit()
 
 

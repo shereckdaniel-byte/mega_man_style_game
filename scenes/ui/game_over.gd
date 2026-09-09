@@ -31,6 +31,8 @@ var _panel: ColorRect
 var _hint: Label
 
 
+## The one moment the stage theme has to *stop* rather than duck: a game over
+## under a running stage loop reads as the game not having noticed.
 static func show_over(parent: Node) -> GameOver:
 	var screen := GameOver.new()
 	screen.name = "GameOver"
@@ -40,6 +42,8 @@ static func show_over(parent: Node) -> GameOver:
 
 
 func _ready() -> void:
+	Music.stop()
+	Music.jingle(&"jingle_game_over")
 	layer = 60
 	# Runs while the tree is paused, so a game over during a pause still ends.
 	process_mode = Node.PROCESS_MODE_ALWAYS

@@ -117,6 +117,7 @@ func open() -> void:
 	if is_open:
 		return
 	is_open = true
+	Sfx.play(&"pause")
 	_refresh_rows()
 	_panel.visible = true
 	get_tree().paused = true
@@ -136,6 +137,7 @@ func close() -> void:
 ## Moves the highlight. Wraps, because a list this short is faster to wrap than
 ## to clamp.
 func move_selection(delta: int) -> void:
+	Sfx.play(&"cursor")
 	if rows.is_empty():
 		return
 	selected = wrapi(selected + delta, 0, rows.size())
@@ -248,6 +250,7 @@ func _keys_for(action: StringName, primary_only: bool = false) -> String:
 
 ## Shows one line of feedback under the rows until the next confirm.
 func _report(message: String) -> void:
+	Sfx.play(&"refuse")
 	if _status != null:
 		_status.text = message
 	reported.emit(message)
@@ -267,6 +270,7 @@ func use_etank() -> bool:
 		return false
 	if not _state.consume_etank():
 		return false
+	Sfx.play(&"etank_use")
 	_player.health.heal(_player.health.max_hp)
 	etank_used.emit(_state.etanks)
 	_refresh_rows()

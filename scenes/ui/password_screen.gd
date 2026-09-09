@@ -80,10 +80,12 @@ func toggle() -> void:
 	if index < 0 or index >= Password.CELLS:
 		return
 	cells[index] = not cells[index]
+	Sfx.play(&"dot")
 	_refresh()
 
 
 func move_cursor(delta: Vector2i) -> void:
+	Sfx.play(&"cursor")
 	cursor = Vector2i(
 		clampi(cursor.x + delta.x, 0, Password.COLUMNS - 1),
 		clampi(cursor.y + delta.y, 0, Password.ROWS - 1))
@@ -97,6 +99,7 @@ func move_cursor(delta: Vector2i) -> void:
 func submit() -> bool:
 	var progress := Password.decode(cells)
 	if progress.is_empty():
+		Sfx.play(&"refuse")
 		_say("WRONG PASSWORD", BAD)
 		return false
 	var state := get_node_or_null(^"/root/GameState")
@@ -105,6 +108,7 @@ func submit() -> bool:
 		return false
 	state.from_dict(progress)
 	_loaded = true
+	Sfx.play(&"confirm")
 	_say("PASSWORD ACCEPTED", GOOD)
 	return true
 

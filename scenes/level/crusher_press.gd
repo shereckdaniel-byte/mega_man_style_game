@@ -234,8 +234,27 @@ func current_position() -> Vector2:
 func _physics_process(_delta: float) -> void:
 	if not running:
 		return
+	var was := phase()
 	_frames += 1
+	var now := phase()
+	if now != was:
+		_announce(now)
 	_apply()
+
+
+## One sound per phase *entry*, not per frame.
+##
+## The press is the loudest thing in the game that is not a boss, and it runs on
+## a six-second loop for as long as the player is in the room -- so the one
+## thing this must not do is fire every frame it is dropping. Comparing the
+## phase before and after the tick is the cheapest way to say "it just started
+## doing that", and it is the same read the visuals use.
+func _announce(entered: Phase) -> void:
+	match entered:
+		Phase.TELL:
+			Sfx.play(&"crusher_tell", -8.0)
+		Phase.DROP:
+			Sfx.play(&"crusher", -2.0)
 
 
 func _apply() -> void:

@@ -463,6 +463,14 @@ func _choose_pattern() -> void:
 ## bar is in the corner while the player is looking at the boss. A fight where
 ## you cannot tell your shots are connecting reads as a broken hitbox -- which,
 ## twice in this project, is exactly what it was.
+## A boss taking a hit, over the top of `Enemy`'s. The fight is long and the
+## difference between "that landed" and "that did not" is most of what the
+## player is reading.
+func _on_damaged(info: DamageInfo, taken: int) -> void:
+	super(info, taken)
+	Sfx.play(&"boss_hit", -3.0)
+
+
 func _update_hit_flash() -> void:
 	if sprite == null:
 		return
@@ -624,6 +632,7 @@ func _advance_form() -> void:
 	_pattern_index = -1
 	_step = 0
 	_step_frames = 0
+	Sfx.play(&"boss_form")
 	form_changed.emit(_form)
 
 
@@ -653,6 +662,7 @@ func _process_form_change() -> void:
 func _on_died(_info: DamageInfo) -> void:
 	if phase == Phase.DYING:
 		return
+	Sfx.play(&"boss_die")
 	if _form + 1 < forms():
 		_advance_form()
 		return

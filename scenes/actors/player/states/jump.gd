@@ -4,6 +4,7 @@ extends State
 
 
 func enter(_msg: Dictionary = {}) -> void:
+	Sfx.play(&"jump")
 	var player: Player = host
 	player.consume_jump_request()
 	player.start_jump()

@@ -259,3 +259,10 @@ func _draw() -> void:
 		Vector2(size.x * 0.30, glass.size.y * 0.92),
 	]), Color(GLASS_LIT, alpha * 0.9))
 	draw_rect(glass, Color(GLASS_EDGE, alpha), false, edge)
+
+
+## The panel blinking out. Quiet and short: a room can hold six of these on one
+## beat, and six of anything loud is a fault.
+func trigger() -> void:
+	super()
+	Sfx.play(&"panel", -14.0)

@@ -10,6 +10,7 @@ func physics_update(delta: float) -> StringName:
 			or Input.is_action_pressed(&"move_down")):
 		return &"Climb"
 	if player.is_on_floor():
+		Sfx.play(&"land", -8.0)
 		# A jump buffered just before landing fires on the landing frame.
 		if player.jump_requested():
 			return &"Jump"

@@ -218,7 +218,25 @@ func _on_body_entered(body: Node2D) -> void:
 		return
 	_taken = true
 	collected.emit(kind)
+	Sfx.play(_sound_for(kind))
 	queue_free()
+
+
+## Which chime a kind makes.
+##
+## Small and large share one: what the player needs to hear is *what* they
+## picked up, and they can already see how much. The E-tank and the 1-UP get
+## their own because they are the two that change a run rather than a moment.
+static func _sound_for(of_kind: Kind) -> StringName:
+	match of_kind:
+		Kind.ONE_UP:
+			return &"pickup_life"
+		Kind.ETANK:
+			return &"pickup_etank"
+		Kind.AMMO_SMALL, Kind.AMMO_LARGE:
+			return &"pickup_ammo"
+		_:
+			return &"pickup_health"
 
 
 ## Applies this capsule's effect. False means it was not used and the capsule

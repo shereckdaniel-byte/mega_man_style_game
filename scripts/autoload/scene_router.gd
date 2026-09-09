@@ -8,6 +8,7 @@ extends Node
 signal scene_changed(path: String)
 
 const TITLE := "res://scenes/ui/title.tscn"
+const INTRO := "res://scenes/ui/intro.tscn"
 const STAGE_SELECT := "res://scenes/ui/stage_select.tscn"
 ## Where a finished run goes. M8's bullet; nothing is here yet.
 const ENDING := "res://scenes/ui/ending.tscn"
@@ -34,6 +35,10 @@ func reload_current() -> void:
 
 func goto_title() -> void:
 	goto(TITLE)
+
+
+func goto_intro() -> void:
+	goto(INTRO if ResourceLoader.exists(INTRO) else TITLE)
 
 
 func goto_stage_select() -> void:

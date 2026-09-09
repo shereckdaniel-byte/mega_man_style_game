@@ -26,6 +26,7 @@ var _done := false
 
 
 func enter(_msg: Dictionary = {}) -> void:
+	Sfx.play(&"teleport_out")
 	var player: Player = host
 	player.velocity = Vector2.ZERO
 	player.cancel_charge()

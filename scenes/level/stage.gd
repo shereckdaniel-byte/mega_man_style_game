@@ -170,6 +170,7 @@ func begin_transition(door: Door) -> void:
 		door.release()
 		return
 	_transitioning = true
+	Sfx.play(&"door")
 	transition_started.emit(door)
 	_run_transition(door, next)
 

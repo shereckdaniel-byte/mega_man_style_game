@@ -204,6 +204,16 @@ func boss_offset_tiles() -> Vector2:
 	return Vector2(16.0, 0.0)
 
 
+## Which theme plays here.
+##
+## **Derived from the scene's own folder rather than declared**, so a stage that
+## lands with a matching `.wav` gets its music with nothing to remember and a
+## stage without one plays nothing rather than the wrong thing. The fortress
+## overrides it -- its four stages are one place and share one theme.
+func music_track() -> StringName:
+	return StringName(scene_file_path.get_base_dir().get_file())
+
+
 ## Anything this stage wants changed about its boss, once the arena has built
 ## it. The eight need nothing here -- a Robot Master's script already says what
 ## it is -- and the fortress needs it for every fight it has.
@@ -393,6 +403,7 @@ func _ready() -> void:
 	_player.game_over.connect(_on_game_over)
 	stage_cleared.connect(_print_ledger.bind("stage cleared"))
 	stage_cleared.connect(_save_progress)
+	Music.play(music_track())
 	begin(_player, _rooms[0])
 
 
@@ -1073,6 +1084,7 @@ func _on_boss_cleared(_index: int, weapon_id: StringName) -> void:
 	var path := boss_frames_path()
 	if not path.is_empty() and ResourceLoader.exists(path):
 		boss_art = load(path)
+	Music.jingle(&"jingle_weapon_get")
 	var screen := WeaponGet.show_for(self, weapon_name, boss_name(), boss_art)
 	screen.finished.connect(_begin_stage_exit)
 

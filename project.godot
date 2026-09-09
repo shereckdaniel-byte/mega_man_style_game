@@ -41,6 +41,10 @@ texture={
 "process/fix_alpha_border": true
 }
 
+[audio]
+
+bus_layout="res://default_bus_layout.tres"
+
 [input]
 
 move_left={

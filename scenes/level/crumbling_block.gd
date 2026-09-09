@@ -181,6 +181,7 @@ func _tick_solid() -> void:
 
 func _fall() -> void:
 	phase = Phase.GONE
+	Sfx.play(&"crumble", -4.0)
 	_frames = 0
 	position = _origin
 	# Collision off rather than the node hidden: a hidden block still holds the

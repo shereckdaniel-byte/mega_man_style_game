@@ -212,6 +212,7 @@ const STUN_FRAMES := 150
 ## Driven off the flag rather than off the weapon id, so a second stun weapon --
 ## or a charged variant, or an enemy that stuns another -- needs no change here.
 func _on_damaged(info: DamageInfo, _taken: int) -> void:
+	Sfx.play(&"enemy_hit", -6.0)
 	if info.flags & DamageInfo.STUN:
 		freeze(STUN_FRAMES)
 
@@ -235,6 +236,7 @@ func _on_died(_info: DamageInfo) -> void:
 	# The burst is parented to the level, not to the enemy: queue_free() takes
 	# the enemy's children with it and the explosion would vanish on the frame
 	# it was created.
+	Sfx.play(&"enemy_die", -4.0)
 	var level := get_parent()
 	if level != null:
 		DeathExplosion.burst(level, global_position)

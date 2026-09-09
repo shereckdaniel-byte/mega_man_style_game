@@ -49,3 +49,4 @@ func _on_body_entered(body: Node2D) -> void:
 	if state != null:
 		state.set_checkpoint(global_position + respawn_offset)
 	reached.emit()
+	Sfx.play(&"checkpoint")

@@ -115,6 +115,7 @@ func use_now() -> bool:
 	if not _inside or not live or not _armed:
 		return false
 	_armed = false
+	Sfx.play(&"teleport_pad")
 	used.emit(self)
 	return true
 

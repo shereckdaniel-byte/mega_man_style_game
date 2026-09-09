@@ -556,6 +556,8 @@ func fire() -> WeaponShot:
 	if weapons != null and not weapons.consume(weapon):
 		return null
 
+	Sfx.play(Sfx.for_weapon(weapon), -3.0)
+
 	var script: Script = data.projectile_script if data != null else BUSTER_SHOT
 	if script == null:
 		script = BUSTER_SHOT
@@ -758,6 +760,7 @@ func respawn_at(position: Vector2) -> void:
 	sprite.visible = true
 	state_machine.transition_to(&"Idle")
 	respawned.emit()
+	Sfx.play(&"teleport_in")
 
 
 func is_shooting() -> bool:
@@ -842,6 +845,10 @@ func _tick_charge() -> void:
 	if level != _charge_level:
 		_charge_level = level
 		charge_level_changed.emit(level)
+		# One note per stage reached rather than a held tone: the charge has two
+		# stages and the player needs to hear which one they are at, not that
+		# something is happening.
+		Sfx.play(&"charge_ready" if level > 1 else &"charge_loop", -6.0)
 
 
 ## Lets go of the charge, firing the blast if it reached a stage.
@@ -854,6 +861,7 @@ func _release_charge() -> void:
 		charge_level_changed.emit(0)
 	if level <= 0 or data == null:
 		return
+	Sfx.play(&"charge_fire")
 	fire_charged(level, data)
 
 

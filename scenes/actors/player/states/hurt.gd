@@ -6,6 +6,7 @@ var _knockback_direction := -1
 
 
 func enter(msg: Dictionary = {}) -> void:
+	Sfx.play(&"hurt")
 	var player: Player = host
 	var source: Vector2 = msg.get("source_position", player.global_position)
 	# Pushed away from whatever hit you.

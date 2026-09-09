@@ -16,6 +16,7 @@ var _done := false
 
 
 func enter(_msg: Dictionary = {}) -> void:
+	Sfx.play(&"death")
 	var player: Player = host
 	player.velocity = Vector2.ZERO
 	# The character is gone -- the burst stands in for it. Hidden rather than

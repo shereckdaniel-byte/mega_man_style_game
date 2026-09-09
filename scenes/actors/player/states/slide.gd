@@ -9,6 +9,7 @@ var _direction := 1
 
 
 func enter(_msg: Dictionary = {}) -> void:
+	Sfx.play(&"slide", -4.0)
 	var player: Player = host
 	player.consume_jump_request()
 	_direction = player.input_direction()
