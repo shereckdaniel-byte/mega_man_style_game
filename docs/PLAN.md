@@ -1459,6 +1459,73 @@ seven-room version's, and item drops are part of why — the bar is being topped
 up as it goes. A longer stage that is no harder is a pacing question a bot
 cannot answer, and it is the same question M5b has had open since M5.
 
+### M6q — Stages 2, 3 and 4 at length ✅ done
+
+M6p left the game with one stage of nineteen rooms and three of eight or
+nine, which is a worse state than either. All four are nineteen now, and
+**each grew along its own axis** rather than being made into stage 1:
+
+- ✅ **Substation** is a longer J. It already committed down early and
+  stayed down; now eleven of nineteen rooms are dark, in **two stretches
+  split by a return to daylight**. The lit middle is not a rest, it is the
+  rehearsal — Yard Two's slide is Blackout's spiked tunnel without the
+  teeth, Transformer Row's gaps are Feeder's planks without the dark. A
+  stage that only went further down would have to teach in the dark or
+  not teach at all, and `DarkRoom`'s three rules exist because teaching in
+  the dark is how a gimmick becomes unfair.
+- ✅ **Breakers** is still the ascent, now **six rooms per band** instead
+  of three-two-four. The old middle band was two screens, which made it a
+  landing rather than a place. The press gets the room it needed: Keel
+  gives the sealed press somewhere to be, Boiler Room puts both
+  clearances twenty cells apart, and Bulkhead runs three on a rolling
+  phase so the gate becomes a wave.
+- ✅ **Mirror Field** runs flat for **fourteen rooms** before its one
+  turn, which is the most extreme shape in the game and the right one for
+  a plain of mirrors. The other stages get variety from terrain; this one
+  has none, so all of it has to come from the panels — which means more
+  room to vary them in, not less. Heliostat Row is the first path that
+  *climbs* and leaves you higher than it found you; Sun Trap introduces
+  the two-path shape Focus examines; Pan is the longest crossing in the
+  game.
+
+**Five rooms were designed wrong and the bot found every one.** Worth
+listing, because the failures were more instructive than the successes:
+
+| Room | What was wrong |
+| --- | --- |
+| Dead Section (2) | A hole a few cells inside the door, five dark rooms deep. Moving the gap and the turret both failed; the room wanted no hole at all |
+| Deck Crane (3) | A press five cells inside the door on a cycle starting down — the player walks in under it. Crane solved this with a phase offset at M6h |
+| Crust (4) | A panel path *starting* two rows up across a pit: a crossing whose first move commits you before you are on it |
+| Sun Trap (4) | Two rows of panels stacked over one hole. Reads well in a table, illegible on screen — and legibility is the one thing this stage's backdrop is built around |
+| Pan, Anneal (4) | Eight panels, then three panels three cells apart. A set's beat count is its panel count, so eight means two of eight solid and eight chances to be wrong; three-at-three has every number at its limit at once |
+
+**And one that was not a rule.** Mirror Walk cost a life at an identical
+frame on every seed. Two guesses at choreography — a hopper on the island,
+then a crawler on the approach — changed nothing, because the 2 HP lost on
+the way down was the pit's own spikes. An identical death frame across
+seeds is what geometry looks like when you have been blaming enemies.
+
+The temptation was to generalise it: *no enemy near a gap's landing*. The
+data says no. Thirty-two placements across four stages sit within four
+cells of a landing and almost none of them cost anything, so a test would
+fail half the game to catch two rooms. It stays a comment.
+
+**Accepted:** 493 tests green. All four stages complete with **clean
+traversal** — Substation, Breakers and Mirror Field take zero traversal
+deaths on seed 5 and beat their bosses; Dawn Boardwalk's one death is in
+the arena, against Tide, which is where it has always been.
+
+| Stage | Rooms | To the door | HP | Boss |
+| --- | --- | --- | --- | --- |
+| Dawn Boardwalk | 19 | 6445 | 40 | Tide still wins |
+| Substation | 19 | 6247 | 35 | Arc down |
+| Breakers | 19 | 6753 | 30 | Rust down |
+| Mirror Field | 19 | 7955 | 26 | Prism down |
+
+**Still open, and now four times over:** none of these has been walked by
+a person. The bot says they are completable and says nothing about whether
+they are worth completing.
+
 ### M6 — Content build-out (2–3 weeks)
 
 - Remaining 7 stages + 7 Robot Masters, each with one stage-unique gimmick. Note the

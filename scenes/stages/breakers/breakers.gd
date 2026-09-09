@@ -1,17 +1,21 @@
 ## Stage 3, "Breakers" -- the ship-scrapping yard, and Rust's stage.
 ##
-## Nine rooms that **climb**. Stage 1 is a U (down in the middle and up again),
-## stage 2 is a J (commit down early, run along the bottom, one climb at the
-## end). Both end roughly where they started. This one starts at the waterline
-## among the beached hulls and finishes three screens up on the gantry, and the
-## whole stage is the ascent:
+## Nineteen rooms that **climb**. Stage 1 is a W and stage 2 a long J; both end
+## roughly where they started. This one starts at the waterline among the beached
+## hulls and finishes three screens up on the gantry, and the whole stage is the
+## ascent:
 ##
-##      col 0       1        2        3        4      5      6
-##  band 0                          Gantry - Crane - Gate - Arena
-##                                     ^
-##  band 1                    Hold - Ribs
-##                              ^
-##  band 2  Waterline - Bilge - Slipway
+##   col   0     1     2      3      4      5     6    7     8     9    10   11    12    13   14   15   16
+##  band 0                                                     Gantry-Jib-Sprdr-Cradle-Deck-Crane-Gate-Arena
+##                                                                ^
+##  band 1                                     Hold-Frames-Blkhd-Alley-Ribs
+##                                               ^
+##  band 2 Waterline-Bilge-Keel-Scupper-Boiler-Slipway
+##
+## **Six rooms per band, not three-two-four.** The old nine spent barely two
+## screens in the hull, which made the middle band a landing rather than a place;
+## at six each the three bands are three environments and the two ladders are
+## events rather than transitions.
 ##
 ## Three bands rather than two, which nothing before this used. `AuthoredStage`
 ## already supported it -- `band_deck_row` is `DECK_ROW + band * ROOM_HEIGHT` and
@@ -26,12 +30,21 @@
 ##
 ##   * **Bilge** -- one press, `CLEARANCE_SEALED`. It comes down onto the deck,
 ##     so there is no under; the room is asking you to cross while it is up.
+##   * **Keel** -- the same press with somewhere else to be: it stands between
+##     the door and a gap, so the timing buys progress rather than passage.
 ##   * **Slipway** -- one press, `CLEARANCE_SLIDE`. It rests two rows off the
 ##     deck, so at rest you slide under it. Same object, opposite answer.
+##   * **Boiler Room** -- both clearances in one room, twenty cells apart. The
+##     point Slipway made across a room boundary, made where it costs something.
 ##   * **Hold** -- two sealed presses out of phase, so the safe windows do not
 ##     line up and the room is a rhythm rather than a gate.
+##   * **Bulkhead** -- three on a rolling phase, which turns the gate into a
+##     wave the player walks along.
+##   * **Jib**, **Spreader** -- the clearances again out on the gantry, now with
+##     no room in the table saying which is which; the player reads it from
+##     where the press rests.
 ##   * **Crane** -- one sealed press on the approach to a crossing, which is the
-##     first time a press shares a room with something else that is timed.
+##     only time a press shares a room with something else that is timed.
 ##
 ## ### Why clearance is a named constant and not a number per press
 ##
@@ -157,7 +170,58 @@ const ROOMS := [
 		"crushers": [[12, 3, PRESS_ROWS, CLEARANCE_SEALED, 0]],
 	},
 	{
-		"name": "Slipway", "col": 2, "band": BAND_WATER,
+		"name": "Keel", "col": 2, "band": BAND_WATER,
+		# The sealed press again, now with somewhere else to be. Bilge taught it
+		# alone in an empty room; here it stands between the door and a gap, so
+		# the timing is spent on getting somewhere rather than on getting past.
+		"gaps": [[15, 17]], "blocks": [],
+		"crushers": [[6, 3, PRESS_ROWS, CLEARANCE_SEALED, 0]],
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 12.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 20.0, 4.0],
+		],
+		"pit_spikes": [[15, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Scupper", "col": 3, "band": BAND_WATER,
+		# No press. Four press rooms in a row would make the stage about one
+		# object, and the kit is what keeps a stage from being a gimmick with
+		# scenery -- so this is planks over the bilge water, which is the same
+		# element stage 1 uses and a different thing to be afraid of.
+		"gaps": [[8, 10], [15, 17]], "blocks": [],
+		"crumbles": [[8, 0], [9, 0], [15, 0], [16, 0]],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 5.0, 0.0],
+			[HOPPER, SKIN_HOPPER, &"hop", 12.0, 0.0],
+			[TURRET, SKIN_TURRET, &"idle", 22.0, 2.0],
+		],
+		"pit_spikes": [[8, 3, 2], [15, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Boiler Room", "col": 4, "band": BAND_WATER,
+		# **Both answers, in one room, for the first time.** A sealed press and a
+		# slide press twenty cells apart: the first has to be waited out, the
+		# second has to be gone under, and they are the same object at rest at
+		# two different heights. Slipway made that point across a room boundary;
+		# this makes it inside one, which is where it actually costs something.
+		#
+		# Out of phase, because two presses in step are one wide press and
+		# tests/test_breakers.gd says so.
+		"gaps": [], "blocks": [],
+		"crushers": [
+			[7, 3, PRESS_ROWS, CLEARANCE_SEALED, 0],
+			[16, 3, PRESS_ROWS, CLEARANCE_SLIDE, 60],
+		],
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 12.0, 0.0],
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 22.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Slipway", "col": 5, "band": BAND_WATER,
 		# The second idea: the same object with the opposite answer. This one
 		# rests two rows off the deck, so waiting for it to come *down* and
 		# sliding under is the fast way through, and standing under it is not.
@@ -175,7 +239,7 @@ const ROOMS := [
 		"shaft_up": [23, 2],
 	},
 	{
-		"name": "Hold", "col": 2, "band": BAND_HULL,
+		"name": "Hold", "col": 5, "band": BAND_HULL,
 		# Inside the hull, and the first room where the presses are a rhythm
 		# rather than a gate: two of them, out of phase by roughly half a cycle,
 		# so the gap that opens under one is closing under the other.
@@ -194,7 +258,56 @@ const ROOMS := [
 		],
 	},
 	{
-		"name": "Ribs", "col": 3, "band": BAND_HULL,
+		"name": "Frames", "col": 6, "band": BAND_HULL,
+		# Inside the hull now. A press to wait out, then planks to run -- one
+		# thing that punishes hurrying followed by one that punishes hesitating,
+		# which is the pair the stage has been building toward.
+		"gaps": [[14, 16]], "blocks": [],
+		"crushers": [[6, 3, PRESS_ROWS, CLEARANCE_SEALED, 0]],
+		"crumbles": [[14, 0], [15, 0]],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 11.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 20.0, 4.0],
+		],
+		"pit_spikes": [[14, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Bulkhead", "col": 7, "band": BAND_HULL,
+		# Three sealed presses on a rolling phase, which turns the stage's one
+		# timing object into a **rhythm**. Hold made two out of step so the safe
+		# windows do not line up; three at 0, 64 and 128 make a wave the player
+		# walks along rather than three gates they solve one at a time.
+		#
+		# Nothing else in the room. A rhythm is the ask.
+		"gaps": [], "blocks": [],
+		"crushers": [
+			[5, 3, PRESS_ROWS, CLEARANCE_SEALED, 0],
+			[12, 3, PRESS_ROWS, CLEARANCE_SEALED, 64],
+			[19, 3, PRESS_ROWS, CLEARANCE_SEALED, 128],
+		],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 24.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Shaft Alley", "col": 8, "band": BAND_HULL,
+		# A breath from the presses, and the room that reminds the stage it is a
+		# climb: two platforms up, with the gap taken off flat deck before either
+		# of them.
+		"gaps": [[7, 9]], "blocks": [],
+		"one_ways": [[14, 2, 4], [20, 4, 4]],
+		"enemies": [
+			[HOPPER, SKIN_HOPPER, &"hop", 4.0, 0.0],
+			[SPAWNER, SKIN_SPAWNER, &"idle", 12.0, 4.0],
+			[FLYER, SKIN_FLYER, &"fly", 18.0, 6.0],
+		],
+		"pit_spikes": [[7, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Ribs", "col": 9, "band": BAND_HULL,
 		# The hull's frames, climbed. No press: after two rooms of them the stage
 		# needs a room that is only platforming, or the gimmick stops being an
 		# event and becomes the floor.
@@ -213,7 +326,7 @@ const ROOMS := [
 		"shaft_up": [23, 2],
 	},
 	{
-		"name": "Gantry", "col": 3, "band": BAND_GANTRY,
+		"name": "Gantry", "col": 9, "band": BAND_GANTRY,
 		# Out on top, in the light, and the stage's one spawner room. **No gaps**
 		# for the same reason as the Hold: Ribs is directly beneath.
 		"gaps": [], "blocks": [[8, 2, 3, 2], [17, 2, 4, 2]],
@@ -224,7 +337,80 @@ const ROOMS := [
 		"checkpoint": 2.0,
 	},
 	{
-		"name": "Crane", "col": 4, "band": BAND_GANTRY,
+		"name": "Jib", "col": 10, "band": BAND_GANTRY,
+		# Out on the gantry, and the slide press comes back. Bilge and Slipway
+		# taught the two clearances a stage apart from the rooms that use them;
+		# up here the player is expected to read which one it is from where it
+		# rests, without being told.
+		"gaps": [[16, 18]], "blocks": [],
+		"crushers": [[5, 3, PRESS_ROWS, CLEARANCE_SLIDE, 0]],
+		"enemies": [
+			[TURRET, SKIN_TURRET, &"idle", 11.0, 2.0],
+			[FLYER, SKIN_FLYER, &"fly", 21.0, 4.0],
+		],
+		"pit_spikes": [[16, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Spreader", "col": 11, "band": BAND_GANTRY,
+		# Both clearances *and* a hole between them, which is Boiler Room's room
+		# with the floor removed from the middle. The gap is off flat deck and
+		# three cells clear of either press, so the timing and the jump are
+		# consecutive problems rather than one compound one.
+		"gaps": [[11, 13]], "blocks": [],
+		"crushers": [
+			[5, 3, PRESS_ROWS, CLEARANCE_SEALED, 0],
+			[18, 3, PRESS_ROWS, CLEARANCE_SLIDE, 72],
+		],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 15.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 23.0, 5.0],
+		],
+		"pit_spikes": [[11, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Cradle", "col": 12, "band": BAND_GANTRY,
+		# No press and no hole: the last flat ground before Crane, which is the
+		# only room in the stage that asks for a press and a crossing at once.
+		# Every stage gets one of these before its hardest room, and stage 1's is
+		# called Rise for the same reason.
+		"gaps": [], "blocks": [[6, 2, 3, 2], [13, 2, 4, 2]],
+		"enemies": [
+			[WALKER, SKIN_WALKER, &"walk", 10.0, 2.0],
+			[TURRET, SKIN_TURRET, &"idle", 20.0, 2.0],
+			[HOPPER, SKIN_HOPPER, &"hop", 23.0, 0.0],
+		],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Deck Crane", "col": 13, "band": BAND_GANTRY,
+		# A press, then two plank runs. Three screens above the waterline the
+		# stage is asking for exactly what it asked for in the bilge, which is
+		# the point: the ascent changed the view and not the vocabulary.
+		# **Cell 9 and phase 40, not cell 6 and phase 0.** At 6 the press stands
+		# five cells inside the door on a cycle that starts down, so a player who
+		# walks in at the wrong moment walks into it -- and this room's approach
+		# is already busy, because the planks past it reward hurrying. The bot
+		# lost 22 HP and a life here and nowhere else in the hull or on the
+		# gantry.
+		#
+		# Crane solved the same problem the same way one room later and has had
+		# an offset since M6h. A press near a door needs to be up when the door
+		# opens; further in, phase 0 is fine because the player arrives already
+		# watching it.
+		"gaps": [[14, 16], [20, 22]], "blocks": [],
+		"crushers": [[9, 3, PRESS_ROWS, CLEARANCE_SEALED, 40]],
+		"crumbles": [[14, 0], [15, 0], [20, 0], [21, 0]],
+		"enemies": [
+			[CRAWLER, SKIN_CRAWLER, &"crawl", 11.0, 0.0],
+			[FLYER, SKIN_FLYER, &"fly", 18.0, 5.0],
+		],
+		"pit_spikes": [[14, 3, 2], [20, 3, 2]],
+		"checkpoint": 2.0,
+	},
+	{
+		"name": "Crane", "col": 14, "band": BAND_GANTRY,
 		# The last test, and the only room that asks for two timed things: a
 		# sealed press on the approach, then the crossing.
 		#
@@ -255,7 +441,7 @@ const ROOMS := [
 		"pit_spikes": [[15, 3, 6]],
 	},
 	{
-		"name": "Gate", "col": 5, "band": BAND_GANTRY,
+		"name": "Gate", "col": 15, "band": BAND_GANTRY,
 		# Lit and deliberately empty. The run-up to a boss is a breath, and
 		# `tests/test_stage_authoring.gd` holds every stage to it: a gap or an
 		# enemy in the room before the door turns the walk to a fight into a
@@ -265,7 +451,7 @@ const ROOMS := [
 		"checkpoint": 2.0,
 	},
 	{
-		"name": "Arena", "col": 6, "band": BAND_GANTRY,
+		"name": "Arena", "col": 16, "band": BAND_GANTRY,
 		# Flat, empty and no checkpoint. No press either: Rust's Bloom takes
 		# floor away on its own, and a fight that also had a press in it would be
 		# asking the player to solve two space problems whose answers conflict.
