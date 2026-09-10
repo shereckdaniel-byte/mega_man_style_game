@@ -11,6 +11,10 @@ const REQUIRED := [
 	&"jump", &"shoot", &"melee", &"weapon_prev", &"weapon_next", &"pause",
 ]
 
+## InputMap's "any device" wildcard. Not exposed to scripts as a named constant,
+## so both this and tools/bootstrap_input_map.gd spell it out.
+const ALL_DEVICES := -1
+
 
 func test_every_gameplay_action_exists() -> void:
 	for action in REQUIRED:
@@ -48,6 +52,47 @@ func test_the_generator_knows_every_action_the_game_uses() -> void:
 	for action in REQUIRED:
 		assert_true(bindings.has(action),
 			"%s is in the input map but not in bootstrap_input_map.gd" % action)
+
+
+## **The bug that made the game unplayable, asserted directly.**
+##
+## Every keyboard binding was serialised with `"device":16` -- the default a
+## freshly constructed `InputEventKey` carries in Godot 4.7, which the generator
+## never overrode. `InputMap` matches an event only when the bound device is its
+## `-1` wildcard or is exactly the device the press came from, so a real key
+## press (device 0, or -1 for a synthesised one) matched nothing. Every action
+## existed, every binding was listed in project.godot and in the editor, and the
+## title screen answered arrows and Z with silence: there was no way off the
+## first menu, and no way to move once past it.
+##
+## Asserting the *stored* device rather than only the match, because this is the
+## field a regeneration against a future engine default would quietly change
+## back.
+func test_every_binding_answers_any_device() -> void:
+	for action in REQUIRED:
+		if not InputMap.has_action(action):
+			continue
+		for event in InputMap.action_get_events(action):
+			assert_eq(event.device, ALL_DEVICES,
+				"%s has a %s bound to device %d, so only that device can press it"
+					% [action, event.get_class(), event.device])
+
+
+## The same fact from the player's side: a key press as the OS delivers one is
+## recognised as the action it is bound to. Device 0 is what a real keyboard
+## sends; -1 is what a synthesised press carries.
+func test_a_real_key_press_triggers_its_action() -> void:
+	for spec in [[KEY_Z, &"jump"], [KEY_X, &"shoot"], [KEY_UP, &"move_up"],
+			[KEY_DOWN, &"move_down"], [KEY_LEFT, &"move_left"],
+			[KEY_RIGHT, &"move_right"], [KEY_C, &"melee"]]:
+		for device in [0, -1]:
+			var press := InputEventKey.new()
+			press.physical_keycode = spec[0]
+			press.pressed = true
+			press.device = device
+			assert_true(press.is_action_pressed(spec[1]),
+				"%s from device %d does not press %s"
+					% [OS.get_keycode_string(spec[0]), device, spec[1]])
 
 
 ## Diagonal stick drift on an analogue pad would otherwise trigger slides.

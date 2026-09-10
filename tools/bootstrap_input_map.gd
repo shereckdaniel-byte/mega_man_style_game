@@ -11,6 +11,21 @@ extends SceneTree
 
 const DEADZONE := 0.5
 
+## **Every event has to say "any device" out loud, or the keyboard does nothing.**
+##
+## `InputMap` only matches an event whose device is `-1` (its wildcard) or is
+## exactly the device the press came from. A freshly constructed `InputEvent`
+## does *not* start at `-1` -- in Godot 4.7 `InputEventKey.new().device` is 16 --
+## so leaving the default in place pinned every generated binding to a device
+## number no real keyboard ever sends. The bindings looked correct in
+## project.godot and in the editor, `InputMap.has_action()` was true for all of
+## them, and not one key press matched: the title screen took arrows and Z and
+## answered with nothing, and the game could not be left.
+##
+## Named rather than a bare `-1` because the value is the whole point, and the
+## engine does not expose `InputMap::ALL_DEVICES` to scripts to name it for us.
+const ALL_DEVICES := -1
+
 ## **Re-running this drops any project setting that equals its engine default.**
 ## `ProjectSettings.save()` writes only what differs, so the explicit
 ## `rendering/textures/canvas_textures/default_texture_filter=1` line disappears
@@ -48,17 +63,22 @@ func _init() -> void:
 		for key: int in spec.get("keys", []):
 			var e := InputEventKey.new()
 			e.physical_keycode = key       # physical: same position on any layout
+			e.device = ALL_DEVICES
 			events.append(e)
 
 		for button: int in spec.get("buttons", []):
 			var e := InputEventJoypadButton.new()
 			e.button_index = button
+			# Pad 2 is as valid as pad 1; the old default bound player input to
+			# whichever pad happened to enumerate first.
+			e.device = ALL_DEVICES
 			events.append(e)
 
 		for axis: Array in spec.get("axes", []):
 			var e := InputEventJoypadMotion.new()
 			e.axis = axis[0]
 			e.axis_value = axis[1]
+			e.device = ALL_DEVICES
 			events.append(e)
 
 		ProjectSettings.set_setting("input/%s" % action, {

@@ -261,6 +261,66 @@ func test_reset_restores_the_shipped_bindings() -> void:
 		"shoot came back as %s" % Settings.binding_text(&"shoot"))
 
 
+## **A rebound key has to be pressable, which is not the same as being bound.**
+##
+## `Settings.rebind` used to store the live event the options screen captured,
+## and that event carries the device id of the keyboard that pressed it.
+## `InputMap` then matched the action only for that device. The row read back
+## correctly, `binding_text` showed the new key, and the key did nothing --
+## a player who rebound one control lost it, and a settings file with an `input`
+## section rebuilt *every* binding that way on the next launch, which is how the
+## title screen stopped answering at all.
+func test_a_rebound_key_can_actually_be_pressed() -> void:
+	var action := &"jump"
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_K
+	key.pressed = true
+	key.device = 3                     # as a real press from some keyboard arrives
+	assert_true(Settings.rebind(action, key))
+	for device in [0, -1, 7]:
+		var press := InputEventKey.new()
+		press.physical_keycode = KEY_K
+		press.pressed = true
+		press.device = device
+		assert_true(press.is_action_pressed(action),
+			"K from device %d does not press jump" % device)
+	Settings.reset_bindings()
+
+
+## The same fact for the path that runs on every launch: bindings read back out
+## of a settings file answer any device, not the one that happened to be first.
+func test_bindings_loaded_from_a_file_can_be_pressed() -> void:
+	var was := Settings.binding_text(&"shoot")
+	Settings._load_bindings({"shoot": [KEY_P]})
+	for device in [0, -1, 7]:
+		var press := InputEventKey.new()
+		press.physical_keycode = KEY_P
+		press.pressed = true
+		press.device = device
+		assert_true(press.is_action_pressed(&"shoot"),
+			"a stored binding for P does not answer device %d" % device)
+	Settings.reset_bindings()
+	assert_eq(Settings.binding_text(&"shoot"), was)
+
+
+## A reset has to hand back bindings that are pressable too -- it is the undo
+## for a rebind that went wrong, and an undo that leaves the game unplayable is
+## worse than the mistake.
+func test_reset_hands_back_pressable_bindings() -> void:
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_P
+	key.pressed = true
+	key.device = 3
+	Settings.rebind(&"shoot", key)
+	Settings.reset_bindings()
+	var press := InputEventKey.new()
+	press.physical_keycode = KEY_X
+	press.pressed = true
+	press.device = 0
+	assert_true(press.is_action_pressed(&"shoot"),
+		"after a reset, X does not shoot")
+
+
 ## Every rebindable action is a real action, or the screen offers a row that
 ## cannot do anything.
 func test_every_rebindable_action_exists() -> void:

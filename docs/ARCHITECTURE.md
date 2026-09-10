@@ -461,6 +461,21 @@ godot --headless --script res://tools/bootstrap_input_map.gd
 `tests/test_input_map.gd` asserts the generated result, so a stray edit in the editor that
 drops a gamepad binding fails CI.
 
+**Every event is bound to device `-1`, and that is load-bearing.** `InputMap` matches an
+event only when the bound device is `-1` — its "any device" wildcard — or is *exactly* the
+device the press came from. A freshly constructed `InputEvent` does not start there: in
+Godot 4.7 `InputEventKey.new().device` is `16`. The generator relied on that default, so
+every keyboard binding shipped pinned to device 16 and no real key press (device 0) matched
+any of them. Nothing looked wrong — the actions existed, `project.godot` listed the right
+keys, the editor's input map showed them — and the game was unplayable: the title screen
+answered arrows and Z with silence and the run could not be started.
+
+The same trap sits in `Settings`, which rebuilds the map from `user://settings.json` on
+every launch and stores whatever event the options screen captured. Both now go through
+`ALL_DEVICES`. `tests/test_input_map.gd` and `tests/test_frontend.gd` assert the stored
+device *and* that a press from a plain device 0 triggers the action, because the stored
+field is what a regeneration against a future engine default would quietly change back.
+
 **And it asserts that the generator knows every action the game reads**, which it did not.
 `melee` was bound straight into `project.godot` when the sword landed and never entered
 `BINDINGS`, so for two milestones the sword existed in the generated file and in no
