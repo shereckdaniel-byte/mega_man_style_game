@@ -48,6 +48,23 @@ const REBINDABLE: Array[StringName] = [
 	&"jump", &"shoot", &"melee", &"weapon_prev", &"weapon_next", &"pause",
 ]
 
+## InputMap's "any device" wildcard, and the one thing every event this class
+## builds or accepts has to carry.
+##
+## **A binding pinned to a device number is a binding nothing can press.**
+## `InputMap` matches an event only when the bound device is this wildcard or is
+## exactly the device the press came from, and a freshly constructed
+## `InputEvent` does not start here -- in Godot 4.7 `InputEventKey.new().device`
+## is 16. Rebuilding the map from a settings file therefore silently re-pinned
+## every action to a device no keyboard sends, which took the whole game with
+## it: the title screen stopped answering, and the run could not be started.
+##
+## Worse than the same bug in the generator, because this one *persisted*. Any
+## player who had ever opened this screen had an `input` section in their
+## settings file, so the map was rebuilt this way on every launch and a fixed
+## project.godot would not have reached them.
+const ALL_DEVICES := -1
+
 static var master := 1.0
 static var music := 0.8
 static var sfx := 1.0
@@ -209,7 +226,7 @@ static func rebind(action: StringName, event: InputEventKey) -> bool:
 		if not (existing is InputEventKey):
 			keep.append(existing)
 	InputMap.action_erase_events(action)
-	InputMap.action_add_event(action, event)
+	InputMap.action_add_event(action, _bindable(event))
 	for existing in keep:
 		InputMap.action_add_event(action, existing)
 	return true
@@ -223,7 +240,7 @@ static func reset_bindings() -> void:
 		InputMap.action_erase_events(action)
 		for event in ProjectSettings.get_setting("input/%s" % action,
 				{}).get("events", []):
-			InputMap.action_add_event(action, event)
+			InputMap.action_add_event(action, _bindable(event))
 
 
 static func _saved_bindings() -> Dictionary:
@@ -258,6 +275,19 @@ static func _load_bindings(stored: Variant) -> void:
 		for code in (keys as Array):
 			var event := InputEventKey.new()
 			event.physical_keycode = int(code)
+			event.device = ALL_DEVICES
 			InputMap.action_add_event(action, event)
 		for existing in keep:
 			InputMap.action_add_event(action, existing)
+
+
+## An event as the map should hold it: a copy that answers any device.
+##
+## A copy rather than a mutation because the event handed to `rebind` is the
+## live one the options screen is still holding, and the events read back from
+## `ProjectSettings` are shared with the project settings themselves. Both are
+## someone else's to own.
+static func _bindable(event: InputEvent) -> InputEvent:
+	var copy := event.duplicate() as InputEvent
+	copy.device = ALL_DEVICES
+	return copy
