@@ -144,7 +144,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		move_cursor(Vector2i(0, 1))
 	elif event.is_action_pressed(&"shoot"):
 		toggle()
-	elif event.is_action_pressed(&"jump"):
+	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"ui_accept"):
+		# Enter enters the password, which is what the hint line has always said
+		# and what the key is called. It used to close the screen instead --
+		# `pause` is Enter and Escape both -- so the most obvious key for "submit
+		# this" threw the grid away. Escape still backs out.
 		if submit():
 			close()
 	elif event.is_action_pressed(&"pause") or event.is_action_pressed(&"melee"):
@@ -193,7 +197,7 @@ func _build() -> void:
 	centred.add_child(_grid)
 
 	_status = _heading(column, "", 26, DIM)
-	_heading(column, "SHOOT: MARK    JUMP: ENTER    PAUSE: BACK", 22, DIM)
+	_heading(column, "X  MARK      ENTER / Z  SUBMIT      ESC  BACK", 22, DIM)
 
 
 func _heading(parent: Node, text: String, size: int, colour: Color) -> Label:

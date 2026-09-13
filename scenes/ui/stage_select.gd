@@ -222,9 +222,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		move_cursor(Vector2i(0, -1))
 	elif event.is_action_pressed(&"move_down"):
 		move_cursor(Vector2i(0, 1))
-	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"shoot"):
+	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"shoot") \
+			or event.is_action_pressed(&"ui_accept"):
+		# Enter selects here too, and is checked before `pause` so it reaches the
+		# confirm rather than the password screen. Enter opening a password grid
+		# when the player meant "enter this stage" is the same surprise as it
+		# doing nothing, one screen later.
 		confirm()
 	elif event.is_action_pressed(&"pause"):
+		# Escape, now that Enter is spoken for: `pause` is bound to both, and this
+		# is the half with nothing else to do on this screen.
 		open_password()
 	elif event.is_action_pressed(&"melee"):
 		# The same key the password screen already leaves on, so "back" means one
@@ -325,7 +332,7 @@ func _build() -> void:
 
 	var help := Label.new()
 	help.name = "Help"
-	help.text = "ARROWS / WASD  MOVE     Z or X  SELECT     ENTER  PASSWORD     C  BACK"
+	help.text = "ARROWS / WASD  MOVE     ENTER / Z / X  SELECT     ESC  PASSWORD     C  BACK"
 	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	help.add_theme_color_override(&"font_color", DIM_COLOUR)
 	help.add_theme_font_size_override(&"font_size", 22)
