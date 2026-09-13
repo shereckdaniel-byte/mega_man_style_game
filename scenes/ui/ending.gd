@@ -176,7 +176,10 @@ func _build() -> void:
 	_scroll.position.y = _start_y()
 	_scroll.add_theme_constant_override(&"separation", 10)
 	panel.add_child(_scroll)
-	for line in CREDITS:
+	# Typed explicitly: `CREDITS` is an untyped Array, so an inferred `line` is a
+	# Variant and `line.to_upper()` is a Variant too -- which is a parse error at
+	# the `var big :=` below, and a parse error here takes the whole screen out.
+	for line: String in CREDITS:
 		var big := line == line.to_upper() and not line.strip_edges().is_empty()
 		_scroll.add_child(_line(line, 40 if big else 28, ACCENT if big else DIM))
 

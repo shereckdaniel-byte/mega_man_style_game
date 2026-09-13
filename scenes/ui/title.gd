@@ -223,12 +223,22 @@ func _say(message: String) -> void:
 class Sea:
 	extends Control
 
-	const HIGH := Color(0.14, 0.30, 0.44)
-	const LOW := Color(0.07, 0.14, 0.24)
-	const WALL := Color(0.16, 0.17, 0.20)
+	# Dark, because the menu sits on top of it. The first values here were picked
+	# against a screen nobody had seen -- the sea was pinned to 0x0 and never drew
+	# -- and at full strength the water ran straight behind CONTINUE and NEW GAME
+	# and left the dimmed row unreadable. A horizon is a backdrop; these are the
+	# same two blues with the light taken out of them.
+	const HIGH := Color(0.08, 0.16, 0.25)
+	const LOW := Color(0.05, 0.09, 0.16)
+	const WALL := Color(0.11, 0.12, 0.15)
 
 	func _ready() -> void:
-		set_anchors_preset(Control.PRESET_FULL_RECT)
+		# **`set_anchors_and_offsets_preset`, not `set_anchors_preset`.** The
+		# latter keeps the rect it finds, and a Control has none until something
+		# gives it one -- so anchoring a 0x0 node to the full rect in `_ready`,
+		# when it is already in the tree, sets offsets that hold it at 0x0 for
+		# good. The sea was drawn every frame into a box with no width.
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
