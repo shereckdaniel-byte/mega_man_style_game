@@ -157,6 +157,89 @@ func test_the_ending_builds_its_credits() -> void:
 	ending.queue_free()
 
 
+# --- Keys ------------------------------------------------------------------------------
+
+## **Enter works on every menu.**
+##
+## It did not, and the title screen was the worst of it: `jump` is Z or Space and
+## `shoot` is X, Enter is bound to `pause`, and the title never handled `pause`
+## at all -- so the single most-guessed key on the first screen of the game did
+## nothing. No refusal, no sound, nothing. The screen also carried no hint line,
+## so there was no way to find out from it what to press instead.
+##
+## The whole suite missed this because every other test calls `confirm()`
+## directly. Nothing fed the screens an actual keypress, so nothing could
+## notice that the key a player reaches for never arrived.
+func test_enter_confirms_on_the_title() -> void:
+	var title: TitleScreen = load("res://scenes/ui/title.gd").new()
+	tree.root.add_child(title)
+	await tree.physics_frame
+	title.cursor = TitleScreen.ROW_OPTIONS
+	title._unhandled_input(_key(KEY_ENTER))
+	await tree.physics_frame
+	assert_not_null(_first_scripted(title, &"OptionsScreen"),
+		"Enter on the title did nothing")
+	title.queue_free()
+
+
+## And the title says so, which is the other half of the same bug: a key that
+## works is no use if the screen never mentions it.
+func test_the_title_shows_its_controls() -> void:
+	var title: TitleScreen = load("res://scenes/ui/title.gd").new()
+	tree.root.add_child(title)
+	await tree.physics_frame
+	var hint := title.get_node_or_null(^"Backdrop/Hint") as Label
+	assert_not_null(hint, "the title screen has no control hint")
+	if hint != null:
+		assert_true(hint.text.contains("ENTER"),
+			"the hint does not mention Enter: %s" % hint.text)
+	title.queue_free()
+
+
+## Enter confirms on the stage select rather than opening the password grid.
+## Escape keeps that job -- `pause` is bound to both keys, and only one of them
+## is the one people press meaning "yes, this one".
+##
+## **Aimed at the sealed fortress on purpose.** Confirming a *built* stage
+## changes the scene for real, and in the shared test tree that loads a whole
+## stage -- tilemap, bodies, water volumes -- which then runs alongside every
+## test after it. Doing exactly that here broke five unrelated tests in
+## `test_vertical_rooms` and `test_water_volume`: a worse bug than the one being
+## tested for, and invisible when either file is run on its own. The centre cell
+## refuses instead, and a refusal proves the same thing -- the press reached
+## `confirm()` rather than `open_password()`.
+func test_enter_confirms_rather_than_opening_the_password() -> void:
+	var state := tree.root.get_node_or_null(^"GameState")
+	var before: int = int(state.bosses_defeated) if state != null else 0
+	if state != null:
+		state.bosses_defeated = 0      # sealed fortress, so confirm refuses
+
+	var select: CanvasLayer = load("res://scenes/ui/stage_select.gd").new()
+	tree.root.add_child(select)
+	await tree.physics_frame
+	var refusals: Array[String] = []
+	select.refused.connect(func(message: String) -> void: refusals.append(message))
+	select.cursor = StageRoster.CENTRE
+	select.on_back = false
+	select._unhandled_input(_key(KEY_ENTER))
+	await tree.physics_frame
+
+	assert_false(refusals.is_empty(), "Enter never reached confirm()")
+	assert_true(_first_scripted(select, &"PasswordScreen") == null,
+		"Enter opened the password screen instead of confirming")
+	select.queue_free()
+	if state != null:
+		state.bosses_defeated = before
+
+
+func _key(code: Key) -> InputEventKey:
+	var event := InputEventKey.new()
+	event.physical_keycode = code
+	event.keycode = code
+	event.pressed = true
+	return event
+
+
 # --- Helpers ---------------------------------------------------------------------------
 
 func _ui_scripts() -> PackedStringArray:
@@ -180,6 +263,20 @@ func _files_under(dir_path: String, suffix: String) -> PackedStringArray:
 			out.append("%s/%s" % [dir_path, file])
 	out.sort()
 	return out
+
+
+## Finds a node by its script's `class_name`, which is what tells an
+## `OptionsScreen` apart from any other `CanvasLayer` hanging off the same
+## parent. `is_class` cannot: both answer to "CanvasLayer".
+func _first_scripted(node: Node, global_name: StringName) -> Node:
+	for child in node.get_children():
+		var script: Variant = child.get_script()
+		if script is GDScript and (script as GDScript).get_global_name() == global_name:
+			return child
+		var hit := _first_scripted(child, global_name)
+		if hit != null:
+			return hit
+	return null
 
 
 func _first_of_type(node: Node, type_name: String) -> Node:

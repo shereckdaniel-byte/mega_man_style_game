@@ -162,7 +162,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		adjust(-1)
 	elif event.is_action_pressed(&"move_right"):
 		adjust(1)
-	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"shoot"):
+	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"shoot") \
+			or event.is_action_pressed(&"ui_accept"):
+		# Enter takes the highlighted row. Checked before `pause` so Enter no
+		# longer closes the screen out from under somebody who meant to toggle
+		# the row they were sitting on; Escape is still the way out.
 		confirm()
 	elif event.is_action_pressed(&"pause"):
 		close()
@@ -212,7 +216,7 @@ func _build() -> void:
 
 	var hint := Label.new()
 	hint.name = "Hint"
-	hint.text = "← → change · FIRE select · PAUSE back"
+	hint.text = "← → change · ENTER / Z / X select · ESC back"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_color_override(&"font_color", DIM)
 	hint.add_theme_font_size_override(&"font_size", 24)

@@ -127,7 +127,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		move_cursor(-1)
 	elif event.is_action_pressed(&"move_down"):
 		move_cursor(1)
-	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"shoot"):
+	elif event.is_action_pressed(&"jump") or event.is_action_pressed(&"shoot") \
+			or event.is_action_pressed(&"ui_accept"):
+		# **`ui_accept` is Enter.** Without it this screen ignored the one key most
+		# people try first: `jump` is Z or Space and `shoot` is X, and Enter is
+		# bound to `pause`, which the title does not handle at all. Pressing it
+		# did nothing whatsoever -- not a refusal, not a sound, nothing -- on the
+		# first screen of the game, with no hint on it saying what to press
+		# instead. Escape stays a way out rather than a way in: it is the other
+		# half of `pause` and this screen has nowhere to go back to.
 		confirm()
 	else:
 		return
@@ -190,6 +198,21 @@ func _build() -> void:
 	_status.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_status.position.y = 800.0
 	panel.add_child(_status)
+
+	# **The controls, because this screen had none.** Every other screen in the
+	# front end carries a line like this; the title, which is the first one
+	# anybody sees and the one where they have least idea what the keys are,
+	# carried nothing. Somebody pressing Enter and getting silence had no way
+	# from this screen to find out what they should have pressed.
+	var hint := Label.new()
+	hint.name = "Hint"
+	hint.text = "↑ ↓  MOVE      ENTER / Z / X  SELECT"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override(&"font_color", DIM)
+	hint.add_theme_font_size_override(&"font_size", 24)
+	hint.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	hint.position.y = 872.0
+	panel.add_child(hint)
 
 
 func _refresh() -> void:
