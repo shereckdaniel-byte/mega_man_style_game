@@ -61,7 +61,13 @@ static func open(parent: Node) -> PasswordScreen:
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# **`set_anchors_and_offsets_preset`, not `set_anchors_preset`.** This node is
+	# already in the tree by the time `_ready` runs -- `open()` adds it -- and a
+	# bare Control's rect is 0x0 until something sizes it. `set_anchors_preset`
+	# preserves the rect it finds, so it pinned the screen at 0x0: the backdrop
+	# covered nothing, the grid collapsed into the top-left corner, and the
+	# screen underneath showed straight through it.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Above the stage select, and running while the tree behind it is paused --
 	# the same arrangement `PauseMenu` uses.

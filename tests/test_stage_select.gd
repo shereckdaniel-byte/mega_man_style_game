@@ -88,12 +88,91 @@ func test_it_opens_on_a_stage_that_can_be_entered() -> void:
 
 func test_the_cursor_wraps_in_both_axes() -> void:
 	select.cursor = Vector2i(0, 0)
+	select.on_back = false
 	select.move_cursor(Vector2i(-1, 0))
 	assert_eq(select.cursor, Vector2i(2, 0))
+	# Horizontal still wraps within the row it is on.
+	select.move_cursor(Vector2i(1, 0))
+	assert_eq(select.cursor, Vector2i(0, 0))
+	# Vertical wraps through BACK rather than straight from the top row to the
+	# bottom one -- see `test_the_vertical_wrap_runs_through_back`.
+	select.cursor = Vector2i(2, 1)
+	select.move_cursor(Vector2i(0, 1))
+	assert_eq(select.cursor, Vector2i(2, 2))
+	assert_false(select.on_back)
+
+
+# --- The way out ----------------------------------------------------------------
+
+## **Down off the bottom of the grid finds BACK before it finds the top again.**
+## That press is what somebody makes when they are looking for a way out, and
+## for as long as this screen had none it wrapped them straight back into the
+## stages they were trying to leave.
+func test_the_vertical_wrap_runs_through_back() -> void:
+	select.cursor = Vector2i(1, 2)
+	select.on_back = false
+	select.move_cursor(Vector2i(0, 1))
+	assert_true(select.on_back, "down from the bottom row missed BACK")
+	select.move_cursor(Vector2i(0, 1))
+	assert_false(select.on_back)
+	assert_eq(select.cursor, Vector2i(1, 0), "down from BACK should reach the top row")
+	# And the same cycle in reverse: up off the top row lands on BACK too.
+	select.move_cursor(Vector2i(0, -1))
+	assert_true(select.on_back, "up from the top row missed BACK")
+	select.move_cursor(Vector2i(0, -1))
+	assert_false(select.on_back)
+	assert_eq(select.cursor, Vector2i(1, 2))
+
+
+## **Leaving the grid does not forget where you were.** `cursor` is left alone
+## while BACK holds the highlight, so stepping back onto the grid returns to the
+## cell you left rather than to a corner.
+func test_back_remembers_the_cell_it_was_left_from() -> void:
+	select.cursor = Vector2i(2, 2)
+	select.on_back = false
+	select.move_cursor(Vector2i(0, 1))
+	assert_true(select.on_back)
+	assert_eq(select.cursor, Vector2i(2, 2), "the cursor moved while off the grid")
+	# Sideways on BACK is a no-op: it spans the screen and there is one of it.
+	select.move_cursor(Vector2i(1, 0))
+	assert_true(select.on_back)
+	assert_eq(select.cursor, Vector2i(2, 2))
 	select.move_cursor(Vector2i(0, -1))
 	assert_eq(select.cursor, Vector2i(2, 2))
-	select.move_cursor(Vector2i(1, 1))
-	assert_eq(select.cursor, Vector2i(0, 0))
+
+
+## **BACK is not the fortress.** Both would read as -1 from `selected_index()`
+## if the cursor were allowed onto the fourth row, and confirming would open the
+## centre cell instead of leaving. `cursor` never leaves the grid, so the two
+## stay separate questions.
+func test_back_is_not_read_as_the_fortress() -> void:
+	select.cursor = StageRoster.CENTRE
+	select.on_back = true
+	assert_eq(select.selected_index(), -1,
+		"selected_index still answers about the grid cell")
+	# The fortress is sealed with no bosses down, so confirming the centre cell
+	# refuses; confirming BACK must not take that path.
+	var refusals: Array[String] = []
+	select.refused.connect(func(message: String) -> void: refusals.append(message))
+	assert_true(select.confirm(), "confirming BACK refused")
+	assert_true(refusals.is_empty(),
+		"confirming BACK went through the fortress and was refused: %s" % [refusals])
+
+
+## The row is on screen and says which one is highlighted, because a way out
+## nobody can see is one the player still has to be told about.
+func test_the_back_row_is_drawn_and_shows_the_cursor() -> void:
+	var label := select.get_node_or_null(^"Backdrop/Back") as Label
+	assert_not_null(label, "there is no BACK row on the screen")
+	if label == null:
+		return
+	select.on_back = false
+	select._refresh()
+	assert_eq(label.text, "BACK")
+	select.on_back = true
+	select._refresh()
+	assert_true(label.text.contains("BACK") and label.text.contains(">"),
+		"BACK does not show the cursor when it holds it: %s" % label.text)
 
 
 ## **All eight stages are built, and this test used to be about the ones that
